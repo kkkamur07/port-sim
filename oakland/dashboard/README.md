@@ -17,6 +17,15 @@ Vanilla HTML, CSS and JS with canvas charts. No dependencies, no build step, no 
 
 ## URL parameters
 
+- `?run=../runs/<name>` (or `?run=fixtures/run-demo`): an oakland/loop run directory. Reads `episodes.jsonl`,
+  `eval.jsonl`, `playbooks/tree.json`, `playbooks/v<k>.md` and the replays with `cache: "no-store"`, and re-polls every
+  3 s (`&live=0` turns polling off). Adds the self-improvement chart (verification reward per coach round: accepted
+  lineage as a step line, each candidate coloured by verdict, its episode reward as a hollow ring, the baseline
+  dashed), episode rewards with the coach rounds marked, the coach rounds list and the playbook in force with its
+  added lines highlighted. The builders are pure functions in `runs.js` (`node --test tests/`). The UI never says
+  "train" or "eval": nothing is trained, only the playbook changes between episodes. `fixtures/run-demo/` is a finished
+  real 16-episode run (events dropped) for offline use.
+
 - `?manifest=episodes.json` (the default): a manifest listing one replay per episode. Replay paths are resolved
   relative to the manifest's URL.
 - `?replays=a.json,b.json,c.json`: a comma-separated list of replay URLs, taken as episodes 1, 2, 3 in that order

@@ -1462,8 +1462,79 @@
     requestAnimationFrame(tick);
   }
 
+  // ---------- live follow mode (?run=<dir>) ----------
+  // Polls <dir>/episodes.json, plays the newest episode at 16x, and moves on to each new episode when the current
+  // playback finishes (at once when paused). A toast announces every new episode.
+  const follow = { base: null, name: "", current: null, pending: null, total: 0, toastTimer: null };
+
+  function playbookOf(entry) {
+    if (entry.playbook_version !== undefined && entry.playbook_version !== null) return entry.playbook_version;
+    const m = String(entry.label || "").match(/playbook v(\d+)/);
+    return m ? Number(m[1]) : null;
+  }
+
+  function toast(text) {
+    let el = document.getElementById("follow-toast");
+    if (!el) {
+      el = document.createElement("div");
+      el.id = "follow-toast";
+      el.style.cssText = "position:fixed;top:88px;left:50%;transform:translateX(-50%);z-index:30;padding:10px 18px;" +
+        "border-radius:8px;background:rgba(8,12,18,0.92);border:1px solid rgba(90,212,138,0.6);color:#e8edf3;" +
+        "font:600 14px -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;pointer-events:none;transition:opacity 0.4s";
+      document.body.appendChild(el);
+    }
+    el.textContent = text;
+    el.style.opacity = "1";
+    clearTimeout(follow.toastTimer);
+    follow.toastTimer = setTimeout(() => (el.style.opacity = "0"), 6000);
+  }
+
+  function playEntry(entry) {
+    follow.current = entry;
+    follow.pending = null;
+    return loadUrl(new URL(entry.replay, follow.base).href).then(() => {
+      if (!replay) return;
+      ui.subtitle.textContent = "run " + follow.name + ", episode " + entry.episode + " of " + follow.total + ": " + ui.subtitle.textContent;
+      const b = document.querySelector('[data-speed="16"]');
+      if (b) b.click();
+      state.t = 0;
+      setPlaying(true);
+    });
+  }
+
+  function pollFollow() {
+    fetch(new URL("episodes.json", follow.base).href, { cache: "no-store" })
+      .then((r) => {
+        if (!r.ok) throw new Error(r.status + " " + r.statusText);
+        return r.json();
+      })
+      .then((list) => {
+        const eps = (Array.isArray(list) ? list : []).filter((e) => e && e.replay)
+          .map((e, i) => Object.assign({ episode: i + 1 }, e)).sort((a, b) => a.episode - b.episode);
+        if (!eps.length) return;
+        follow.total = eps.length;
+        const latest = eps[eps.length - 1];
+        if (!follow.current) return playEntry(latest);
+        const newest = follow.pending || follow.current;
+        if (latest.episode > newest.episode) {
+          const pv = playbookOf(latest);
+          const rw = typeof latest.reward === "number" ? latest.reward.toFixed(2) : "n/a";
+          toast("episode " + latest.episode + ": reward " + rw + (pv !== null ? ", playbook v" + pv : ""));
+          follow.pending = latest;
+        }
+      })
+      .catch((e) => { if (!follow.current) showError("Waiting for run " + follow.name + ": " + e.message); })
+      .then(() => setTimeout(pollFollow, 5000));
+  }
+
   const params = new URLSearchParams(location.search);
-  if (params.get("replay")) loadUrl(params.get("replay"));
+  if (params.get("run")) {
+    const dir = params.get("run").replace(/\/+$/, "");
+    follow.base = new URL(dir + "/", location.href);
+    follow.name = dir.split("/").pop() || dir;
+    pollFollow();
+    setInterval(() => { if (follow.pending && !state.playing) playEntry(follow.pending); }, 500);
+  } else if (params.get("replay")) loadUrl(params.get("replay"));
   else loadFixture("oict-demo");
   requestAnimationFrame(tick);
 })();

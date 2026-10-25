@@ -197,6 +197,33 @@ Open `oakland/viewer/index.html` in a browser and point it at a replay JSON with
 `viewer/index.html?replay=replays/berth-eval-0.json`. Save a replay with
 `json.dump(env.replay(), open("replays/berth-eval-0.json", "w"))` after a submission, or fetch `GET /replay`.
 
+## Demo
+
+`./demo.sh` (from `oakland/`) is the live demo: it loads the repo's `.env` if present (the API key is never printed),
+starts a static server on port 8765 from `oakland/` when the port is free, prints the two URLs, and runs the loop:
+
+```bash
+../.venv/bin/python -m loop.run --run live --episodes ${EPISODES:-9} --coach-every ${COACH_EVERY:-3} --kind berth \
+    --eval-pack tasks/berth-eval-demo.jsonl --player ${PLAYER:-auto} --coach ${COACH:-auto} --quiet
+```
+
+- Dashboard: `http://127.0.0.1:8765/dashboard/?run=../runs/live` re-reads the run every 3 s: the self-improvement
+  chart (verification reward per coach round, accepted lineage, every candidate by verdict), episode rewards with the
+  coach rounds marked, the coach rounds list and the playbook in force with its added lines highlighted.
+- Viewer: `http://127.0.0.1:8765/viewer/?run=../runs/live` plays the newest episode at 16x and moves to each new one
+  when its playback ends, with a toast per new episode.
+- Offline: `dashboard/?run=fixtures/run-demo&live=0` and `viewer/?run=../dashboard/fixtures/run-demo` show a finished
+  16-episode real run (4 coach rounds) bundled with the dashboard.
+
+Nothing is trained: only the playbook changes between episodes (in-context adaptation from feedback). The UI calls the
+held-out score the "verification reward" and the score on the episodes just played the "episode reward".
+
+`tasks/berth-eval-demo.jsonl` is the demo subset of the verification pack: the 4 storm and extreme tier tasks of
+`tasks/berth-eval.jsonl` on which the greedy baseline plan scores lowest (`reward.grade` of `solve.greedy_plan`:
+everport-storm-100002 0.25, everport-storm-100010 0.28, trapac-extreme-100011 0.34, trapac-storm-100014 0.38), so a
+good playbook rule has room to show and each coach round stays short on stage. The full 12-task
+`tasks/berth-eval.jsonl` stays the benchmark.
+
 ## Tests
 
 ```bash
