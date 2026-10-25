@@ -232,26 +232,48 @@ checker. Nothing is trained; only the playbook changes between episodes. Ship ca
 
     cd oakland
     set -a; . ../.env; set +a                      # GOOGLE_API_KEY or GEMINI_API_KEY
-    ALLOW_MODEL_REQUESTS=1 python -m chat.server --runs-dir runs --port 8770
+    ALLOW_MODEL_REQUESTS=1 python -m chat.server --runs-dir runs --port 8771
 
 Contract (CORS open, stateless: the client sends the whole conversation, one agent is cached per run, 90 s per
 request, errors as `{"error": ...}`):
 
-    POST /chat   {"run": "live", "messages": [{"role": "user", "content": "Are you improving?"}], "episode": 7}
+    POST /chat   {"run": "live", "messages": [{"role": "user", "content": "Are you improving?"}], "episode": 7,
+                  "hour": 40}
                  run: a directory name under --runs-dir ("../runs/live" also works, its basename is used)
-                 episode: the episode the viewer is showing, or null
+                 episode, hour, ship_id: what the viewer is showing (ship_id: the selected ship), or null; the
+                 tools default to them, so "how is the port doing" and "this ship" mean what is on screen
               -> {"answer": "...", "steps": [{"tool", "args", "result_preview"}],
                   "links": [{"episode", "ship_id"?, "hour"?}], "what_if": {...} | null,
                   "tokens_in", "tokens_out", "cost_usd"}
     GET  /health -> {"ok": true, "model": "gemini-4-argon", "runs_dir": "runs"}
     GET  /runs   -> [{"run": "real-berth-gepa", "episodes": 16}]
 
-Tools (`chat/tools.py`, `RunTools(run_dir)`, compact JSON of at most about 1500 characters): `run_status`,
+Tools (`chat/tools.py`, `RunTools(run_dir)`, compact JSON of at most about 1500 characters, 3000 for the port
+tools): `port_status(episode, hour)` (the quay at one hour of the plan: ships alongside with section and cranes,
+ships waiting, late ships, cranes in use of the pool, bar closures, next arrivals, plan cost against the optimum;
+default the viewer's episode and hour, else the latest episode at its last berthing), `late_ships(episode)` (every
+late ship with due and berth hours and the reason: arrived late, bar closure, occupied section, crane pool, too few
+cranes), `run_status`,
 `improvement`, `coach_round(version)`, `playbook(version)`, `episode(n)`, `player_log(n, limit)`, `ship(n, id or
 name)`, `what_if(n, ship_id, berth_hour, section, cranes)` (regrades a modified copy of the submitted plan with
 `oakland_core.grade`, writes nothing) and `reward_rules`. `what_if` in the response is that tool's last result, so the
 viewer can draw the changed berth. Tests use the scripted `FakeModel` (`tests/test_chat.py`, needs
-`runs/real-berth-gepa` copied in; skipped otherwise).
+`runs/real-berth-gepa` copied in; skipped otherwise; `tests/test_chat_tools.py` runs on the dashboard fixture).
+"How is the port doing?" routes to `port_status` and is answered from the quay; run statistics only when asked
+about the run. Answers from the port tools link every ship they name (`{episode, ship_id, hour}`).
+
+Schedules on demand: `make_plan(episode, pins)` solves the episode's task with the exact solver
+(`oakland_core.solve`, 20 s, 4 workers, cached per episode), applies `pins` = `[{ship, section?, berth_hour?,
+cranes?}]` over the optimum and grades the result with the real checker, so a pin that breaks a rule is reported as
+violations rather than repaired. `route_ship(episode, ship, section, berth_hour, cranes)` is `make_plan` with one
+pin. Each call writes a viewer replay to `<run_dir>/proposals/plans/plan<N>.json` and the response gains
+`"plan": {replay, cost, optimum, feasible, violations}`; links carry the pinned ships.
+
+Any question: `overview()` is one digest of everything (the port now, the latest episode, the run, the playbook's
+rules, the latest chat proposal; no model, no solver) that the agent calls when no other tool fits. `ship()` with no
+arguments is the selected ship, else the most late one. A failed agent run (model error or the recursion limit) is
+retried once on the digest alone; if that fails too the answer is built in code from the digest and the response
+carries `"degraded": true`. A model error never turns into a 500.
 
 Optimize on demand (`chat/optimize.py`, `Optimizer(run_dir)`): "Optimize my playbook" makes the agent call
 `optimize_playbook(episodes=3)` once (one `GeminiCoach.propose` call on the last episode logs against the accepted
