@@ -89,6 +89,8 @@ extra tools too.
 - **Harness** (`run_episode`): if the player never submits, it submits the best feasible checked plan, else the
   baseline, and notes it. It then grades, writes the replay, and closes the event log with a stop event.
 
+**Scripted coach ranking** (`coach.rank_findings`): the scripted coach ranks the findings it detects by an estimated cost impact over the window's stop events, highest first, catalogue order on ties: moved = 5 x moved ships, late = late ship-hours (meal: those of ships departing at 18:00), harness = 1000 per harness submit, a violation = the rejected checks it appears in plus 1000 per episode that ended below reward 0.21 with an infeasible submission and that violation in its last rejected check, feed = 0. It adds the rule of the highest ranked finding not in the playbook and not rejected before; the diagnosis names that impact and each mistake in the tree records its `impact`.
+
 **Steering hook**: a rejected `check_plan` result gets a `playbook_hint` with the one or two playbook rules whose
 keywords match the violation texts (no-movement, pool, hoot, meal, shallow, overlap, movement limit, moved), so the
 correction reaches the model at the point of failure. The hint is part of the logged tool_result.

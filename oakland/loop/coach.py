@@ -11,8 +11,8 @@ heuristic_code | None, change}. Every mistake needs evidence spans that point at
 playbook is prose rules plus a short ordered checklist, at most 60 lines, and changes by one rule per round.
 
 ScriptedCoach is deterministic and offline: it matches violation texts and the stop-event metrics against a fixed
-catalogue of findings, in priority order, and adds the first rule that is neither in the playbook nor rejected
-before. GeminiCoach asks Gemini 4 Argon for the same structure.
+catalogue of findings, ranks them by an estimated cost impact (rank_findings), and adds the rule of the highest ranked
+finding that is neither in the playbook nor rejected before. GeminiCoach asks Gemini 4 Argon for the same structure.
 """
 
 from __future__ import annotations
@@ -141,7 +141,10 @@ def validate_mistakes(mistakes: list[dict], logs: list[dict]) -> list[dict]:
               if isinstance(e, dict) and e.get("episode") in sizes
               and isinstance(e.get("event_idx"), int) and 0 <= e["event_idx"] < sizes[e["episode"]]]
         if ev and str(m.get("rule") or "").strip() and str(m.get("what") or "").strip():
-            kept.append({"what": str(m["what"]), "evidence": ev, "rule": str(m["rule"]).strip()})
+            k = {"what": str(m["what"]), "evidence": ev, "rule": str(m["rule"]).strip()}
+            if isinstance(m.get("impact"), (int, float)):
+                k["impact"] = m["impact"]
+            kept.append(k)
     return kept
 
 
@@ -156,6 +159,74 @@ def summarize_logs(logs: list[dict]) -> dict:
     return {"episodes": rows, "mean_reward": round(sum(rewards) / len(rewards), 4) if rewards else None}
 
 
+VIOLATION_KEYS = ("no_moves", "hoot_pool", "pool", "move_limit", "overlap", "shallow", "arrival")
+MOVE_COST = 5            # cost of one scheduled ship moved off its planned section
+LOST_EPISODE = 1000      # impact of a lost episode (harness submit, or a violation never repaired)
+LOST_REWARD = 0.21
+
+
+def _rejected_check(ev: dict) -> bool:
+    if ev.get("type") != "tool_result" or (ev.get("payload") or {}).get("tool") != "check_plan":
+        return False
+    res = ev["payload"].get("result")
+    if isinstance(res, str):
+        try:
+            res = json.loads(res)
+        except json.JSONDecodeError:
+            return False
+    return isinstance(res, dict) and res.get("feasible") is False
+
+
+def _late_hours(stop: dict) -> tuple[float, float]:
+    """(late ship-hours, the part from ships departing at hour 18 of a day) from one stop payload."""
+    late = stop.get("late_ships") or []
+    meal = sum(s.get("late_h") or 0 for s in late if s.get("departure") is not None and s["departure"] % 24 == 18)
+    total = (stop.get("metrics") or {}).get("late_ship_hours")
+    if total is None:
+        total = sum(s.get("late_h") or 0 for s in late)
+    return float(total or 0), float(meal)
+
+
+def rank_findings(findings: list[dict], logs: list[dict]) -> list[dict]:
+    """A new list of the findings (each a dict with "key"), each with an added "impact" number, highest first and
+    catalogue order on ties. Impact is the estimated cost a finding caused over the window's episodes: moved ships x 5,
+    late ship-hours (meal: those of ships departing at 18:00), 1000 per harness submit, and for a violation the
+    checks it cost plus 1000 per episode lost with it still in the last rejected check (reward below 0.21
+    and an infeasible submission: the player never recovered)."""
+    stops = [next((e["payload"] for e in reversed(l["events"]) if e["type"] == "stop"), {}) for l in logs]
+    moved = sum(int((s.get("metrics") or {}).get("moved_ships") or 0) for s in stops)
+    late = [_late_hours(s) for s in stops]
+    detect = {key: d for key, _w, _r, d in FINDINGS}
+    impact: dict[str, float] = {
+        "moved": MOVE_COST * moved,
+        "late": sum(t for t, _m in late),
+        "meal": sum(m for _t, m in late),
+        "harness": LOST_EPISODE * sum(1 for s in stops if s.get("reason") == "harness_submit"),
+        "feed": 0,
+    }
+    for key in VIOLATION_KEYS:
+        total = 0
+        for l, stop in zip(logs, stops):
+            rejected = [e for e in l["events"] if _rejected_check(e)]
+            total += sum(1 for e in rejected if detect[key](e))
+            reward = stop.get("reward")
+            lost = reward is not None and reward < LOST_REWARD and stop.get("feasible") is not True
+            if rejected and lost and detect[key](rejected[-1]):
+                total += LOST_EPISODE
+        impact[key] = total
+    order = {key: i for i, (key, *_rest) in enumerate(FINDINGS)}
+    out = [dict(f, impact=round(impact.get(f["key"], 0), 2)) for f in findings]
+    out.sort(key=lambda f: (-f["impact"], order.get(f["key"], len(order))))
+    return out
+
+
+def _impact_text(m: dict) -> str:
+    if m.get("key") == "moved":
+        n = m["impact"] // MOVE_COST
+        return f"impact {m['impact']} = {n:g} ships x {MOVE_COST}"
+    return f"impact {m.get('impact', 0):g}"
+
+
 class ScriptedCoach:
     model_id = "scripted"
 
@@ -166,7 +237,9 @@ class ScriptedCoach:
             if ev:
                 findings.append({"key": key, "what": what, "evidence": ev[:MAX_EVIDENCE], "rule": rule,
                                  "count": len(ev)})
-        mistakes = validate_mistakes(findings, logs)
+        ranked = rank_findings(findings, logs)
+        keys = {f["rule"]: f["key"] for f in ranked}
+        mistakes = validate_mistakes(ranked, logs)
         rules = current_rules(playbook)
         new = next((m for m in mistakes if m["rule"] not in rules and m["rule"] not in rejected), None)
         stats = summarize_logs(logs)
@@ -174,7 +247,8 @@ class ScriptedCoach:
             rules = rules + [new["rule"]]
             diagnosis = (f"mean reward {stats['mean_reward']} over episodes "
                          f"{', '.join(str(r['episode']) for r in stats['episodes'])}; main new mistake: "
-                         f"{new['what']} ({len(new['evidence'])} evidence events). One change: add its rule.")
+                         f"{new['what']} ({_impact_text(dict(new, key=keys[new['rule']]))}; "
+                         f"{len(new['evidence'])} evidence events). One change: add its rule.")
         else:
             diagnosis = (f"mean reward {stats['mean_reward']}; no finding with a rule that is neither in the playbook "
                          f"nor rejected before, so the playbook is unchanged.")

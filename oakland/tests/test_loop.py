@@ -96,14 +96,16 @@ def test_scripted_run_writes_everything(demo_run):
     assert final["episode"] == 6
 
 
-def test_mistake_mode_teaches_the_no_movement_rule(demo_run):
+def test_mistake_mode_teaches_the_highest_impact_rule(demo_run):
     run, _lines, _final = demo_run
     v1 = (run / "playbooks" / "v1.md").read_text()
-    assert "no-movement window" in v1
     assert len(v1.splitlines()) <= 60
     tree = json.loads((run / "playbooks" / "tree.json").read_text())["nodes"]
     node = tree[1]
     assert node["mistakes"] and all(m["evidence"] for m in node["mistakes"])
+    impacts = [m["impact"] for m in node["mistakes"]]
+    assert impacts == sorted(impacts, reverse=True)
+    assert node["mistakes"][0]["rule"] in v1
 
 
 def test_event_log_reconstructs_what_the_model_saw(demo_run):
@@ -190,3 +192,46 @@ def test_gemini_client_is_guarded_and_uses_argon(monkeypatch):
     assert seen["model"] == "gemini-4-argon" and seen["temperature"] == 0.2
     assert player_mod.GeminiPlayer.model_id == "gemini-4-argon"
     assert player_mod.player_version("gemini-4-argon") != player_mod.player_version("scripted")
+
+
+def _stop_log(episode: int, moved: int, reward: float = 0.9, feasible: bool = True) -> dict:
+    events = [
+        {"idx": 0, "type": "tool_result",
+         "payload": {"tool": "check_plan", "result": json.dumps(
+             {"feasible": False, "violations": [{"problem": "ship X inside the no-movement window"}]})}},
+        {"idx": 1, "type": "stop", "payload": {"reason": "submitted", "reward": reward, "feasible": feasible,
+                                               "metrics": {"moved_ships": moved}, "late_ships": []}},
+    ]
+    return {"episode": episode, "events": events}
+
+
+def _finding(key: str) -> dict:
+    return next({"key": k, "what": w, "rule": r, "evidence": [{"episode": 1, "event_idx": 0}]}
+                for k, w, r, _d in coach_mod.FINDINGS if k == key)
+
+
+def test_rank_findings_puts_moved_above_no_moves():
+    logs = [_stop_log(1, 12), _stop_log(2, 9)]
+    ranked = coach_mod.rank_findings([_finding("no_moves"), _finding("moved")], logs)
+    assert [f["key"] for f in ranked] == ["moved", "no_moves"]
+    assert ranked[0]["impact"] == 105 and ranked[1]["impact"] == 2
+    out = coach_mod.ScriptedCoach().propose(logs, "# Playbook v0\n\n## Rules\n- (none yet)\n", 1, [])
+    assert "planned section" in out["change"]
+    assert "impact 105 = 21 ships x 5" in out["diagnosis"]
+    assert out["mistakes"][0]["impact"] == 105
+
+
+def test_rank_findings_keeps_catalogue_order_on_ties():
+    logs = [_stop_log(1, 0)]
+    ranked = coach_mod.rank_findings([_finding("feed"), _finding("shallow"), _finding("overlap")], logs)
+    assert [f["key"] for f in ranked] == ["overlap", "shallow", "feed"]
+    assert all(f["impact"] == 0 for f in ranked)
+
+
+def test_rank_findings_counts_an_unrepaired_violation_as_a_lost_episode():
+    lost = [_stop_log(1, 40, reward=0.1, feasible=False)]
+    ranked = coach_mod.rank_findings([_finding("moved"), _finding("no_moves")], lost)
+    assert [f["key"] for f in ranked] == ["no_moves", "moved"]
+    assert ranked[0]["impact"] == 1001
+    recovered = coach_mod.rank_findings([_finding("no_moves")], [_stop_log(1, 40, reward=0.1)])
+    assert recovered[0]["impact"] == 1
