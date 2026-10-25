@@ -1,0 +1,98 @@
+[
+ {
+  "episode": 1,
+  "replay": "replays/ep001.json",
+  "reward": 0.523502,
+  "label": "playbook v0, oak-everport-berth-standard-0 (generated calls)"
+ },
+ {
+  "episode": 2,
+  "replay": "replays/ep002.json",
+  "reward": 0.336312,
+  "label": "playbook v0, oak-everport-berth-standard-4 (generated calls)"
+ },
+ {
+  "episode": 3,
+  "replay": "replays/ep003.json",
+  "reward": 0.565146,
+  "label": "playbook v0, oak-trapac-berth-busy-5 (generated calls)"
+ },
+ {
+  "episode": 4,
+  "replay": "replays/ep004.json",
+  "reward": 0.202403,
+  "label": "playbook v0, oak-oict-berth-storm-6 (generated calls)"
+ },
+ {
+  "episode": 5,
+  "replay": "replays/ep005.json",
+  "reward": 0.353025,
+  "label": "playbook v0, oak-oict-berth-extreme-7 (generated calls)"
+ },
+ {
+  "episode": 6,
+  "replay": "replays/ep006.json",
+  "reward": 0.204271,
+  "label": "playbook v0, oak-matson-berth-standard-8 (generated calls)"
+ },
+ {
+  "episode": 7,
+  "replay": "replays/ep007.json",
+  "reward": 0.417873,
+  "label": "playbook v0, oak-trapac-berth-busy-9 (generated calls)"
+ },
+ {
+  "episode": 8,
+  "replay": "replays/ep008.json",
+  "reward": 0.248187,
+  "label": "playbook v0, oak-oict-berth-extreme-11 (generated calls)"
+ },
+ {
+  "episode": 9,
+  "replay": "replays/ep009.json",
+  "reward": 0.378504,
+  "label": "playbook v0, oak-trapac-berth-standard-12 (generated calls)"
+ },
+ {
+  "episode": 10,
+  "replay": "replays/ep010.json",
+  "reward": 0.432446,
+  "label": "playbook v0, oak-matson-berth-busy-13 (generated calls)"
+ },
+ {
+  "episode": 11,
+  "replay": "replays/ep011.json",
+  "reward": 0.571313,
+  "label": "playbook v0, oak-trapac-berth-extreme-15 (generated calls)"
+ },
+ {
+  "episode": 12,
+  "replay": "replays/ep012.json",
+  "reward": 0.251598,
+  "label": "playbook v0, oak-everport-berth-busy-17 (generated calls)"
+ },
+ {
+  "episode": 13,
+  "replay": "replays/ep013.json",
+  "reward": 0.200022,
+  "label": "playbook v0, oak-oict-berth-storm-18 (generated calls)"
+ },
+ {
+  "episode": 14,
+  "replay": "replays/ep014.json",
+  "reward": 0.200023,
+  "label": "playbook v0, oak-matson-berth-standard-20 (generated calls)"
+ },
+ {
+  "episode": 15,
+  "replay": "replays/ep015.json",
+  "reward": 0.34117,
+  "label": "playbook v0, oak-everport-berth-storm-22 (generated calls)"
+ },
+ {
+  "episode": 16,
+  "replay": "replays/ep016.json",
+  "reward": 0.208539,
+  "label": "playbook v0, oak-oict-berth-standard-24 (generated calls)"
+ }
+]

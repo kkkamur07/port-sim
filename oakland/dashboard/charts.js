@@ -85,7 +85,20 @@
 
   function swatch(ctx, it, x, y, w, h) {
     ctx.save();
-    if (it.kind === "line" || it.kind === "dash") {
+    if (it.kind === "dot" || it.kind === "ring") {
+      ctx.beginPath();
+      ctx.arc(x + w / 2, y + h / 2, 4.5, 0, Math.PI * 2);
+      if (it.kind === "dot") {
+        ctx.fillStyle = it.color;
+        ctx.fill();
+      } else {
+        ctx.fillStyle = THEME.bg;
+        ctx.fill();
+        ctx.strokeStyle = it.color;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+    } else if (it.kind === "line" || it.kind === "dash") {
       ctx.strokeStyle = it.color;
       ctx.lineWidth = 2;
       ctx.setLineDash(it.kind === "dash" ? [4, 3] : []);
@@ -196,7 +209,8 @@
       .concat((o.bands || []).filter((b) => b.name).map((b) => ({ name: b.name, color: b.color, kind: "fill" })))
       .filter((it, i, arr) => arr.findIndex((o2) => o2.name === it.name) === i);
     const lh = legendItems.length > 1 || o.legend ? legend(ctx, legendItems, pad.l, pad.t, s.w - pad.l - pad.r) + 10 : 0;
-    const area = { x: pad.l, y: pad.t + lh, w: s.w - pad.l - pad.r, h: s.h - pad.t - lh - pad.b };
+    const mh = (o.markers || []).length ? 18 : 0;
+    const area = { x: pad.l, y: pad.t + lh + mh, w: s.w - pad.l - pad.r, h: s.h - pad.t - lh - mh - pad.b };
 
     const xsOf = (se) => se.x || se.values.map((_, i) => i);
     let xMin = o.xMin, xMax = o.xMax, yMin = o.yMin, yMax = o.yMax;
@@ -229,6 +243,26 @@
       if (x1 > x0) ctx.fillRect(x0, area.y, x1 - x0, area.h);
     }
     frame(ctx, area, { ticks: xticks, map: xmap }, ys, o);
+    // vertical event markers with a label above the plot area, flipped left near the right edge
+    for (const mk of o.markers || []) {
+      if (mk.x < xMin || mk.x > xMax) continue;
+      const x = Math.round(xmap(mk.x)) + 0.5;
+      ctx.save();
+      ctx.strokeStyle = mk.color;
+      ctx.globalAlpha = 0.8;
+      ctx.setLineDash([3, 3]);
+      ctx.beginPath();
+      ctx.moveTo(x, area.y - 4);
+      ctx.lineTo(x, area.y + area.h);
+      ctx.stroke();
+      ctx.restore();
+      ctx.font = THEME.font;
+      const tw = ctx.measureText(mk.label).width;
+      const right = x + 4 + tw > area.x + area.w;
+      ctx.textAlign = right ? "right" : "left";
+      ctx.fillStyle = mk.color;
+      ctx.fillText(mk.label, right ? x - 4 : x + 4, area.y - 9);
+    }
 
     ctx.save();
     ctx.beginPath();
@@ -469,6 +503,102 @@
     };
   }
 
+  /*
+   * evolution(canvas, {
+   *   height, rounds, baseline, lineage: [{round, value}], points: [{round, eval, train, color, tip}],
+   *   lineColor, legend: [{name, color, kind}], xLabel, yLabel
+   * })
+   * x = coach round (0 = baseline), y = reward 0..1. The lineage is a step line holding the value in force after each
+   * round; each candidate is a filled dot (verification) and a hollow ring (episode reward) in its verdict colour.
+   */
+  function evolution(canvas, o) {
+    const s = setup(canvas, o.height || 300);
+    const ctx = s.ctx;
+    const pad = { l: 52, r: 24, t: 10, b: 40 };
+    const lh = legend(ctx, o.legend || [], pad.l, pad.t, s.w - pad.l - pad.r) + 12;
+    const area = { x: pad.l, y: pad.t + lh, w: s.w - pad.l - pad.r, h: s.h - pad.t - lh - pad.b };
+    const n = Math.max(1, o.rounds || 0);
+    const x0 = -0.4, x1 = n + 0.4;
+    const xmap = (v) => area.x + ((v - x0) / (x1 - x0)) * area.w;
+    const ys = scaleY(0, 1, area, 4);
+    const xticks = [];
+    for (let k = 0; k <= n; k++) xticks.push({ v: k, label: k === 0 ? "base" : String(k) });
+    frame(ctx, area, { ticks: xticks, map: xmap }, ys, o);
+
+    if (o.baseline !== null && o.baseline !== undefined) {
+      ctx.save();
+      ctx.strokeStyle = THEME.muted;
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([5, 4]);
+      ctx.beginPath();
+      ctx.moveTo(area.x, ys.map(o.baseline));
+      ctx.lineTo(area.x + area.w, ys.map(o.baseline));
+      ctx.stroke();
+      ctx.restore();
+    }
+    const lin = (o.lineage || []).filter((p) => p.value !== null && p.value !== undefined);
+    if (lin.length) {
+      ctx.strokeStyle = o.lineColor || "#4cc3ff";
+      ctx.lineWidth = 2.5;
+      ctx.lineJoin = "round";
+      ctx.beginPath();
+      lin.forEach((p, i) => {
+        const x = xmap(p.round), y = ys.map(p.value);
+        if (i === 0) ctx.moveTo(x, y);
+        else {
+          ctx.lineTo(x, ys.map(lin[i - 1].value));
+          ctx.lineTo(x, y);
+        }
+      });
+      ctx.lineTo(xmap(x1), ys.map(lin[lin.length - 1].value));
+      ctx.stroke();
+    }
+    // candidates: several in one round spread a little, the hollow ring sits just right of its dot
+    const hits = [];
+    const perRound = {};
+    for (const p of o.points || []) (perRound[p.round] = perRound[p.round] || []).push(p);
+    for (const k of Object.keys(perRound)) {
+      const list = perRound[k];
+      list.forEach((p, i) => {
+        const cx = xmap(p.round + (i - (list.length - 1) / 2) * 0.16);
+        if (p.train !== null && p.train !== undefined) {
+          const tx = cx + 9, ty = ys.map(p.train);
+          ctx.beginPath();
+          ctx.arc(tx, ty, 5, 0, Math.PI * 2);
+          ctx.fillStyle = THEME.bg;
+          ctx.fill();
+          ctx.strokeStyle = p.color;
+          ctx.lineWidth = 2;
+          ctx.stroke();
+          hits.push({ x: tx, y: ty, tip: p.tip });
+        }
+        if (p.eval !== null && p.eval !== undefined) {
+          const ey = ys.map(p.eval);
+          ctx.beginPath();
+          ctx.arc(cx, ey, 5.5, 0, Math.PI * 2);
+          ctx.fillStyle = p.color;
+          ctx.fill();
+          ctx.strokeStyle = THEME.bg;
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+          hits.push({ x: cx, y: ey, tip: p.tip });
+        }
+      });
+    }
+    canvas._hit = function (mx, my) {
+      let best = null, bd = 144;
+      for (const h of hits) {
+        const d = (h.x - mx) * (h.x - mx) + (h.y - my) * (h.y - my);
+        if (d < bd) { bd = d; best = h; }
+      }
+      if (best) return best.tip;
+      if (mx < area.x || mx > area.x + area.w || my < area.y || my > area.y + area.h) return null;
+      const k = Math.max(0, Math.min(n, Math.round(x0 + ((mx - area.x) / area.w) * (x1 - x0))));
+      const lp = lin.filter((p) => p.round <= k).pop();
+      return lp ? (k === 0 ? "baseline" : "after round " + k) + "\nverification reward in force: " + fmt(lp.value) : null;
+    };
+  }
+
   // sparkline(canvas, values, color): a tiny unlabelled trend line for KPI tiles.
   function sparkline(canvas, values, color) {
     const s = setup(canvas, canvas.clientHeight || 28);
@@ -490,5 +620,5 @@
     ctx.stroke();
   }
 
-  window.OakCharts = { setup: setup, line: line, bar: bar, gantt: gantt, sparkline: sparkline, hourLabel: hourLabel, THEME: THEME };
+  window.OakCharts = { setup: setup, line: line, bar: bar, gantt: gantt, evolution: evolution, sparkline: sparkline, hourLabel: hourLabel, THEME: THEME };
 })();

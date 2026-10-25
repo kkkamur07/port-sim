@@ -1,0 +1,741 @@
+{
+  "nodes": [
+    {
+      "version": 0,
+      "parent": null,
+      "created_at": "2026-10-25T13:29:32",
+      "diagnosis": "starting playbook",
+      "change": null,
+      "verdict": "accepted",
+      "train_mean": null,
+      "eval_mean": 0.3596,
+      "feasibility_rate": 1.0,
+      "mean_gap_pct": 180.7833,
+      "reason": null,
+      "has_heuristic": false,
+      "player_version": "8dde6619db49"
+    },
+    {
+      "version": 1,
+      "parent": 0,
+      "created_at": "2026-10-25T13:29:33",
+      "diagnosis": "mean reward 0.4068 over episodes 1, 2, 3, 4; main new mistake: berthed a ship inside a no-movement window (fog or bar closure) (3 evidence events). One change: add its rule.",
+      "change": "Before choosing a berth hour, read the no_moves windows in the rules; never berth inside a no-movement window, berth at its end.",
+      "verdict": "rejected",
+      "train_mean": 0.4068,
+      "eval_mean": 0.361,
+      "feasibility_rate": 1.0,
+      "mean_gap_pct": 120.6083,
+      "reason": "no eval gain: eval +0.001 (needs +0.005)",
+      "has_heuristic": false,
+      "mistakes": [
+        {
+          "what": "berthed a ship inside a no-movement window (fog or bar closure)",
+          "evidence": [
+            {
+              "episode": 1,
+              "event_idx": 10
+            },
+            {
+              "episode": 2,
+              "event_idx": 10
+            },
+            {
+              "episode": 4,
+              "event_idx": 10
+            }
+          ],
+          "rule": "Before choosing a berth hour, read the no_moves windows in the rules; never berth inside a no-movement window, berth at its end."
+        },
+        {
+          "what": "put more cranes to work in hoot hours than the smaller hoot pool allows",
+          "evidence": [
+            {
+              "episode": 1,
+              "event_idx": 10
+            },
+            {
+              "episode": 1,
+              "event_idx": 12
+            },
+            {
+              "episode": 2,
+              "event_idx": 10
+            },
+            {
+              "episode": 4,
+              "event_idx": 12
+            }
+          ],
+          "rule": "Keep the cranes working in every hour within that hour's pool; the hoot pool (03:00-08:00) is smaller, so give fewer cranes in hoot hours or berth after the hoot shift."
+        },
+        {
+          "what": "put more cranes to work in some hours than the crane pool has",
+          "evidence": [
+            {
+              "episode": 1,
+              "event_idx": 10
+            },
+            {
+              "episode": 1,
+              "event_idx": 12
+            },
+            {
+              "episode": 2,
+              "event_idx": 10
+            },
+            {
+              "episode": 4,
+              "event_idx": 12
+            }
+          ],
+          "rule": "Add up the cranes of every ship alongside in each hour and keep the total within the pool, less any crane outage; cut cranes on the ship with the most slack first."
+        },
+        {
+          "what": "berthed or released more ships in one hour than the movement limit allows",
+          "evidence": [
+            {
+              "episode": 1,
+              "event_idx": 12
+            },
+            {
+              "episode": 4,
+              "event_idx": 10
+            },
+            {
+              "episode": 4,
+              "event_idx": 12
+            }
+          ],
+          "rule": "Respect the movement limit (berthings plus departures per hour): when ships arrive together, stagger their berth hours by one hour."
+        },
+        {
+          "what": "placed two ships, or a ship and a closed block, on the same section-hour",
+          "evidence": [
+            {
+              "episode": 1,
+              "event_idx": 10
+            },
+            {
+              "episode": 1,
+              "event_idx": 12
+            },
+            {
+              "episode": 2,
+              "event_idx": 10
+            },
+            {
+              "episode": 2,
+              "event_idx": 12
+            },
+            {
+              "episode": 4,
+              "event_idx": 12
+            }
+          ],
+          "rule": "Never overlap another ship, a ship already alongside or a closed block on any section-hour: pick other sections or a later berth hour."
+        },
+        {
+          "what": "moved scheduled ships off their planned section (5 per ship moved)",
+          "evidence": [
+            {
+              "episode": 1,
+              "event_idx": 17
+            },
+            {
+              "episode": 2,
+              "event_idx": 17
+            },
+            {
+              "episode": 3,
+              "event_idx": 13
+            },
+            {
+              "episode": 4,
+              "event_idx": 17
+            }
+          ],
+          "rule": "Keep every scheduled ship on its planned section (each ship moved off it costs 5): start from baseline_plan, move ships back to their planned section one at a time, screen each with ship_timeline, then check."
+        },
+        {
+          "what": "left ships departing after their due hour",
+          "evidence": [
+            {
+              "episode": 1,
+              "event_idx": 17
+            },
+            {
+              "episode": 2,
+              "event_idx": 17
+            },
+            {
+              "episode": 3,
+              "event_idx": 13
+            },
+            {
+              "episode": 4,
+              "event_idx": 17
+            }
+          ],
+          "rule": "For each late ship (departure past due), try more cranes up to its maximum or an earlier berth hour, screen with ship_timeline, then check; lateness costs sections x hours."
+        },
+        {
+          "what": "planned without the live feed's ETA updates",
+          "evidence": [
+            {
+              "episode": 1,
+              "event_idx": 6
+            },
+            {
+              "episode": 2,
+              "event_idx": 6
+            },
+            {
+              "episode": 3,
+              "event_idx": 6
+            },
+            {
+              "episode": 4,
+              "event_idx": 6
+            }
+          ],
+          "rule": "Call live_ships at hour 0 and read the eta_update events: never plan a berth before a ship's updated ETA."
+        }
+      ],
+      "coach_model": "scripted",
+      "coach_tokens_in": 0,
+      "coach_tokens_out": 0,
+      "coach_cost_usd": 0.0,
+      "player_version": "8dde6619db49"
+    },
+    {
+      "version": 2,
+      "parent": 0,
+      "created_at": "2026-10-25T13:29:33",
+      "diagnosis": "mean reward 0.3058 over episodes 5, 6, 7, 8; main new mistake: put more cranes to work in hoot hours than the smaller hoot pool allows (4 evidence events). One change: add its rule.",
+      "change": "Keep the cranes working in every hour within that hour's pool; the hoot pool (03:00-08:00) is smaller, so give fewer cranes in hoot hours or berth after the hoot shift.",
+      "verdict": "rejected",
+      "train_mean": 0.3058,
+      "eval_mean": 0.3596,
+      "feasibility_rate": 1.0,
+      "mean_gap_pct": 180.7833,
+      "reason": "no eval gain: eval +0.000 (needs +0.005)",
+      "has_heuristic": false,
+      "mistakes": [
+        {
+          "what": "berthed a ship inside a no-movement window (fog or bar closure)",
+          "evidence": [
+            {
+              "episode": 5,
+              "event_idx": 10
+            },
+            {
+              "episode": 6,
+              "event_idx": 10
+            },
+            {
+              "episode": 8,
+              "event_idx": 10
+            }
+          ],
+          "rule": "Before choosing a berth hour, read the no_moves windows in the rules; never berth inside a no-movement window, berth at its end."
+        },
+        {
+          "what": "put more cranes to work in hoot hours than the smaller hoot pool allows",
+          "evidence": [
+            {
+              "episode": 5,
+              "event_idx": 10
+            },
+            {
+              "episode": 6,
+              "event_idx": 10
+            },
+            {
+              "episode": 8,
+              "event_idx": 10
+            },
+            {
+              "episode": 8,
+              "event_idx": 12
+            }
+          ],
+          "rule": "Keep the cranes working in every hour within that hour's pool; the hoot pool (03:00-08:00) is smaller, so give fewer cranes in hoot hours or berth after the hoot shift."
+        },
+        {
+          "what": "put more cranes to work in some hours than the crane pool has",
+          "evidence": [
+            {
+              "episode": 5,
+              "event_idx": 10
+            },
+            {
+              "episode": 5,
+              "event_idx": 12
+            },
+            {
+              "episode": 6,
+              "event_idx": 10
+            },
+            {
+              "episode": 6,
+              "event_idx": 12
+            },
+            {
+              "episode": 8,
+              "event_idx": 10
+            }
+          ],
+          "rule": "Add up the cranes of every ship alongside in each hour and keep the total within the pool, less any crane outage; cut cranes on the ship with the most slack first."
+        },
+        {
+          "what": "berthed or released more ships in one hour than the movement limit allows",
+          "evidence": [
+            {
+              "episode": 5,
+              "event_idx": 12
+            },
+            {
+              "episode": 8,
+              "event_idx": 10
+            },
+            {
+              "episode": 8,
+              "event_idx": 12
+            }
+          ],
+          "rule": "Respect the movement limit (berthings plus departures per hour): when ships arrive together, stagger their berth hours by one hour."
+        },
+        {
+          "what": "placed two ships, or a ship and a closed block, on the same section-hour",
+          "evidence": [
+            {
+              "episode": 5,
+              "event_idx": 10
+            },
+            {
+              "episode": 5,
+              "event_idx": 12
+            },
+            {
+              "episode": 6,
+              "event_idx": 10
+            },
+            {
+              "episode": 6,
+              "event_idx": 12
+            },
+            {
+              "episode": 8,
+              "event_idx": 10
+            }
+          ],
+          "rule": "Never overlap another ship, a ship already alongside or a closed block on any section-hour: pick other sections or a later berth hour."
+        },
+        {
+          "what": "moved scheduled ships off their planned section (5 per ship moved)",
+          "evidence": [
+            {
+              "episode": 5,
+              "event_idx": 17
+            },
+            {
+              "episode": 6,
+              "event_idx": 17
+            },
+            {
+              "episode": 7,
+              "event_idx": 13
+            },
+            {
+              "episode": 8,
+              "event_idx": 17
+            }
+          ],
+          "rule": "Keep every scheduled ship on its planned section (each ship moved off it costs 5): start from baseline_plan, move ships back to their planned section one at a time, screen each with ship_timeline, then check."
+        },
+        {
+          "what": "left ships departing after their due hour",
+          "evidence": [
+            {
+              "episode": 5,
+              "event_idx": 17
+            },
+            {
+              "episode": 6,
+              "event_idx": 17
+            },
+            {
+              "episode": 7,
+              "event_idx": 13
+            },
+            {
+              "episode": 8,
+              "event_idx": 17
+            }
+          ],
+          "rule": "For each late ship (departure past due), try more cranes up to its maximum or an earlier berth hour, screen with ship_timeline, then check; lateness costs sections x hours."
+        },
+        {
+          "what": "planned without the live feed's ETA updates",
+          "evidence": [
+            {
+              "episode": 5,
+              "event_idx": 6
+            },
+            {
+              "episode": 6,
+              "event_idx": 6
+            },
+            {
+              "episode": 7,
+              "event_idx": 6
+            },
+            {
+              "episode": 8,
+              "event_idx": 6
+            }
+          ],
+          "rule": "Call live_ships at hour 0 and read the eta_update events: never plan a berth before a ship's updated ETA."
+        }
+      ],
+      "coach_model": "scripted",
+      "coach_tokens_in": 0,
+      "coach_tokens_out": 0,
+      "coach_cost_usd": 0.0,
+      "player_version": "8dde6619db49"
+    },
+    {
+      "version": 3,
+      "parent": 0,
+      "created_at": "2026-10-25T13:29:33",
+      "diagnosis": "mean reward 0.4085 over episodes 9, 10, 11, 12; main new mistake: put more cranes to work in some hours than the crane pool has (3 evidence events). One change: add its rule.",
+      "change": "Add up the cranes of every ship alongside in each hour and keep the total within the pool, less any crane outage; cut cranes on the ship with the most slack first.",
+      "verdict": "rejected",
+      "train_mean": 0.4085,
+      "eval_mean": 0.3596,
+      "feasibility_rate": 1.0,
+      "mean_gap_pct": 180.7833,
+      "reason": "no eval gain: eval +0.000 (needs +0.005)",
+      "has_heuristic": false,
+      "mistakes": [
+        {
+          "what": "berthed a ship inside a no-movement window (fog or bar closure)",
+          "evidence": [
+            {
+              "episode": 9,
+              "event_idx": 10
+            },
+            {
+              "episode": 11,
+              "event_idx": 10
+            }
+          ],
+          "rule": "Before choosing a berth hour, read the no_moves windows in the rules; never berth inside a no-movement window, berth at its end."
+        },
+        {
+          "what": "put more cranes to work in some hours than the crane pool has",
+          "evidence": [
+            {
+              "episode": 9,
+              "event_idx": 10
+            },
+            {
+              "episode": 9,
+              "event_idx": 12
+            },
+            {
+              "episode": 11,
+              "event_idx": 12
+            }
+          ],
+          "rule": "Add up the cranes of every ship alongside in each hour and keep the total within the pool, less any crane outage; cut cranes on the ship with the most slack first."
+        },
+        {
+          "what": "berthed or released more ships in one hour than the movement limit allows",
+          "evidence": [
+            {
+              "episode": 11,
+              "event_idx": 10
+            }
+          ],
+          "rule": "Respect the movement limit (berthings plus departures per hour): when ships arrive together, stagger their berth hours by one hour."
+        },
+        {
+          "what": "placed two ships, or a ship and a closed block, on the same section-hour",
+          "evidence": [
+            {
+              "episode": 9,
+              "event_idx": 10
+            },
+            {
+              "episode": 9,
+              "event_idx": 12
+            },
+            {
+              "episode": 11,
+              "event_idx": 10
+            },
+            {
+              "episode": 11,
+              "event_idx": 12
+            }
+          ],
+          "rule": "Never overlap another ship, a ship already alongside or a closed block on any section-hour: pick other sections or a later berth hour."
+        },
+        {
+          "what": "moved scheduled ships off their planned section (5 per ship moved)",
+          "evidence": [
+            {
+              "episode": 9,
+              "event_idx": 17
+            },
+            {
+              "episode": 10,
+              "event_idx": 13
+            },
+            {
+              "episode": 11,
+              "event_idx": 17
+            },
+            {
+              "episode": 12,
+              "event_idx": 13
+            }
+          ],
+          "rule": "Keep every scheduled ship on its planned section (each ship moved off it costs 5): start from baseline_plan, move ships back to their planned section one at a time, screen each with ship_timeline, then check."
+        },
+        {
+          "what": "left ships departing after their due hour",
+          "evidence": [
+            {
+              "episode": 10,
+              "event_idx": 13
+            },
+            {
+              "episode": 11,
+              "event_idx": 17
+            },
+            {
+              "episode": 12,
+              "event_idx": 13
+            }
+          ],
+          "rule": "For each late ship (departure past due), try more cranes up to its maximum or an earlier berth hour, screen with ship_timeline, then check; lateness costs sections x hours."
+        },
+        {
+          "what": "planned without the live feed's ETA updates",
+          "evidence": [
+            {
+              "episode": 9,
+              "event_idx": 6
+            },
+            {
+              "episode": 10,
+              "event_idx": 6
+            },
+            {
+              "episode": 11,
+              "event_idx": 6
+            },
+            {
+              "episode": 12,
+              "event_idx": 6
+            }
+          ],
+          "rule": "Call live_ships at hour 0 and read the eta_update events: never plan a berth before a ship's updated ETA."
+        }
+      ],
+      "coach_model": "scripted",
+      "coach_tokens_in": 0,
+      "coach_tokens_out": 0,
+      "coach_cost_usd": 0.0,
+      "player_version": "8dde6619db49"
+    },
+    {
+      "version": 4,
+      "parent": 0,
+      "created_at": "2026-10-25T13:29:34",
+      "diagnosis": "mean reward 0.2374 over episodes 13, 14, 15, 16; main new mistake: berthed or released more ships in one hour than the movement limit allows (1 evidence events). One change: add its rule.",
+      "change": "Respect the movement limit (berthings plus departures per hour): when ships arrive together, stagger their berth hours by one hour.",
+      "verdict": "rejected",
+      "train_mean": 0.2374,
+      "eval_mean": 0.3596,
+      "feasibility_rate": 1.0,
+      "mean_gap_pct": 180.7833,
+      "reason": "no eval gain: eval +0.000 (needs +0.005)",
+      "has_heuristic": false,
+      "mistakes": [
+        {
+          "what": "berthed a ship inside a no-movement window (fog or bar closure)",
+          "evidence": [
+            {
+              "episode": 13,
+              "event_idx": 10
+            },
+            {
+              "episode": 14,
+              "event_idx": 10
+            },
+            {
+              "episode": 15,
+              "event_idx": 10
+            },
+            {
+              "episode": 16,
+              "event_idx": 10
+            }
+          ],
+          "rule": "Before choosing a berth hour, read the no_moves windows in the rules; never berth inside a no-movement window, berth at its end."
+        },
+        {
+          "what": "put more cranes to work in hoot hours than the smaller hoot pool allows",
+          "evidence": [
+            {
+              "episode": 15,
+              "event_idx": 10
+            },
+            {
+              "episode": 15,
+              "event_idx": 12
+            }
+          ],
+          "rule": "Keep the cranes working in every hour within that hour's pool; the hoot pool (03:00-08:00) is smaller, so give fewer cranes in hoot hours or berth after the hoot shift."
+        },
+        {
+          "what": "put more cranes to work in some hours than the crane pool has",
+          "evidence": [
+            {
+              "episode": 14,
+              "event_idx": 10
+            },
+            {
+              "episode": 14,
+              "event_idx": 12
+            },
+            {
+              "episode": 15,
+              "event_idx": 10
+            },
+            {
+              "episode": 15,
+              "event_idx": 12
+            },
+            {
+              "episode": 16,
+              "event_idx": 12
+            }
+          ],
+          "rule": "Add up the cranes of every ship alongside in each hour and keep the total within the pool, less any crane outage; cut cranes on the ship with the most slack first."
+        },
+        {
+          "what": "berthed or released more ships in one hour than the movement limit allows",
+          "evidence": [
+            {
+              "episode": 15,
+              "event_idx": 12
+            }
+          ],
+          "rule": "Respect the movement limit (berthings plus departures per hour): when ships arrive together, stagger their berth hours by one hour."
+        },
+        {
+          "what": "placed two ships, or a ship and a closed block, on the same section-hour",
+          "evidence": [
+            {
+              "episode": 14,
+              "event_idx": 10
+            },
+            {
+              "episode": 14,
+              "event_idx": 12
+            },
+            {
+              "episode": 15,
+              "event_idx": 10
+            },
+            {
+              "episode": 15,
+              "event_idx": 12
+            },
+            {
+              "episode": 16,
+              "event_idx": 12
+            }
+          ],
+          "rule": "Never overlap another ship, a ship already alongside or a closed block on any section-hour: pick other sections or a later berth hour."
+        },
+        {
+          "what": "moved scheduled ships off their planned section (5 per ship moved)",
+          "evidence": [
+            {
+              "episode": 13,
+              "event_idx": 15
+            },
+            {
+              "episode": 14,
+              "event_idx": 17
+            },
+            {
+              "episode": 15,
+              "event_idx": 17
+            },
+            {
+              "episode": 16,
+              "event_idx": 17
+            }
+          ],
+          "rule": "Keep every scheduled ship on its planned section (each ship moved off it costs 5): start from baseline_plan, move ships back to their planned section one at a time, screen each with ship_timeline, then check."
+        },
+        {
+          "what": "left ships departing after their due hour",
+          "evidence": [
+            {
+              "episode": 13,
+              "event_idx": 15
+            },
+            {
+              "episode": 14,
+              "event_idx": 17
+            },
+            {
+              "episode": 15,
+              "event_idx": 17
+            },
+            {
+              "episode": 16,
+              "event_idx": 17
+            }
+          ],
+          "rule": "For each late ship (departure past due), try more cranes up to its maximum or an earlier berth hour, screen with ship_timeline, then check; lateness costs sections x hours."
+        },
+        {
+          "what": "planned without the live feed's ETA updates",
+          "evidence": [
+            {
+              "episode": 13,
+              "event_idx": 6
+            },
+            {
+              "episode": 14,
+              "event_idx": 6
+            },
+            {
+              "episode": 15,
+              "event_idx": 6
+            },
+            {
+              "episode": 16,
+              "event_idx": 6
+            }
+          ],
+          "rule": "Call live_ships at hour 0 and read the eta_update events: never plan a berth before a ship's updated ETA."
+        }
+      ],
+      "coach_model": "scripted",
+      "coach_tokens_in": 0,
+      "coach_tokens_out": 0,
+      "coach_cost_usd": 0.0,
+      "player_version": "8dde6619db49"
+    }
+  ]
+}
