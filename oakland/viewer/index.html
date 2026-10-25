@@ -33,20 +33,20 @@
 
   <!-- the one panel is the chat: a condensed status strip, the port now, then the operator -->
   <aside id="learning" aria-label="Operator">
-    <section class="status">
-      <div class="status-top">
-        <span class="score num"><span class="label-inline">Verification</span> <b id="head-score">0.00</b> <span id="head-delta" class="delta"></span></span>
-        <button type="button" id="playbook-btn" class="btn">Playbook <span id="head-version" class="muted"></span></button>
-      </div>
+    <section class="score-block" aria-label="Verification score">
+      <span class="label">Verification</span>
+      <b id="head-score" class="num">0.00</b>
+      <p id="head-delta" class="delta"></p>
+    </section>
+    <section class="front-block" aria-label="Evolution front">
       <div id="front" class="front"></div>
       <div id="front-tip" class="front-tip hidden" role="tooltip"></div>
-      <p id="coach-say" class="say one-line"></p>
     </section>
     <section class="l-port" aria-label="Port now">
       <div id="quay" class="quay" tabindex="0" role="group" aria-label="Quay at the current hour. Left and right arrows move one hour."></div>
       <div class="tiles">
         <div class="tile"><span class="t-n">Alongside</span><span id="k-along" class="num">0</span></div>
-        <div class="tile"><span class="t-n">Cranes</span><span id="k-cranes" class="num">0/0</span></div>
+        <div class="tile"><span class="t-n">Cranes / pool</span><span id="k-cranes" class="num">0/0</span></div>
         <div class="tile"><span class="t-n">Late ship-h</span><span id="k-late" class="num">0</span></div>
         <div class="tile"><span class="t-n">Cost / opt</span><span id="k-cost" class="num">0</span></div>
       </div>
@@ -130,6 +130,7 @@
           </div>
           <span class="menu-label">Replay file</span>
           <label class="btn file-btn">Load replay JSON<input id="file-in" type="file" accept=".json,application/json"></label>
+          <button type="button" id="playbook-btn" class="btn ghost">Playbook <kbd>P</kbd></button>
           <button type="button" id="back-to-run" class="btn ghost">Back to the learning run</button>
           <span class="menu-label">Camera</span>
           <div class="menu-grid">

@@ -91,16 +91,12 @@
     const last = evo.lineage[evo.lineage.length - 1] || { value: null, version: 0 };
     const score = last.value;
     $("head-score").textContent = score == null ? "n/a" : f2(score);
-    $("head-version").textContent = "v" + (last.version != null ? last.version : 0);
     const d = $("head-delta");
-    if (score != null && evo.baseline != null && last.version !== 0 && last.version != null) {
-      const delta = score - evo.baseline;
-      d.innerHTML = "<b>" + (delta >= 0 ? "▲ +" : "▼ ") + delta.toFixed(2) + "</b> vs v0";
-      d.className = "delta " + (delta >= 0 ? "up" : "down");
-    } else {
-      d.textContent = evo.baseline != null ? "v0, no change accepted yet" : "waiting for v0";
-      d.className = "delta";
-    }
+    const rounds = R().coachRounds(S.evalRows);
+    if (score == null) d.textContent = "waiting for the first verification";
+    else if (!rounds.length) d.textContent = "waiting for the first coach round";
+    else if (evo.baseline == null || Math.abs(score - evo.baseline) < 0.005) d.textContent = "unchanged since the start";
+    else d.textContent = (score > evo.baseline ? "up " : "down ") + Math.abs(score - evo.baseline).toFixed(2) + " since the start";
   }
 
   // ---------- evolution chart ----------
@@ -258,7 +254,6 @@
       o.push('<g class="node' + anim + '" tabindex="0" data-tip="' + esc(tip) + '" data-x="' + cx.toFixed(1) + '" data-y="' + cy.toFixed(1) + '" aria-label="' + esc(tip) + '">');
       if (n.front) o.push('<circle class="halo" cx="' + cx.toFixed(1) + '" cy="' + cy.toFixed(1) + '" r="8"/>');
       o.push('<circle class="n ' + n.cls + '" cx="' + cx.toFixed(1) + '" cy="' + cy.toFixed(1) + '" r="3.5"/>');
-      if (n.cls === "accepted") o.push('<text class="vlab" x="' + cx.toFixed(1) + '" y="' + (cy - 8).toFixed(1) + '" text-anchor="middle">v' + n.version + "</text>");
       o.push("</g>");
     }
     if (nodes.length === 1) o.push('<text class="wait" x="20" y="' + (by + 4).toFixed(1) + '">waiting for the first coach round</text>');
@@ -291,6 +286,7 @@
   function renderSay() {
     const rounds = R().coachRounds(S.evalRows);
     const el = $("coach-say");
+    if (!el) return;
     const r = rounds[0];
     if (!r) { el.textContent = "No coach round yet. I play with the starting playbook and the coach reads my logs after each window of episodes."; return; }
     const nums = '<span class="num">' + f2(r.evalBefore) + " → " + f2(r.evalAfter) + "</span>";
@@ -331,7 +327,8 @@
     const sheet = $("playbook-sheet");
     if (sheet.classList.contains("hidden")) return false;
     sheet.classList.add("hidden");
-    $("playbook-btn").focus();
+    const pb = $("playbook-btn");
+    if (pb && pb.offsetParent) pb.focus();
     return true;
   }
 
@@ -413,18 +410,12 @@
     S.lastHourKey = key;
     const task = rep.task || {};
     const parts = [];
+    // at most two muted words: terminal and weather of the task on screen
     if (mine) {
       const e = S.episodes.find((x) => x.episode === S.shownEpisode) || {};
-      const tw = taskWords(e.task_id || task.task_id).split(" ");
-      parts.push("<b>Episode " + S.shownEpisode + " of " + S.episodes.length + "</b>");
-      if (tw[0]) parts.push(esc(tw[0]));
-      if (tw[1]) parts.push(esc(tw[1]));
-      parts.push("playbook v" + esc(e.playbook_version != null ? e.playbook_version : "?"));
-    } else {
-      parts.push("<b>" + esc(task.terminal || "Terminal") + "</b>");
-      if (task.difficulty) parts.push(esc(task.difficulty));
-      parts.push("scenario, not a run episode");
+      taskWords(e.task_id || task.task_id).split(" ").filter(Boolean).forEach((w) => parts.push(esc(w)));
     }
+    if (!parts.length) parts.push(esc(task.terminal || "Terminal"));
     const nowEl = $("now");
     const html = parts.join('<span class="sep">·</span>');
     if (nowEl.innerHTML !== html) {
@@ -543,12 +534,12 @@
     const cands = R().coachRounds(S.evalRows);
     if (cands.length > prevRounds && cands[0]) {
       const c = cands[0];
-      const color = c.cls === "accepted" ? "var(--accent)" : c.cls === "overfit" ? "var(--warn)" : "var(--muted)";
-      toast("Coach round " + c.round + ": playbook v" + esc(c.version) + ' <span class="tag" style="color:' + color + '">' + VERDICT_TEXT[c.cls] +
+      const color = c.cls === "accepted" ? "var(--accent-text)" : "var(--muted)";
+      toast('Coach round: <span class="tag" style="color:' + color + '">' + VERDICT_TEXT[c.cls] +
         "</span>, verification " + f2(c.evalBefore) + " → " + f2(c.evalAfter));
     } else if (newest > prevEp) {
       const e = S.episodes[S.episodes.length - 1];
-      toast("Episode " + newest + " finished: reward " + f2(num(e.reward)) + " with playbook v" + esc(e.playbook_version));
+      toast("New episode finished, reward " + f2(num(e.reward)));
     }
     if (newest > prevEp && S.followNewest !== false) showEpisode(newest, false);
   }
