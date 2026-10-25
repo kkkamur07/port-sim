@@ -253,6 +253,23 @@ name)`, `what_if(n, ship_id, berth_hour, section, cranes)` (regrades a modified 
 viewer can draw the changed berth. Tests use the scripted `FakeModel` (`tests/test_chat.py`, needs
 `runs/real-berth-gepa` copied in; skipped otherwise).
 
+Optimize on demand (`chat/optimize.py`, `Optimizer(run_dir)`): "Optimize my playbook" makes the agent call
+`optimize_playbook(episodes=3)` (one `GeminiCoach.propose` call on the last episode logs against the accepted
+playbook in force, with the loop's rejected list, lessons and exclusions; evidence spans validated; about 30 s,
+under $0.05), then `verify_proposal(id)`, which returns at once and scores the proposed playbook in a background
+thread with the loop's `Loop.score` (4 workers) on the run's own verification tasks (the task ids of its last
+`eval.jsonl` row, from `tasks/*.jsonl`) or on `--verify-pack FILE...`. The baseline is the accepted version's
+per-task rewards on the same tasks when the player is the same, else the accepted playbook is scored there too; the
+verdict uses `ACCEPT_MARGIN`. "Did it work?" calls `proposal_status(id=None)`. With Gemini a full 12-task
+verification is about 8 to 12 minutes and $2 to $3 (twice that when the baseline is rescored).
+
+Everything is written under `<run_dir>/proposals/`, which the loop never touches: `proposals.jsonl` (one row per
+proposal, rewritten in place: `{id, created, from_version, status: proposed|verifying|accepted|rejected, diagnosis,
+mistakes, change, playbook_md, verification: {eval_mean, per_task} | null, baseline_eval_mean, verdict_reason,
+cost_usd}` plus `version, episodes, verify_tasks, baseline_from, verified`), `p<id>.md` and the verification event
+logs in `p<id>/`. The verdict is advisory: an accepted proposal is not added to the running loop's playbook tree.
+Tests: `tests/test_chat_optimize.py` (stub coach, scripted player, FakeModel).
+
 ## Tests
 
 ```bash

@@ -6,6 +6,9 @@ with the real checker (oakland_core.grade) and keeps it in memory.
     tools.run_status(); tools.episode(7); tools.what_if(7, 0, berth_hour=30, section=4, cranes=3)
     tools.langchain_tools()   # the same functions as LangChain tools, for the chat agent
 
+optimize_playbook, verify_proposal and proposal_status (chat/optimize.py) are the exception: they write only to
+<run_dir>/proposals/, a directory the loop never touches.
+
 Run layout read here: episodes.jsonl (or episodes.json), eval.jsonl, playbooks/tree.json and vN.md,
 replays/epNNN.json, events/epNNN.jsonl. Any of them may be missing (a live run that just started): the tools then
 say so instead of failing.
@@ -72,8 +75,16 @@ def _short(text: Any, n: int = 160) -> str:
 class RunTools:
     """The chat tools over one run directory. Files are read on every call, so a live run is always current."""
 
-    def __init__(self, run_dir: str | Path):
+    def __init__(self, run_dir: str | Path, optimizer: Any = None):
         self.run_dir = Path(run_dir)
+        self._optimizer = optimizer
+
+    @property
+    def optimizer(self) -> Any:
+        if self._optimizer is None:
+            from .optimize import Optimizer
+            self._optimizer = Optimizer(self.run_dir)
+        return self._optimizer
 
     # ------------------------------------------------------------ file access
 
@@ -359,11 +370,33 @@ class RunTools:
                              "5 per ship moved, 1000 per harness submission (episode lost), violations by checks used"),
             "budget": f"at most {MAX_CHECKS} check_plan calls per episode, one submit"})
 
+    def optimize_playbook(self, episodes: int = 3) -> str:
+        """Optimize my playbook now: the coach reads my last `episodes` episode logs and proposes one playbook change
+        with evidence (about 30 s). Returns the proposal id, diagnosis, change and mistakes. Then call
+        verify_proposal with the id."""
+        try:
+            return _dump(self.optimizer.optimize(int(episodes)))
+        except ValueError as e:
+            return _dump({"error": str(e)})
+
+    def verify_proposal(self, id: int) -> str:   # noqa: A002, the tool argument name the model sees
+        """Start verifying proposal `id` on the fixed verification tasks with the loop's gate, in the background.
+        Returns at once with the status (verifying) and the expected minutes; ask proposal_status later."""
+        try:
+            return _dump(self.optimizer.verify(int(id)))
+        except ValueError as e:
+            return _dump({"error": str(e)})
+
+    def proposal_status(self, id: int | None = None) -> str:   # noqa: A002
+        """Did it work: the latest (or given) playbook proposal with its status (proposed, verifying, accepted,
+        rejected), verification mean against the accepted playbook's, and the verdict reason."""
+        return _dump(self.optimizer.status(None if id is None else int(id)))
+
     # ------------------------------------------------------------ LangChain
 
     def langchain_tools(self) -> list:
         from langchain_core.tools import StructuredTool
 
         names = ["run_status", "improvement", "coach_round", "playbook", "episode", "player_log", "ship", "what_if",
-                 "reward_rules"]
+                 "reward_rules", "optimize_playbook", "verify_proposal", "proposal_status"]
         return [StructuredTool.from_function(getattr(self, n), name=n) for n in names]

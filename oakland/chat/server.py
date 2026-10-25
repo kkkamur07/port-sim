@@ -139,8 +139,16 @@ def main() -> None:
     ap.add_argument("--runs-dir", default="runs")
     ap.add_argument("--host", default="127.0.0.1")
     ap.add_argument("--port", type=int, default=8770)
+    ap.add_argument("--verify-pack", nargs="+", default=None,
+                    help="task files to verify chat proposals on (default: the run's own verification tasks)")
     a = ap.parse_args()
-    srv = make_server(a.runs_dir, a.host, a.port)
+    make_agent = None
+    if a.verify_pack:
+        from .optimize import Optimizer
+
+        def make_agent(path: Path) -> Any:
+            return ChatAgent(path, optimizer=Optimizer(path, verify_pack=a.verify_pack))
+    srv = make_server(a.runs_dir, a.host, a.port, make_agent)
     base = f"http://{a.host}:{a.port}"
     print(f"operator chat on {base}, runs from {a.runs_dir}")
     print(f"  curl {base}/runs")
