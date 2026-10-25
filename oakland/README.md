@@ -1,8 +1,10 @@
 # OaklandPortEnv
 
-A berth and crane planning environment for the **Port of Oakland**, California. The agent gets one terminal over
-one or two weeks after something went wrong (late ships, fog, a crane outage, a closed berth), writes one plan, and
-the plan is graded once, deterministically, against a reference plan that a CP-SAT solver proved optimal.
+A digital twin of the **Port of Oakland**, California, for berth and crane planning, operated by a self-improving
+Gemini 4 Argon agent. The agent gets one terminal over one or two weeks after something went wrong (late ships, fog,
+a crane outage, a closed berth), writes one plan, and the plan is graded once, deterministically, against a reference
+plan that a CP-SAT solver proved optimal. A coach agent reads the player's logs and updates its playbook, and each
+change is kept only if it raises the score on held-out tasks (see `loop/README.md` and `../docs/demo-script.md`).
 
 OaklandPortEnv is adapted from FineEnvs **PortSimEnv v1** (the Barcelona berth planner, Apache-2.0, vendored in
 `third_party/berth_core/`). It was built during the **Gemini 4 Argon SF Hackathon on 2026-10-25**, with Claude Code
