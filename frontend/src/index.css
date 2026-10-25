@@ -1,0 +1,341 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Portwise design system – "morning nautical chart". All colors HSL. */
+
+@layer base {
+  :root {
+    --background: 41.5 35.1% 92.7%;
+    --foreground: 217.3 55.6% 15.9%;
+
+    --card: 42.9 100% 98.6%;
+    --card-foreground: 217.3 55.6% 15.9%;
+
+    --popover: 42.9 100% 98.6%;
+    --popover-foreground: 217.3 55.6% 15.9%;
+
+    --primary: 217.3 55.6% 15.9%;
+    --primary-foreground: 42.9 100% 98.6%;
+
+    --secondary: 42.4 32.1% 89.6%;
+    --secondary-foreground: 217.3 55.6% 15.9%;
+
+    --muted: 42.4 32.1% 89.6%;
+    --muted-foreground: 220 8.9% 46.1%;
+
+    --accent: 42.4 32.1% 89.6%;
+    --accent-foreground: 217.3 55.6% 15.9%;
+
+    --destructive: 3 56.2% 50.8%;
+    --destructive-foreground: 42.9 100% 98.6%;
+
+    --border: 41.1 25.3% 85.3%;
+    --input: 41.1 25.3% 85.3%;
+    --ring: 15.9 88.3% 56.5%;
+
+    --radius: 0.875rem;
+
+    --sidebar-background: 42.9 100% 98.6%;
+    --sidebar-foreground: 217.3 55.6% 15.9%;
+    --sidebar-primary: 217.3 55.6% 15.9%;
+    --sidebar-primary-foreground: 42.9 100% 98.6%;
+    --sidebar-accent: 42.4 32.1% 89.6%;
+    --sidebar-accent-foreground: 217.3 55.6% 15.9%;
+    --sidebar-border: 41.1 25.3% 85.3%;
+    --sidebar-ring: 15.9 88.3% 56.5%;
+
+    /* Safe areas (notch, home indicator) and the top bar height the HUD is laid out under. */
+    --sat: env(safe-area-inset-top, 0px);
+    --sab: env(safe-area-inset-bottom, 0px);
+    --topbar-h: 3.5rem;
+    --hud-top: calc(var(--topbar-h) + var(--sat));
+  }
+
+  @media (min-width: 768px) {
+    :root {
+      --topbar-h: 4rem;
+    }
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  html,
+  body {
+    /* The map owns every gesture: no pull-to-refresh or rubber-band scrolling behind it. */
+    overscroll-behavior: none;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    overflow: hidden;
+    font-feature-settings: "ss01", "cv11";
+    -webkit-tap-highlight-color: transparent;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
+  /* No 300 ms double-tap-zoom delay on controls. */
+  button,
+  a,
+  summary,
+  [role="button"],
+  [role="tab"],
+  [role="switch"] {
+    touch-action: manipulation;
+  }
+
+  :focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  .panel {
+    @apply rounded-[14px] border border-hairline bg-paper shadow-panel;
+  }
+  .eyebrow {
+    @apply text-[10.5px] font-semibold uppercase tracking-[0.12em] text-slate;
+  }
+  .tnum {
+    font-variant-numeric: tabular-nums;
+  }
+  .scroll-thin {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--border)) transparent;
+  }
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  /* Full app height that follows the mobile browser's dynamic toolbars. */
+  .pw-app {
+    height: 100%;
+    height: 100dvh;
+  }
+  .pw-safe-x {
+    padding-left: max(var(--pad-x, 0.75rem), env(safe-area-inset-left, 0px));
+    padding-right: max(var(--pad-x, 0.75rem), env(safe-area-inset-right, 0px));
+  }
+}
+
+@keyframes pw-pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 rgba(242, 98, 46, 0.45);
+  }
+  70% {
+    box-shadow: 0 0 0 7px rgba(242, 98, 46, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(242, 98, 46, 0);
+  }
+}
+
+@keyframes pw-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@keyframes pw-rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pw-stripes {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: 16px 0;
+  }
+}
+
+.pw-pulse {
+  animation: pw-pulse-ring 1.8s ease-out infinite;
+}
+.pw-blink {
+  animation: pw-blink 1.6s ease-in-out infinite;
+}
+.pw-rise {
+  animation: pw-rise 0.38s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.pw-hatch {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    rgba(18, 35, 63, 0.09) 0 4px,
+    transparent 4px 8px
+  );
+}
+.pw-stripes {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    rgba(255, 255, 255, 0.28) 0 4px,
+    transparent 4px 8px
+  );
+  background-size: 16px 16px;
+  animation: pw-stripes 1s linear infinite;
+}
+
+@keyframes pw-drop {
+  0% {
+    opacity: 0;
+    transform: translateY(-46px);
+  }
+  70% {
+    opacity: 1;
+    transform: translateY(1.5px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pw-sway {
+  0%,
+  100% {
+    transform: rotate(-2.4deg);
+  }
+  50% {
+    transform: rotate(2.4deg);
+  }
+}
+
+@keyframes pw-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes pw-drift {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-40px);
+  }
+}
+
+.pw-drop {
+  animation: pw-drop 0.55s cubic-bezier(0.55, 0, 0.35, 1) both;
+}
+.pw-sway {
+  animation: pw-sway 2.6s ease-in-out infinite;
+}
+.pw-spin {
+  animation: pw-spin 0.9s linear infinite;
+}
+.pw-drift {
+  animation: pw-drift 3.4s linear infinite;
+}
+
+@keyframes pw-berth-in {
+  from {
+    transform: translateX(-14px);
+  }
+  75% {
+    transform: translateX(0.6px);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes pw-line-draw {
+  from {
+    stroke-dashoffset: 10;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes pw-pop {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  70% {
+    transform: scale(1.18);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes pw-toast-timer {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+
+/* Berthing toast: hull slides onto the quay, mooring lines go out, then the check pops. */
+.pw-berth-in {
+  animation: pw-berth-in 1s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.pw-line-draw {
+  stroke-dasharray: 10;
+  animation: pw-line-draw 0.45s ease-out 0.9s both;
+}
+.pw-pop {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: pw-pop 0.42s cubic-bezier(0.3, 1.6, 0.5, 1) 1.15s both;
+}
+.pw-toast-timer {
+  transform-origin: left;
+  animation-name: pw-toast-timer;
+  animation-timing-function: linear;
+  animation-fill-mode: both;
+}
+[data-sonner-toaster][data-expanded="true"] .pw-toast-timer,
+.pw-berth-toast:hover .pw-toast-timer {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pw-berth-in,
+  .pw-line-draw,
+  .pw-pop {
+    animation: none;
+  }
+  .pw-drop,
+  .pw-sway,
+  .pw-spin,
+  .pw-drift,
+  .pw-pulse,
+  .pw-blink,
+  .pw-rise,
+  .pw-stripes {
+    animation: none;
+  }
+}
