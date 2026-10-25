@@ -41,7 +41,9 @@ def main(argv: list[str] | None = None) -> int:
         print(f"median solve {statistics.median(c['seconds'] for c in kept):.1f}s")
         nr = [c["naive_reward"] for c in kept]
         gr = [c["greedy_reward"] for c in kept]
-        print(f"naive reward {min(nr):.3f}-{max(nr):.3f}, greedy reward {min(gr):.3f}-{max(gr):.3f}")
+        orw = [c["optimal_reward"] for c in kept]
+        print(f"naive reward {min(nr):.3f}-{max(nr):.3f}, greedy reward {min(gr):.3f}-{max(gr):.3f}, "
+              f"solver reward {min(orw):.3f}-{max(orw):.3f}")
     return 0 if stats["kept"] == args.n else 1
 
 

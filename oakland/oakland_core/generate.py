@@ -27,7 +27,7 @@ import random
 
 from .model import Block, Ship, Task
 from .solve import Ledger, positions, slow_profile
-from .world import SHIFTS, TERMINALS, generate_calls
+from .world import TERMINALS, generate_calls, make_task
 
 TIERS = {
     "standard": ("late", "fog", "priority"),
@@ -37,35 +37,9 @@ TIERS = {
 }
 WEEKS = {"standard": 1, "busy": 1, "storm": 2, "extreme": 2}
 MIN_SHIPS, MAX_SHIPS, MAX_BERTH_SHIPS = 8, 24, 20
-WEEK_START_UTC = "2026-11-02T08:00:00Z"   # Monday 00:00 Pacific (PST)
 CLOSURE_REASONS = ("crane rail repair", "fender repair", "labor stoppage on the berth", "wharf deck repair")
 OUTAGE_REASONS = ("gantry repair", "spreader failure", "boom hoist repair")
 DIVERT_FROM = ("Los Angeles", "Long Beach")
-
-
-def base_rules(terminal: str) -> dict:
-    pool = int(_term(terminal, "cranes"))
-    return {"crane_pool": pool, "hoot_pool": int(pool * 0.6), "crane_outages": [], "max_moves_per_hour": 2,
-            "no_moves": [], "reward": 3, "gap_k": 100, "moves_per_crane_hour": 26,
-            "shifts": {k: list(v) for k, v in SHIFTS.items()}, "meal_hours": [17], "hoot_gang_cost": 2}
-
-
-def _term(terminal: str, attr: str):
-    t = TERMINALS[terminal]
-    return t[attr] if isinstance(t, dict) else getattr(t, attr)
-
-
-def _quay(terminal: str) -> str:
-    for attr in ("quay", "berths"):
-        try:
-            return str(_term(terminal, attr))
-        except (KeyError, AttributeError):
-            continue
-    return ""
-
-
-def _sections(terminal: str) -> int:
-    return int(_term(terminal, "sections"))
 
 
 def _new_ship(src: Ship, sid: int, arrival: int, rng: random.Random) -> Ship:
@@ -153,7 +127,7 @@ def disrupt(task: Task, kinds, rng: random.Random, horizon: int) -> None:
         s = _new_ship(rng.choice(pool_ships), len(ships), rng.randint(12, horizon - 36), rng)
         ships.append(s)
         notices.append(f"Unscheduled call: ship {s.id} {s.name} ({s.length_m:.0f} m, {s.sections} sections, "
-                       f"{s.moves} moves) arrives at hour {s.arrival} and asks to sail by hour {s.due}. It has no planned "
+                       f"{s.workload} moves) arrives at hour {s.arrival} and asks to sail by hour {s.due}. It has no planned "
                        f"berth, so placing it anywhere costs no move penalty.")
         events.append({"type": "extra", "ship": s.id})
     if "emergency" in kinds:
@@ -214,12 +188,10 @@ def generate_task(seed: int, tier: str, kind: str, terminal: str | None = None) 
     weeks = WEEKS[tier]
     horizon = 168 * weeks
     cap = MAX_BERTH_SHIPS if kind == "berth" else MAX_SHIPS
-    ships, blocks = generate_calls(rng, terminal, weeks)
-    ships = _trim(ships, cap - 4)       # room for diverted and unscheduled calls
-    task = Task(task_id=f"oak-{kind}-{terminal.lower()}-{tier}-{seed}", split="train", quay=_quay(terminal),
-                terminal=terminal, first_section=1, last_section=_sections(terminal), section_m=42.0, week=1,
-                week_start_utc=WEEK_START_UTC, ships=ships, blocks=list(blocks), notices=[], disruptions=[],
-                difficulty=tier, rules=base_rules(terminal), kind=kind)
+    task = make_task(seed, terminal, weeks=weeks, kind=kind)
+    task.ships = _trim(task.ships, cap - 4)       # room for diverted and unscheduled calls
+    task.task_id = f"oak-{terminal.lower()}-{kind}-{tier}-{seed}"
+    task.difficulty = tier
     task.notices.append(f"Generated calls (not real records) at {terminal}, berths {task.quay}, over {weeks} week(s). "
                         f"Hour 0 is Monday 00:00 Pacific.")
     disrupt(task, TIERS[tier], rng, horizon)
@@ -228,4 +200,4 @@ def generate_task(seed: int, tier: str, kind: str, terminal: str | None = None) 
     return task
 
 
-__all__ = ["generate_task", "disrupt", "fix_berths", "TIERS", "WEEKS", "base_rules"]
+__all__ = ["generate_task", "disrupt", "fix_berths", "TIERS", "WEEKS"]

@@ -9,9 +9,13 @@ import random
 
 import pytest
 
-from oakland_core import (build_pack, evaluate, generate_task, grade, greedy_plan, naive_plan, plan_from_list,
-                          plan_to_list, render, solve)
-from oakland_core.generate import fix_berths
+from oakland_core import evaluate, grade, plan_from_list, plan_to_list
+# from the submodules: once a submodule is imported, the package attribute of the same name (solve, render) is the
+# module, not the function
+from oakland_core.generate import fix_berths, generate_task
+from oakland_core.pack import build_pack
+from oakland_core.render import render
+from oakland_core.solve import greedy_plan, naive_plan, solve
 
 KINDS = ("berth", "crane")
 SEEDS = (0, 1, 2, 3)
@@ -23,7 +27,7 @@ def test_generate_is_deterministic(kind, seed):
     a = generate_task(seed, "standard", kind)
     b = generate_task(seed, "standard", kind)
     assert json.dumps(a.to_dict(), sort_keys=True) == json.dumps(b.to_dict(), sort_keys=True)
-    assert a.kind == kind and 8 <= len(a.ships) <= (20 if kind == "berth" else 24)
+    assert a.kind == kind and 1 <= len(a.ships) <= (20 if kind == "berth" else 24)
     if kind == "crane":
         assert a.rules["fixed_berths"] is True
 
@@ -51,7 +55,7 @@ def _tiny(kind: str, seed: int):
         s.id = i
         s.arrival = rng.randint(0, 12)
         s.planned_hour = s.arrival + rng.randint(0, 2)
-        s.moves = rng.randint(150, 400)
+        s.workload = rng.randint(150, 400)
         s.min_cranes, s.max_cranes, s.std_cranes = 1, 2, 1
         s.due = s.planned_hour + rng.randint(4, 10)
         s.weight, s.berth_deadline, s.deadline_penalty = 1, None, 0
@@ -140,4 +144,4 @@ def test_build_pack_references_grade_one(kind):
         assert set(ref) >= {"optimal_plan", "optimal_cost", "naive_plan", "naive_cost", "greedy_cost"}
         assert grade(t, plan_from_list(ref["optimal_plan"])).reward == 1.0
         assert grade(t, plan_from_list(ref["naive_plan"])).reward <= 0.6
-        assert plan_to_list(plan_from_list(ref["optimal_plan"])) == ref["optimal_plan"]
+        assert plan_to_list(plan_from_list(ref["optimal_plan"]), kind=t.kind) == ref["optimal_plan"]

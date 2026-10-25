@@ -35,12 +35,14 @@ def reference(task: Task, time_limit_s: float) -> tuple[dict | None, dict]:
         return None, {**stats, "reason": "optimum not proven"}
     if not rn.feasible:
         return None, {**stats, "reason": "naive re-plan infeasible"}
-    ref = {"optimal_plan": plan_to_list(plan), "optimal_cost": cost, "naive_plan": plan_to_list(naive),
+    ref = {"optimal_plan": plan_to_list(plan, kind=task.kind), "optimal_cost": cost,
+           "naive_plan": plan_to_list(naive, kind=task.kind),
            "naive_cost": rn.cost, "greedy_cost": rg.cost if rg.feasible else None, "proven_optimal": True,
            "solver": "ortools-cpsat"}
     task.reference = ref
     stats["naive_reward"] = grade(task, naive).reward
     stats["greedy_reward"] = grade(task, greedy).reward
+    stats["optimal_reward"] = grade(task, plan).reward
     task.reference = {}
     if stats["naive_reward"] > NAIVE_MAX:
         return None, {**stats, "reason": "naive re-plan scores too well"}
