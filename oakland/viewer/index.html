@@ -41,23 +41,22 @@
       <section class="l-port" aria-label="Port now">
         <span id="port-hour" class="label">Port now</span>
         <div id="quay" class="quay" tabindex="0" role="group" aria-label="Quay at the current hour. Left and right arrows move one hour."></div>
-        <div class="tiles">
-          <div class="tile"><span class="t-n">Ships alongside</span><span id="k-along" class="num">0</span></div>
-          <div class="tile"><span class="t-n" id="k-cranes-n">Cranes working</span><span id="k-cranes" class="num">0</span></div>
-          <div class="tile"><span class="t-n">Hours late so far</span><span id="k-late" class="num">0</span></div>
-          <div class="tile wide"><span class="t-n">Plan cost</span><span id="k-cost" class="num">0</span></div>
-        </div>
+        <dl class="prows">
+          <div><dt>Alongside</dt><dd id="k-along">0</dd></div>
+          <div><dt>Waiting at anchor</dt><dd id="k-anchor">0</dd></div>
+          <div><dt>Next arrival</dt><dd id="k-next">none</dd></div>
+          <div><dt>Cranes working</dt><dd id="k-cranes">0</dd></div>
+          <div><dt>Late so far</dt><dd id="k-late">0</dd></div>
+        </dl>
         <p id="k-say" class="k-say"></p>
       </section>
       <section class="chat" aria-label="Ask the operator">
         <button type="button" id="chat-clear" class="chat-clear">Clear</button>
         <div id="chat-host" class="chat-host"></div>
-        <div id="act-row" class="act-row" role="group" aria-label="Actions on the selected ship"></div>
         <div id="chips" class="chips" role="group" aria-label="Quick questions">
           <button type="button" class="chip" data-q="How is the port doing?">How is the port doing?</button>
-          <button type="button" class="chip" data-q="Why is a ship late?">Why is a ship late?</button>
-          <button type="button" class="chip" data-q="What changed last?">What changed last?</button>
           <button type="button" class="chip" data-q="Which ship is the most late?">Which ship is the most late?</button>
+          <button type="button" class="chip" data-q="What changed last?">What changed last?</button>
         </div>
       </section>
     </div>
@@ -85,6 +84,7 @@
       </button>
     </div>
     <div id="pb-note" class="sub muted"></div>
+    <button type="button" id="pb-v0" class="pb-v0">v0</button>
     <div class="sheet-chart">
       <span class="label">Playbook versions</span>
       <div id="pb-front" class="front pb-front"></div>

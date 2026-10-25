@@ -332,7 +332,9 @@
       const t = setTimeout(() => { if (!chatEl) mountFallback(); }, 4000);
       customElements.whenDefined("deep-chat").then(() => { if (!chatEl) { clearTimeout(t); mountDeepChat(); } });
     } else mountFallback();
-    document.querySelectorAll("#chips .chip").forEach((b) => b.addEventListener("click", () => send(b.dataset.q)));
+    // the chip row is rebuilt by learning.js when a ship is picked; one listener covers every version of it
+    const row = $("chips");
+    if (row) row.addEventListener("click", (e) => { const b = e.target.closest(".chip[data-q]"); if (b) send(b.dataset.q); });
     const clr = $("chat-clear");
     if (clr) clr.addEventListener("click", clear);
     const opt = $("opt-btn");

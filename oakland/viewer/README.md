@@ -12,17 +12,26 @@ centre names the terminal and the weather of the task on screen ("Matson · stor
 best 784" while a plan from the chat is shown; a pill says LIVE or REPLAY, and the sun/moon button switches the theme
 (remembered in localStorage). The panel has two tabs (remembered in localStorage, Operator by default):
 
-- Operator: Port now and the chat. Port now (at most 130 px) shows "Port now · Mon 12:00, hour 12", the quay strip
-  (the terminal name on the left, ships alongside as named blocks, or "No ship alongside at this hour"), then Ships
-  alongside (of all calls), Cranes working (of the hour's pool), Hours late so far, Plan cost and the best possible
-  cost, and one sentence ("Quay idle this hour, next arrival Tue 03:00" or "2 ships working, LAHAINA SUN 52 h late").
-  The crane pool is the replay's `crane_pool_by_hour` (the task's `crane_pool`, the `hoot_pool` in hoot hours, less
-  outages). Below the chat input: actions on the selected ship ("Why is NAME late?" when late, "Route NAME earlier",
-  "What if NAME berths elsewhere?") and four quick questions.
+- Operator: Port now and the chat. Port now (at most 150 px, nothing coloured) is what a berth planner reads every
+  hour: "Port now · Matson · Mon 20:00 · hour 20"; the quay strip to scale over the terminal's sections (a faint
+  hairline per free section; each ship alongside as a block with its name and "sec 6-10 · 3 cr", hover "until Tue
+  04:00"; a closure, bar window or crane outage in force as a thin dashed band labelled in one word: "storm",
+  "repair", "outage"); five rows (Alongside "1 of 18 ships", Waiting at anchor "2 (longest 9 h)", Next arrival
+  "KANALOA in 3 h", Cranes working "2 of 4", Late so far "0 ship-hours"); and one sentence that names the exception
+  first ("Bar closed for storm until hour 50, 3 ships holding", "LAHAINA SUN 52 h late, waiting for sections 1-5",
+  else "1 ship working, all on time"). All of it comes from the replay. The crane pool is the replay's
+  `crane_pool_by_hour` (the task's `crane_pool`, the `hoot_pool` in hoot hours, less outages). Below the chat input
+  one row of three quick questions: "How is the port doing?", "Which ship is the most late?", "What changed last?";
+  with a ship selected they are replaced by "Why is NAME late?" (or "Tell me about NAME" when on time), "Route NAME
+  earlier" and "How is the port doing?" (names cut at 18 characters; the row never wraps and slides sideways).
 - Results: "Optimize my playbook", the result cards (before, after, Accepted or Rejected, the rule; while verifying
   one muted line "Checking on 4 held-out tasks, about N min" and a hairline) and the playbook versions curve
-  (accepted lineage in the accent, rejected proposals hollow under their parent). Clicking a version opens the
-  playbook sheet: the same curve with that version ringed, then its text.
+  (accepted lineage in the accent, rejected proposals hollow under their parent). The playbook sheet opens on the
+  newest playbook: the latest Optimize proposal (`proposals/proposals.jsonl`, text in `proposals/p<id>.md`) if there
+  is one, else the newest version in `playbooks/tree.json`. Title "Playbook v2 (proposed)", one muted verdict line
+  ("rejected: verification 0.913 against 0.926" or "accepted"), a small "v0" link to the starting playbook, the curve,
+  then the text against the version it came from: added lines with an accent bar, removed lines struck through.
+  Clicking a version opens that version the same way. No episode numbers appear in the sheet or the Results tab.
 
 The chat is the Deep Chat web component (`deep-chat@2.5.0` from unpkg, a minimal list and input if it does not load)
 posting to the operator API (`oakland/chat`, POST `http://127.0.0.1:8771/chat`) with the history, the run name, the
@@ -39,7 +48,9 @@ maps to real-berth-gepa). Esc in the chat returns focus to the scene.
 - `?run=<path>` loads a loop run directory (`episodes.json` or `episodes.jsonl`, `eval.jsonl`, `playbooks/`,
   `replays/`), relative to this page, plays the newest episode and polls every 5 s; a new episode or coach round
   shows a 3 s toast and the new front node fades in. `&live=0` turns polling off. Without `?run=` the bundled
-  `fixtures/run-demo` (a finished 16-episode run with an accepted round) is shown, without polling.
+  `fixtures/run-demo` (a finished 16-episode run with an accepted round) is shown, without polling. For reviews and
+  screenshots, `&ep=9&hour=40&ship=3` (ship id) opens that episode at that hour with the ship selected, and `&sheet=1`
+  opens the playbook sheet.
 - `?replay=<url>` or `?scenario=<key>` still load a single replay; the panel then still shows the run.
 - `runs.js` mirrors `oakland/dashboard/runs.js` on branch oak/demo (the pure readers of a run directory);
   `learning.js` draws the panel.
