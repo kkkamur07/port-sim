@@ -7,6 +7,36 @@ rollout of the run in a single call, diagnoses the failure modes, rewrites the r
 
 Train, evaluate, watch, critique, fix. The reward curve over loops is the product.
 
+## PortForge live dashboard
+
+This repository also includes **PortForge**, a measured two-agent port operations demo:
+
+- **Agent 1 — Supervisor (Gemini Argon):** watches the full experiment, introduces controlled challenges,
+  diagnoses weaknesses from simulator statistics, and proposes bounded strategy changes.
+- **Agent 2 — Operator (Gemini Argon):** executes berth allocation and crane scheduling using the active strategy.
+- A deterministic minute-step simulator validates every action, computes all metrics, and only promotes a candidate
+  when it improves the same fixed-seed benchmark without reducing completed vessels.
+- The visible scenario asks the Operator for a new decision at vessel arrivals, departures, berth releases,
+  disruptions, and congestion thresholds; every simulated minute is streamed to the 3D port.
+- Completed epochs, accepted strategies, and replay traces persist in `data/portforge_state.json` and accepted
+  strategies can be replayed against the baseline with play, pause, speed, and scrub controls.
+
+Agent calls are orchestrated through LangChain's `ChatGoogleGenerativeAI` and Pydantic structured output. If
+`GEMINI_API_KEY` is absent or Argon is unavailable, the dashboard explicitly displays **MOCK MODE**; it never labels
+fallback decisions as live Argon output.
+
+```bash
+uv sync
+cp .env.example .env  # add GEMINI_API_KEY for live Argon
+uv run uvicorn portforge.backend.main:app --reload
+```
+
+Open http://127.0.0.1:8000. Run the guardrail and reproducibility suite with:
+
+```bash
+uv run python -m unittest tests.test_portforge -v
+```
+
 ## Layout
 
 | Path | What |
