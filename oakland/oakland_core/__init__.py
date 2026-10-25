@@ -2,7 +2,9 @@
 shifts are real; the ship calls are GENERATED from the services that call Oakland, not real records.
 
 The solver-side names (generate_task, solve, naive_plan, greedy_plan, build_pack, render) live in modules built
-separately; they are imported lazily so the kernel imports cleanly without them."""
+separately; they are imported eagerly when their dependencies (ortools, matplotlib) are installed, and lazily
+otherwise, so the kernel imports cleanly without them. The module attributes are always the functions, never the
+submodules of the same name."""
 
 from importlib import import_module
 
@@ -22,6 +24,17 @@ _LAZY = {
     "build_pack": "pack",
     "render": "render",
 }
+
+
+for _name, _mod in _LAZY.items():
+    try:
+        globals()[_name] = getattr(import_module(f".{_mod}", __name__), _name)
+    except ImportError:
+        # Importing a sibling may have bound the submodule under a function's name; drop it so the lazy
+        # __getattr__ below reports the missing dependency instead.
+        if not callable(globals().get(_name)):
+            globals().pop(_name, None)
+del _name, _mod
 
 
 def __getattr__(name: str):

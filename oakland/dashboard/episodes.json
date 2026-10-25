@@ -1,4 +1,5 @@
 [
-  {"episode": 1, "replay": "../viewer/fixtures/oict-demo.json", "reward": 0.833, "label": "OICT demo (generated calls)"},
-  {"episode": 2, "replay": "../viewer/fixtures/matson-demo.json", "reward": 0.945, "label": "Matson demo (generated calls)"}
+  {"episode": 1, "replay": "../viewer/fixtures/oict-solver.json", "reward": 1.0, "label": "OICT berth, solver reference (oak-oict-berth-storm-6, generated calls)"},
+  {"episode": 2, "replay": "../viewer/fixtures/trapac-solver.json", "reward": 1.0, "label": "TraPac berth, solver reference (oak-trapac-berth-standard-100004, generated calls)"},
+  {"episode": 3, "replay": "../viewer/fixtures/matson-crane.json", "reward": 1.0, "label": "Matson crane, solver reference (oak-matson-crane-busy-100001, generated calls)"}
 ]
