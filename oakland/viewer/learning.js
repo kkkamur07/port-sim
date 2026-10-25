@@ -1,8 +1,9 @@
 /*
- * Learning panel and run follow mode (window.OakLearning).
+ * The right panel and run follow mode (window.OakLearning).
  *
- * Reads a loop run directory (episodes.json or episodes.jsonl, eval.jsonl) through window.OakRuns and draws the
- * verification headline, the reward evolution chart, what the coach changed and four live KPIs.
+ * Reads a loop run directory (episodes.json or episodes.jsonl, eval.jsonl, playbooks/tree.json) through
+ * window.OakRuns. Two tabs: Operator (Port now at the current hour, the chat, actions on the selected ship) and
+ * Results (Optimize my playbook, the result cards, the playbook versions curve). The newest episode plays.
  *   ?run=<path>     run directory, relative to the viewer page (default fixtures/run-demo)
  *   &live=0         do not poll (polling every 5 s is on whenever ?run= is given)
  * viewer.js calls start(api) once and onHour(replay, t) as the replay plays.
@@ -14,9 +15,6 @@
   const R = () => window.OakRuns;
   const POLL_MS = 5000;
   const VERDICT_TEXT = { accepted: "ACCEPTED", rejected: "REJECTED", overfit: "OVERFIT", minibatch: "MINIBATCH", baseline: "BASELINE" };
-  // v0 muted, the newest accepted version in the accent, anything between in a second hue
-  const VERSION_COLORS = ["var(--hollow)", "var(--warn)", "var(--text)"];
-  const ACCENT = "var(--accent)";
 
   const S = {
     api: null,
@@ -85,106 +83,6 @@
     return (names[m[1]] || m[1]) + " " + m[3];
   }
 
-  // ---------- headline ----------
-  function renderHeadline() {
-    const evo = R().evolution(S.evalRows);
-    const last = evo.lineage[evo.lineage.length - 1] || { value: null, version: 0 };
-    const score = last.value;
-    $("head-score").textContent = score == null ? "n/a" : f2(score);
-    const d = $("head-delta");
-    const rounds = R().coachRounds(S.evalRows);
-    if (score == null) d.textContent = "waiting for the first verification";
-    else if (!rounds.length) d.textContent = "waiting for the first coach round";
-    else if (evo.baseline == null || Math.abs(score - evo.baseline) < 0.005) d.textContent = "unchanged since the start";
-    else d.textContent = (score > evo.baseline ? "up " : "down ") + Math.abs(score - evo.baseline).toFixed(2) + " since the start";
-  }
-
-  // ---------- evolution chart ----------
-  function versionColor(v, acceptedVersions) {
-    const latest = acceptedVersions.length ? acceptedVersions[acceptedVersions.length - 1] : 0;
-    if (v === 0 || v == null) return VERSION_COLORS[0];
-    if (v === latest) return ACCENT;
-    const i = acceptedVersions.indexOf(v);
-    return VERSION_COLORS[1 + (Math.max(0, i) % (VERSION_COLORS.length - 1))];
-  }
-
-  function renderChart() {
-    const el = $("evo-chart");
-    const W = 328, H = 184, padL = 28, padR = 8, padT = 30, padB = 20;
-    const eps = S.episodes;
-    const evo = R().evolution(S.evalRows);
-    const markers = R().roundMarkers(S.evalRows, eps);
-    const acceptedVersions = [0].concat(evo.points.filter((p) => p.cls === "accepted").map((p) => p.version));
-    const nEp = Math.max(eps.length ? eps[eps.length - 1].episode : 0, markers.reduce((m, k) => Math.max(m, k.episode || 0), 0), 4);
-    const vals = eps.map((e) => num(e.reward)).concat(evo.lineage.map((l) => l.value)).filter((v) => v != null);
-    const yMax = Math.min(1, Math.max(0.5, Math.ceil(((vals.length ? Math.max.apply(null, vals) : 0.5) + 0.05) * 10) / 10));
-    const x = (ep) => padL + ((ep - 0.5) / nEp) * (W - padL - padR);
-    const y = (v) => padT + (1 - v / yMax) * (H - padT - padB);
-    const out = [];
-    out.push('<svg viewBox="0 0 ' + W + " " + H + '" role="img" aria-label="Reward per episode with coach rounds and verification score">');
-    for (let g = 0; g <= yMax + 1e-9; g += yMax > 0.6 ? 0.2 : 0.1) {
-      const gy = y(g).toFixed(1);
-      out.push('<line class="grid" x1="' + padL + '" x2="' + (W - padR) + '" y1="' + gy + '" y2="' + gy + '"/>');
-      out.push('<text class="tick" x="' + (padL - 6) + '" y="' + (Number(gy) + 3) + '" text-anchor="end">' + g.toFixed(1) + "</text>");
-    }
-    const step = nEp > 12 ? Math.ceil(nEp / 8) : 1;
-    for (let ep = 1; ep <= nEp; ep += step) {
-      out.push('<text class="tick" x="' + x(ep).toFixed(1) + '" y="' + (H - 6) + '" text-anchor="middle">' + ep + "</text>");
-    }
-    // coach rounds: a rule after the episode window they read, tagged with the verdict (two rows so tags never collide)
-    markers.forEach((mk, i) => {
-      const cls = mk.cls;
-      const color = cls === "accepted" ? "var(--accent)" : cls === "overfit" ? "var(--warn)" : "var(--muted)";
-      const mx = x(mk.episode + 0.5).toFixed(1);
-      const row = i % 2;
-      const fresh = S.animateFrom != null && mk.round > S.animateFrom.rounds ? " rnew" : "";
-      out.push('<line class="rround' + fresh + '" x1="' + mx + '" x2="' + mx + '" y1="' + (padT - 18 + row * 10 + 3) + '" y2="' + (H - padB) + '" stroke="' + color + '"/>');
-      out.push('<text class="rtag' + fresh + '" x="' + mx + '" y="' + (padT - 18 + row * 10) + '" text-anchor="' + (Number(mx) > W - 48 ? "end" : Number(mx) < padL + 40 ? "start" : "middle") + '" fill="' + color + '">v' + esc(mk.version) + " " + VERDICT_TEXT[cls] + "</text>");
-    });
-    // verification mean of the playbook in force: a step that moves at each accepted round
-    if (evo.baseline != null) {
-      const pts = [];
-      let cur = evo.lineage[0].value;
-      pts.push([x(0.5), y(cur)]);
-      for (let k = 1; k < evo.lineage.length; k++) {
-        const mk = markers.find((m) => m.round === k);
-        const mx = mk ? x(mk.episode + 0.5) : x(nEp + 0.5);
-        const v = evo.lineage[k].value;
-        if (v !== cur && v != null) {
-          pts.push([mx, y(cur)]);
-          pts.push([mx, y(v)]);
-          cur = v;
-        }
-      }
-      pts.push([x(nEp + 0.5), y(cur)]);
-      out.push('<polyline class="vstep" points="' + pts.map((p) => p[0].toFixed(1) + "," + p[1].toFixed(1)).join(" ") + '"/>');
-    }
-    for (const e of eps) {
-      const r = num(e.reward);
-      if (r == null) continue;
-      const c = versionColor(e.playbook_version, acceptedVersions);
-      const cur = S.shownEpisode === e.episode;
-      const isNew = S.animateFrom != null && e.episode > S.animateFrom.episode;
-      out.push('<circle class="dot' + (cur ? " cur" : "") + (isNew ? " new" : "") + '" tabindex="0" role="button" data-ep="' + e.episode + '" cx="' + x(e.episode).toFixed(1) +
-        '" cy="' + y(r).toFixed(1) + '" r="' + (cur ? 5 : 4) + '" fill="' + c + '" aria-label="Play episode ' + e.episode + ", reward " + f2(r) +
-        ", playbook v" + esc(e.playbook_version) + '"><title>Episode ' + e.episode + ": reward " + f2(r) + ", playbook v" + esc(e.playbook_version) + "</title></circle>");
-    }
-    if (!eps.length) out.push('<text class="empty" x="' + W / 2 + '" y="' + H / 2 + '" text-anchor="middle">Waiting for the first episode</text>');
-    out.push("</svg>");
-    el.innerHTML = out.join("");
-    el.querySelectorAll(".dot").forEach((d) => {
-      const go = () => showEpisode(Number(d.dataset.ep), true);
-      d.addEventListener("click", go);
-      d.addEventListener("keydown", (ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); go(); } });
-    });
-
-    const used = [];
-    for (const e of eps) if (!used.includes(e.playbook_version)) used.push(e.playbook_version);
-    const leg = used.map((v) => '<span><i class="sw-dot" style="background:' + versionColor(v, acceptedVersions) + '"></i>episode, playbook v' + esc(v) + "</span>");
-    if (evo.baseline != null) leg.push('<span><i class="sw-line"></i>verification score</span>');
-    $("evo-legend").innerHTML = leg.join("");
-  }
-
   // ---------- evolution front: playbook versions by round, y = verification score ----------
   function frontNodes() {
     const byV = {};
@@ -200,40 +98,41 @@
       n.cls = R().verdictClass(r);
       if (r.front !== undefined) n.front = r.front;
     }
-    return Object.values(byV).filter((n) => num(n.eval_mean) !== null).map((n) => {
+    const all = Object.values(byV);
+    const verified = all.some((n) => num(n.eval_mean) !== null);
+    return all.filter((n) => verified && (num(n.eval_mean) !== null || n.parent != null)).map((n) => {
+      if (num(n.eval_mean) === null) { n.hang = true; n.eval_mean = null; }
       if (!n.cls) n.cls = n.version === 0 ? "baseline" : n.verdict === "accepted" ? "accepted" : String(n.reason || "").startsWith("overfit") ? "overfit" : "rejected";
       if (n.version === 0 || n.parent == null) n.cls = "accepted";
       return n;
     }).sort((a, b) => a.version - b.version);
   }
 
-  function renderFront(fresh) {
-    const el = $("front");
+  // the front in the Results tab, or (into, hl) a copy in the playbook sheet with version hl ringed
+  function renderFront(fresh, into, hl) {
+    const el = into || $("front");
     const nodes = frontNodes();
-    const W = 320, H = 60, padL = 4, padR = 36, padT = 12, padB = 6;
+    const W = 320, H = 160, padL = 4, padR = 48, padT = 14, padB = 10;
     if (!nodes.length) {
-      el.innerHTML = '<svg viewBox="0 0 ' + W + " 60" + '" role="img" aria-label="Evolution front"><text class="wait" x="0" y="30">waiting for the v0 verification</text></svg>';
+      el.innerHTML = '<svg viewBox="0 0 ' + W + " 60" + '" role="img" aria-label="Playbook versions"><text class="wait" x="0" y="30">No verified playbook yet</text></svg>';
       return;
     }
-    const vals = nodes.map((n) => n.eval_mean);
+    const vals = nodes.filter((n) => !n.hang).map((n) => n.eval_mean);
     let lo = Math.min.apply(null, vals), hi = Math.max.apply(null, vals);
     const span = Math.max(0.04, hi - lo);
     lo -= span * 0.25; hi += span * 0.25;
     const nX = Math.max(nodes.length - 1, 1);
     const pos = {};
     nodes.forEach((n, i) => {
-      pos[n.version] = [padL + 8 + (nodes.length === 1 ? 0 : (i / nX) * (W - padL - padR - 16)), padT + (1 - (n.eval_mean - lo) / (hi - lo)) * (H - padT - padB)];
+      const px = padL + 8 + (nodes.length === 1 ? 0 : (i / nX) * (W - padL - padR - 16));
+      // a proposal never verified hangs just under its parent
+      const py = n.hang ? (pos[n.parent] ? pos[n.parent][1] : padT) + 16 : padT + (1 - (n.eval_mean - lo) / (hi - lo)) * (H - padT - padB);
+      pos[n.version] = [px, Math.min(H - padB, py)];
     });
-    const base = nodes.find((n) => n.version === 0) || nodes[0];
-    const best = nodes.reduce((b, n) => (n.cls === "accepted" && n.eval_mean > b.eval_mean ? n : b), base);
+    const base = nodes.find((n) => n.version === 0) || nodes.find((n) => !n.hang);
     const o = ['<svg viewBox="0 0 ' + W + " " + H + '" role="group" aria-label="Evolution front: playbook versions by coach round, height is the verification score">'];
     const by = pos[base.version][1];
     if (nodes.length > 1) o.push('<line class="base" x1="0" x2="' + (W - padR + 8) + '" y1="' + by.toFixed(1) + '" y2="' + by.toFixed(1) + '"/>');
-    o.push('<text class="ax" x="' + (W - padR + 12) + '" y="' + (by + 3).toFixed(1) + '">' + f2(base.eval_mean) + "</text>");
-    if (best !== base) {
-      const yy = pos[best.version][1];
-      o.push('<text class="ax" x="' + (W - padR + 12) + '" y="' + (yy + 3).toFixed(1) + '" fill="var(--accent)" style="fill:var(--accent)">' + f2(best.eval_mean) + "</text>");
-    }
     for (const n of nodes) {
       const parents = (Array.isArray(n.merged_from) && n.merged_from.length ? n.merged_from : [n.parent]).filter((p) => p != null && pos[p]);
       for (const p of parents) {
@@ -249,16 +148,19 @@
     const newest = nodes[nodes.length - 1].version;
     for (const n of nodes) {
       const [cx, cy] = pos[n.version];
-      const tip = "v" + n.version + " · " + (n.version === 0 ? "start" : n.cls) + " · " + f2(n.eval_mean) + (n.change ? " · " + R().uiText(n.change).slice(0, 80) : "");
+      const tip = "v" + n.version + " · " + (n.version === 0 ? "start" : n.hang ? (n.verdict === "open" ? "checking" : "rejected before verification") : n.cls) + "" + (n.change ? " · " + R().uiText(n.change).slice(0, 80) : "");
       const anim = fresh && n.version === newest ? " front-fresh" : "";
-      o.push('<g class="node' + anim + '" tabindex="0" data-tip="' + esc(tip) + '" data-x="' + cx.toFixed(1) + '" data-y="' + cy.toFixed(1) + '" aria-label="' + esc(tip) + '">');
+      o.push('<g class="node' + anim + '" tabindex="0" role="button" data-v="' + n.version + '" data-tip="' + esc(tip) + '" data-x="' + cx.toFixed(1) + '" data-y="' + cy.toFixed(1) + '" aria-label="' + esc(tip) + '">');
       if (n.front) o.push('<circle class="halo" cx="' + cx.toFixed(1) + '" cy="' + cy.toFixed(1) + '" r="8"/>');
-      o.push('<circle class="n ' + n.cls + '" cx="' + cx.toFixed(1) + '" cy="' + cy.toFixed(1) + '" r="3.5"/>');
+      if (hl != null && n.version === hl) o.push('<circle class="hl" cx="' + cx.toFixed(1) + '" cy="' + cy.toFixed(1) + '" r="8"/>');
+      o.push('<circle class="n ' + (n.hang ? "rejected" : n.cls) + '" cx="' + cx.toFixed(1) + '" cy="' + cy.toFixed(1) + '" r="3.5"/>');
       o.push("</g>");
     }
-    if (nodes.length === 1) o.push('<text class="wait" x="20" y="' + (by + 4).toFixed(1) + '">waiting for the first coach round</text>');
     o.push("</svg>");
     el.innerHTML = o.join("");
+    if (into) return;
+    const pickEl = $("front-pick");
+    if (pickEl && !pickEl.dataset.v) pickEl.textContent = chain.length > 1 ? "Click a version to read its playbook." : "No playbook change kept yet";
     const tipEl = $("front-tip");
     const show = (g) => {
       tipEl.textContent = g.dataset.tip;
@@ -274,7 +176,33 @@
       g.addEventListener("focus", () => show(g));
       g.addEventListener("mouseleave", hide);
       g.addEventListener("blur", hide);
+      const pick = () => pickVersion(nodes.find((n) => n.version === Number(g.dataset.v)));
+      g.addEventListener("click", pick);
+      g.addEventListener("keydown", (ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); pick(); } });
     });
+  }
+
+  // a clicked version: its change under the chart, its playbook in the sheet
+  function pickVersion(n) {
+    if (!n) return;
+    const el = $("front-pick");
+    if (el) el.dataset.v = n.version;
+    if (el) el.textContent = "v" + n.version + " · " + (n.version === 0 ? "start" : n.cls) + " · " + (n.change ? R().uiText(n.change).split("\n")[0] : "the starting playbook");
+    openPlaybook(n.version);
+  }
+
+  // the coach's own rounds from tree.json, one muted line each, newest first
+  function renderRounds() {
+    const el = $("rounds-list");
+    if (!el) return;
+    const nodes = (S.tree && Array.isArray(S.tree.nodes) ? S.tree.nodes : []).filter((n) => n && num(n.version) && n.version > 0);
+    el.innerHTML = nodes.sort((a, b) => b.version - a.version).slice(0, 6).map((n) => {
+      const word = n.verdict === "open" ? "checking" : n.verdict || "open";
+      const m = /^(\w+): episodes ([-+]?\d*\.?\d+)/.exec(String(n.reason || ""));
+      const why = m ? "training " + m[1] + (Number(m[2]) < 0 ? " down " : " up ") + Math.abs(Number(m[2])).toFixed(3) : n.reason;
+      const txt = "v" + n.version + " " + word + (why ? ", " + why : "") + (n.eval_mean != null ? ", verification " + f2(n.eval_mean) : "");
+      return '<li title="' + esc(n.change ? R().uiText(n.change) : txt) + '">' + esc(txt) + "</li>";
+    }).join("");
   }
 
   // ---------- last coach decision, in the agent's voice ----------
@@ -303,12 +231,14 @@
   function inForce() {
     return R().currentPlaybook(S.evalRows, null).version || 0;
   }
-  function openPlaybook() {
-    const v = inForce();
+  function openPlaybook(pick) {
+    const v = typeof pick === "number" ? pick : inForce();
     const sheet = $("playbook-sheet");
     $("pb-title").textContent = "Playbook v" + v;
     $("pb-note").textContent = v ? "Highlighted lines were added since v0. The model is unchanged; only this text is." : "The starting playbook. The model is unchanged; only this text changes.";
     $("pb-text").textContent = "Loading";
+    setTab("learn");
+    renderFront(false, $("pb-front"), v);
     sheet.classList.remove("hidden");
     $("pb-close").focus();
     Promise.all([fetchText(S.base + "/playbooks/v0.md"), fetchText(S.base + "/playbooks/v" + v + ".md")]).then(([t0, tv]) => {
@@ -342,6 +272,7 @@
   function showShipCard(idx, rep, t) {
     const s = rep && rep.ships && rep.ships[idx];
     S.selectedShip = s ? idx : null;
+    renderActs();
     if (S.pointer) { lastPointer = S.pointer; S.pointer = null; }
     renderPort();
     const card = $("ship-card");
@@ -371,14 +302,13 @@
   }
   function hideShipCard() {
     $("ship-card").classList.add("hidden");
-    if (S.selectedShip != null) { S.selectedShip = null; renderPort(); }
+    if (S.selectedShip != null) { S.selectedShip = null; renderPort(); renderActs(); }
   }
 
   function renderAll(fresh) {
-    renderHeadline();
     renderFront(fresh);
     renderSay();
-    renderChart();
+    renderRounds();
   }
 
   // ---------- replay of an episode ----------
@@ -390,10 +320,10 @@
       .then((rep) => {
         S.shownEpisode = epNum;
         S.shownReplay = rep;
+        S.planRep = null;
         S.followNewest = !userPicked || epNum === S.episodes[S.episodes.length - 1].episode;
         S.api.load(rep);
         if (S.live) S.api.play(true);
-        renderChart();
         S.lastHourKey = "";
         return true;
       })
@@ -404,6 +334,10 @@
   function onHour(rep, t) {
     if (!rep) return;
     schedulePort(rep, t);
+    if (S.planRep && rep === S.planRep) {
+      if (S.lastHourKey !== "plan") { S.lastHourKey = "plan"; $("now").innerHTML = '<span class="muted">' + esc(S.planText) + "</span>"; }
+      return;
+    }
     const mine = rep === S.shownReplay && S.shownEpisode != null;
     const key = (mine ? "e" + S.shownEpisode : "x" + ((rep.task || {}).task_id || "")) + "|" + S.episodes.length;
     if (key === S.lastHourKey) return;
@@ -441,34 +375,44 @@
     const k = K.at(rep, t);
     const H = K.horizon(rep);
     const ph = $("port-hour");
-    if (ph) ph.textContent = "hour " + Math.floor(t);
-    $("k-along").textContent = String(k.ships_alongside);
-    $("k-cranes").textContent = k.cranes_working + "/" + k.cranes_pool;
+    if (ph) ph.textContent = "Port now · " + hourTxt(Math.floor(t)) + ", hour " + Math.floor(t);
+    const task = rep.task || {};
+    const g = rep.grade || {};
+    $("k-along").textContent = k.ships_alongside + " of " + (rep.ships || []).length;
+    // pool of this hour from the replay's crane_pool_by_hour (hoot shifts and outages included)
+    $("k-cranes").textContent = k.cranes_working + " of " + k.cranes_pool;
     $("k-late").textContent = String(Math.round(k.late_ship_hours));
-    $("k-cost").textContent = (k.cost_so_far != null ? k.cost_so_far : "n/a") + (k.optimal_cost != null ? "/" + k.optimal_cost : "");
+    const cost = g.cost != null ? g.cost : k.final_cost;
+    const best = g.optimal_cost != null ? g.optimal_cost : k.optimal_cost;
+    const fmt = (v) => (typeof v === "number" ? v.toLocaleString("en-US") : "n/a");
+    $("k-cost").textContent = fmt(cost) + (best != null ? ", best possible " + fmt(best) : ", best possible unknown");
+    $("k-say").textContent = portSentence(rep, t);
 
-    // quay strip
-    const W = 320, Q = 46, barY = 18, barH = 22;
+    // quay strip: the terminal name on the left, ships alongside as named blocks, nothing else
+    const W = 320, Q = 30, L0 = 84, barY = 4, barH = 22;
     const nSec = Math.max(1, k.sections || 1);
-    const sx = (sec) => ((sec - 1) / nSec) * W;
-    const o = ['<svg viewBox="0 -2 ' + W + " " + Q + '" aria-hidden="false">'];
-    o.push('<rect class="bar" x="0.5" y="' + barY + '" width="' + (W - 1) + '" height="' + barH + '"/>');
-    const step = nSec > 40 ? 5 : 1;
-    for (let i = 1; i < nSec; i += step) o.push('<line class="tick" x1="' + sx(i + 1).toFixed(1) + '" x2="' + sx(i + 1).toFixed(1) + '" y1="' + (barY + barH - 4) + '" y2="' + (barY + barH) + '"/>');
-    (rep.ships || []).forEach((s, idx) => {
-      const secs = s.sections || 1;
-      if (t >= s.berth_hour && t < s.departure) {
-        const x0 = sx(s.first_section) + 1, w = Math.max(3, (secs / nSec) * W - 2);
+    const BW = W - L0;
+    const sx = (sec) => L0 + ((sec - 1) / nSec) * BW;
+    const along = (rep.ships || []).map((s, idx) => [s, idx]).filter(([s]) => t >= s.berth_hour && t < s.departure);
+    const o = [];
+    if (!along.length) o.push('<span class="none">No ship alongside at this hour</span>');
+    else {
+      o.push('<svg viewBox="0 0 ' + W + " " + Q + '" aria-hidden="false">');
+      o.push('<text class="term" x="0" y="' + (barY + barH / 2 + 4) + '">' + esc((task.terminal || "Terminal") + " quay") + "</text>");
+      o.push('<rect class="bar" x="' + L0 + '.5" y="' + barY + '" width="' + (BW - 1) + '" height="' + barH + '"/>');
+      for (const [s, idx] of along) {
+        const secs = s.sections || 1;
+        const x0 = sx(s.first_section) + 1, w = Math.max(3, (secs / nSec) * BW - 2);
         const late = s.due != null && t > s.due;
         const sel = S.selectedShip === idx;
         o.push('<rect class="ship' + (late ? " late" : "") + (sel ? " sel" : "") + '" data-idx="' + idx + '" x="' + x0.toFixed(1) + '" y="' + (barY + 2) + '" width="' + w.toFixed(1) + '" height="' + (barH - 4) + '"><title>' + esc(s.name) + (late ? ", past its due hour" : "") + "</title></rect>");
-        const nm = String(s.name || "").split(" ").pop();
-        if (nm.length * 5.6 + 6 < w) o.push('<text class="sname" x="' + (x0 + w / 2).toFixed(1) + '" y="' + (barY + barH / 2 + 3) + '" text-anchor="middle">' + esc(nm) + "</text>");
-      } else if (t >= s.arrival && t < s.berth_hour) {
-        o.push('<circle class="wait" cx="' + (sx(s.first_section) + (secs / nSec) * W / 2).toFixed(1) + '" cy="8" r="3"><title>' + esc(s.name) + " at anchor</title></circle>");
+        const full = String(s.name || ""), short = full.split(" ").pop();
+        const fit = (txt) => txt.length * 5.5 + 6 < w;
+        const nm = fit(full) ? full : fit(short) ? short : short.slice(0, Math.max(0, Math.floor((w - 6) / 5.5)));
+        if (nm) o.push('<text class="sname" x="' + (x0 + w / 2).toFixed(1) + '" y="' + (barY + barH / 2 + 3) + '" text-anchor="middle">' + esc(nm) + "</text>");
       }
-    });
-    o.push('<text class="ax" x="0" y="' + (Q - 1) + '">sec 1</text><text class="ax" x="' + W + '" y="' + (Q - 1) + '" text-anchor="end">' + nSec + "</text></svg>");
+      o.push("</svg>");
+    }
     const quay = $("quay");
     quay.innerHTML = o.join("");
     quay.querySelectorAll(".ship").forEach((r) => r.addEventListener("click", (e) => {
@@ -497,6 +441,19 @@
     $("cranes-spark").innerHTML = '<svg viewBox="0 0 ' + SW + " " + (SH + 12) + '" role="img" aria-label="Cranes in use per hour against the pool, with the current hour">' + sparkCache.html +
       '<line class="head" x1="' + hx + '" x2="' + hx + '" y1="0" y2="' + SH + '"/>' +
       '<text class="ax" x="0" y="' + (SH + 11) + '">cranes in use</text><text class="ax" x="' + SW + '" y="' + (SH + 11) + '" text-anchor="end">pool, dashed · ' + Math.round(H / 24) + " days</text></svg>";
+  }
+
+  // one short sentence from the state at hour t
+  function portSentence(rep, t) {
+    const ships = rep.ships || [];
+    const along = ships.filter((s) => t >= s.berth_hour && t < s.departure);
+    const lateNow = ships.filter((s) => s.late_h > 0 && s.due != null && t > s.due && t < s.departure).sort((a, b) => b.late_h - a.late_h);
+    const lateTxt = lateNow.length ? lateNow[0].name + " " + lateNow[0].late_h + " h late" : "";
+    if (!along.length) {
+      const next = ships.filter((s) => s.arrival > t).sort((a, b) => a.arrival - b.arrival)[0];
+      return "Quay idle this hour" + (next ? ", next arrival " + hourTxt(next.arrival) : "") + (lateTxt ? ", " + lateTxt : "");
+    }
+    return along.length + " ship" + (along.length === 1 ? "" : "s") + " working" + (lateTxt ? ", " + lateTxt : ", all on time");
   }
 
   function crossfade(el) {
@@ -539,7 +496,7 @@
         "</span>, verification " + f2(c.evalBefore) + " → " + f2(c.evalAfter));
     } else if (newest > prevEp) {
       const e = S.episodes[S.episodes.length - 1];
-      toast("New episode finished, reward " + f2(num(e.reward)));
+      toast("New shift planned, reward " + f2(num(e.reward)));
     }
     if (newest > prevEp && S.followNewest !== false) showEpisode(newest, false);
   }
@@ -604,7 +561,8 @@
     wireTheme();
     const back = $("back-to-run");
     if (back) back.addEventListener("click", () => { if (S.episodes.length) showEpisode(S.shownEpisode || S.episodes[S.episodes.length - 1].episode, true); });
-    $("playbook-btn").addEventListener("click", openPlaybook);
+    $("playbook-btn").addEventListener("click", () => openPlaybook());
+    wireTabs();
     $("quay").addEventListener("keydown", (e) => {
       if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
       e.preventDefault();
@@ -617,9 +575,6 @@
       if (["INPUT", "TEXTAREA", "SELECT", "DEEP-CHAT"].includes(tag) || (src && src.isContentEditable) || (e.target && e.target.tagName === "DEEP-CHAT") || e.metaKey || e.ctrlKey || e.altKey) return;
       if (e.key === "Escape") {
         if (!closePlaybook()) hideShipCard();
-      } else if (/^[1-9]$/.test(e.key)) {
-        const ep = S.episodes[Number(e.key) - 1];
-        if (ep) showEpisode(ep.episode, true);
       } else if (e.key === "l" || e.key === "L") {
         document.body.classList.toggle("learning-hidden");
       } else if (e.key === "c" || e.key === "C") {
@@ -639,14 +594,98 @@
     });
   }
 
+  // ---------- actions on what is on screen: the selected ship, or back from a proposed plan ----------
+  function renderActs() {
+    const row = $("act-row");
+    if (!row) return;
+    const chips = [];
+    const rep = S.api && S.api.getReplay();
+    const s = S.selectedShip != null && rep && rep.ships ? rep.ships[S.selectedShip] : null;
+    if (S.planRep && rep === S.planRep) chips.push(["Back to the run", "back"]);
+    else if (s) {
+      const ep = "";
+      const nm = s.name;
+      if (s.late_h > 0) chips.push(["Why is " + nm + " late?", "Why is " + nm + " late" + ep + "?"]);
+      chips.push(["Route " + nm + " earlier", "Route " + nm + " earlier" + ep + "."]);
+      chips.push(["What if " + nm + " berths elsewhere?", "What if " + nm + " berths elsewhere" + ep + "?"]);
+    }
+    row.innerHTML = chips.map((c, i) => '<button type="button" class="chip act" data-i="' + i + '">' + esc(c[0]) + "</button>").join("");
+    row.querySelectorAll(".act").forEach((b) => b.addEventListener("click", () => {
+      const q = chips[Number(b.dataset.i)][1];
+      if (q === "back") { const ep = S.planBackEp; S.planRep = null; if (ep != null) showEpisode(ep, true); renderActs(); }
+      else if (window.OakChat) window.OakChat.send(q);
+    }));
+  }
+
+  // a plan the operator made (make_plan, route_ship): its replay in the scene, the cost in the top bar
+  function showPlan(plan) {
+    if (!plan || !plan.replay || !S.api) return Promise.resolve(false);
+    return fetch(S.base + "/" + plan.replay, { cache: "no-store" })
+      .then((r) => { if (!r.ok) throw new Error(r.status + " " + r.statusText); return r.json(); })
+      .then((rep) => {
+        if (!S.planRep || S.api.getReplay() !== S.planRep) S.planBackEp = S.shownEpisode;
+        S.planRep = rep;
+        const fmt = (v) => (typeof v === "number" ? v.toLocaleString("en-US") : "n/a");
+        S.planText = "Proposed plan, cost " + fmt(plan.cost) + (plan.optimum != null ? " vs best " + fmt(plan.optimum) : "");
+        S.api.load(rep);
+        S.lastHourKey = "";
+        renderActs();
+        return true;
+      })
+      .catch((err) => toast("Could not load " + esc(plan.replay) + ": " + esc(err.message)));
+  }
+
+  // ---------- tabs: Operator and Learning, remembered ----------
+  function setTab(which, focus) {
+    const op = which !== "learn";
+    $("tab-op").setAttribute("aria-selected", String(op));
+    $("tab-learn").setAttribute("aria-selected", String(!op));
+    $("tab-op").tabIndex = op ? 0 : -1;
+    $("tab-learn").tabIndex = op ? -1 : 0;
+    $("pane-op").hidden = !op;
+    $("pane-learn").hidden = op;
+    if (focus) $(op ? "tab-op" : "tab-learn").focus();
+    try { localStorage.setItem("oak-tab", op ? "op" : "learn"); } catch (e) { /* private mode: not remembered */ }
+    if (!op) renderFront(false);
+  }
+  function wireTabs() {
+    let saved = "op";
+    try { saved = localStorage.getItem("oak-tab") || "op"; } catch (e) { /* default */ }
+    $("tab-op").addEventListener("click", () => setTab("op"));
+    $("tab-learn").addEventListener("click", () => setTab("learn"));
+    document.querySelector(".ptabs").addEventListener("keydown", (e) => {
+      if (e.key === "ArrowLeft" || e.key === "ArrowRight" || e.key === "Home" || e.key === "End") {
+        e.preventDefault();
+        setTab($("tab-op").getAttribute("aria-selected") === "true" ? "learn" : "op", true);
+      }
+    });
+    setTab(saved);
+  }
+
+  // replays by episode, for ship names in chat answers about an episode not on screen
+  const replayCache = {};
+  function replayFor(epNum) {
+    const n = Number(epNum);
+    if (n === S.shownEpisode && S.shownReplay) return Promise.resolve(S.shownReplay);
+    if (replayCache[n]) return replayCache[n];
+    const e = S.episodes.find((x) => x.episode === n);
+    if (!e) return Promise.resolve(null);
+    replayCache[n] = fetch(S.base + "/" + e.replay, { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+    return replayCache[n];
+  }
+  function lastEpisode() { return S.episodes.length ? S.episodes[S.episodes.length - 1].episode : null; }
+
     // for chat.js: which run and episode are on screen, and jumping to a ship of an episode
   function runName() { return S.base.split("/").filter(Boolean).pop() || S.base; }
   function currentEpisode() { return S.shownReplay && S.api && S.api.getReplay() === S.shownReplay ? S.shownEpisode : null; }
   function goTo(link) {
     const ep = link && link.episode != null ? Number(link.episode) : S.shownEpisode;
     const ready = ep === S.shownEpisode && S.api.getReplay() === S.shownReplay ? Promise.resolve(true) : showEpisode(ep, true);
-    return Promise.resolve(ready).then(() => {
+    return Promise.resolve(ready).then((ok) => {
+      if (ok === false || ok === undefined) return;
       const rep = S.api.getReplay();
+      // a freshly loaded episode plays when live; stay on the hour the answer named
+      if (ep !== null && link.hour != null) S.api.play(false);
       if (link.hour != null) S.api.seek(Number(link.hour));
       if (link.ship_id != null && rep) {
         const idx = (rep.ships || []).findIndex((x) => x.id === link.ship_id);
@@ -656,10 +695,10 @@
   }
   function shipName(link) {
     if (link.ship_id == null) return null;
-    const rep = link.episode === S.shownEpisode ? S.shownReplay : null;
+    const rep = link.episode === S.shownEpisode ? S.shownReplay : link.rep || null;
     const s = rep && (rep.ships || []).find((x) => x.id === link.ship_id);
     return s ? s.name : "ship " + link.ship_id;
   }
 
-  window.OakLearning = { start, onHour, showEpisode, showShipCard, hideShipCard, runName, currentEpisode, goTo, shipName, toast, _state: S };
+  window.OakLearning = { start, onHour, showEpisode, showShipCard, hideShipCard, runName, currentEpisode, goTo, shipName, showPlan, renderActs, replayFor, lastEpisode, setTab, toast, _state: S };
 })();

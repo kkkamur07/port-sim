@@ -420,3 +420,78 @@ body.learning-hidden .toast { left: 50vw; }
 .oak-res-no { font: 500 13px var(--sans); color: var(--muted); margin-top: 8px; }
 .oak-res { max-width: 100%; min-width: 0; }
 .oak-res-rule { font-size: 13px; line-height: 1.4; margin-top: 4px; white-space: normal; overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }
+
+/* two tabs at the top of the panel: Operator and Learning */
+.ptabs { flex: none; display: flex; gap: 24px; border-bottom: 1px solid var(--line); }
+.ptab { position: relative; height: 44px; padding: 0; background: transparent; border: 0; color: var(--muted); font: 500 13px/1 var(--sans); cursor: pointer; }
+.ptab[aria-selected="true"] { color: var(--accent-text); }
+.ptab[aria-selected="true"]::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 1px; background: var(--accent); }
+.ptab:focus-visible { outline: 1px solid var(--text); outline-offset: 2px; }
+.pane { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.pane[hidden] { display: none; }
+#pane-learn { overflow-y: auto; overflow-x: hidden; }
+.pane > section { flex: none; padding: 20px 0; border-bottom: 1px solid var(--line); position: relative; }
+.pane > section:last-child { border-bottom: 0; }
+#pane-op > section.chat { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 12px 0 20px; }
+
+/* port now: one muted hour label, the quay strip, four worded numbers two per row, at most 110 px */
+#pane-op > .l-port { padding: 12px 0; max-height: 110px; box-sizing: content-box; overflow: hidden; }
+.l-port #port-hour { display: block; font: 400 12px/1 var(--sans); letter-spacing: 0; text-transform: none; color: var(--muted); }
+.l-port .quay { margin-top: 8px; height: 30px; }
+.l-port .quay svg { display: block; width: 100%; height: 30px; }
+.l-port .quay .none { display: block; font: 400 12px/30px var(--sans); color: var(--muted); }
+.quay .term { fill: var(--muted); font: 500 10px var(--sans); }
+.quay .ship, .quay .ship.late { fill: var(--line); stroke: var(--line-strong); stroke-dasharray: none; }
+.quay .ship.sel { stroke: var(--text); stroke-width: 2; }
+.l-port .tiles { margin-top: 10px; gap: 6px 20px; }
+.l-port .tile .t-n { font: 400 12px/1.2 var(--sans); letter-spacing: 0; text-transform: none; color: var(--muted); }
+.l-port .tile .num { font: 400 13px/1.2 var(--mono); color: var(--text); }
+
+/* learning tab */
+.front-block .front svg { height: 160px; }
+.front-block .front .n { cursor: pointer; }
+.front-pick { margin: 8px 0 0; font: 400 12px/1.4 var(--sans); color: var(--muted); }
+.opt-btn { width: 100%; height: 36px; border: 0; border-radius: 6px; background: var(--accent); color: #fff; font: 500 13px/1 var(--sans); cursor: pointer; }
+.opt-btn:disabled { opacity: 0.5; cursor: default; }
+.opt-btn:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+.opt-wait { position: relative; margin-top: 12px; padding-bottom: 6px; font: 400 12px/1.4 var(--sans); color: var(--muted); overflow: hidden; }
+.opt-wait .hair { position: absolute; left: 0; bottom: 0; height: 1px; width: 30%; background: var(--muted); animation: hair 1.6s ease-in-out infinite; }
+@keyframes hair { from { transform: translateX(-100%); } to { transform: translateX(340%); } }
+@media (prefers-reduced-motion: reduce) { .opt-wait .hair { animation: none; width: 100%; opacity: 0.4; } }
+.prop-list { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+.prop-list:empty { display: none; }
+.prop-card { padding: 10px 12px; border: 1px solid var(--line-strong); border-radius: 4px; }
+.prop-card .oak-res-rule { margin-top: 6px; }
+.prop-card .prop-st { font: 500 13px var(--sans); color: var(--muted); margin-top: 8px; }
+.rounds-list { list-style: none; margin: 16px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.rounds-list li { font: 400 11px/1.4 var(--mono); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* results tab: the routine the agent ran, then its playbook versions */
+.r-title { margin: 0; font: 600 14px/1.3 var(--sans); color: var(--text); }
+.r-sub { margin: 4px 0 0; font: 400 12px/1.4 var(--sans); color: var(--muted); }
+.r-nums { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 16px; }
+.r-num { display: flex; flex-direction: column; justify-content: space-between; gap: 6px; min-width: 0; }
+.r-l { font: 400 12px/1.3 var(--sans); color: var(--muted); }
+.r-v { font: 400 18px/1 var(--mono); color: var(--text); white-space: nowrap; }
+.front-block .label { display: block; margin-bottom: 8px; }
+#pane-op > .l-port { max-height: 130px; }
+.l-port .k-say { margin: 8px 0 0; font: 400 12px/1.3 var(--sans); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.l-port .tile.wide { grid-column: 1 / -1; }
+.l-port .tile { gap: 4px; }
+.l-port .tile .t-n { font-size: 11px; overflow: visible; }
+.l-port .tile .num { font-size: 12px; }
+/* playbook sheet: versions curve, reward bars for the version, then the text */
+.sheet .sheet-chart { border-top: 0; border-bottom: 1px solid var(--line); padding: 8px 0 16px; }
+.pb-front { margin: 8px 0 16px; }
+.pb-front svg { height: 160px; }
+.front .hl { fill: none; stroke: var(--text); stroke-width: 1.5; }
+.chart .rbar { fill: var(--line-strong); }
+.chart .tick { fill: var(--muted); font: 9px var(--mono); }
+.chart .grid { stroke: var(--line); stroke-width: 1; }
+.act-row { display: flex; flex-wrap: wrap; gap: 4px; padding-top: 8px; }
+.act-row:empty { display: none; }
+.chip.act { border-color: var(--text); }
+.oak-skel { height: 8px; width: 220px; border-radius: 4px; background: var(--line); margin-top: 6px; }
+.oak-skel.short { width: 140px; }
+.chat-clear { position: absolute; top: 8px; right: 0; z-index: 2; padding: 2px 0; background: transparent; border: 0; color: var(--muted); font: 400 12px/1 var(--sans); cursor: pointer; }
+.chat-clear:hover { color: var(--text); }

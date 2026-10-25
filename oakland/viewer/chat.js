@@ -13,7 +13,7 @@
   const $ = (id) => document.getElementById(id);
   const params = new URLSearchParams(location.search);
   const ENDPOINT = params.get("chat") || "http://127.0.0.1:8771/chat";
-  const INTRO = "Ask me how the run is going, what the coach changed, why a ship is late, or what would happen if a ship berthed elsewhere.";
+  const INTRO = "Ask me anything about running the port.";
   // turns the component's grey send icon crane orange
   const ACCENT_FILTER = "brightness(0) saturate(100%) invert(33%) sepia(86%) saturate(2272%) hue-rotate(352deg) brightness(88%) contrast(93%)";
   const history = []; // [{role: "user" | "assistant", content}], what the API gets
@@ -36,7 +36,8 @@
     return fetch(ENDPOINT, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ run: runForApi(), messages: msgs, episode: L() ? L().currentEpisode() : null }),
+      body: JSON.stringify({ run: runForApi(), messages: msgs, episode: L() ? L().currentEpisode() : null, hour: window.OakViewer && window.OakViewer.getReplay() ? Math.floor(window.OakViewer.getT()) : null,
+        ship_id: L() && L()._state.selectedShip != null && window.OakViewer && window.OakViewer.getReplay() ? ((window.OakViewer.getReplay().ships || [])[L()._state.selectedShip] || {}).id : null }),
       signal: signal,
     }).then((r) => r.json().catch(() => ({ error: r.status + " " + r.statusText })).then((d) => {
       if (!r.ok || d.error) throw new Error(d.error || r.status + " " + r.statusText);
@@ -57,26 +58,50 @@
   }
 
   let linkStore = [];
-  function answerHtml(d) {
+  const chip = (lk, label) => '<button class="oak-link" data-link="' + (linkStore.push(lk) - 1) + '">' + esc(label) + "</button>";
+  function epNums(text) {
+    const out = [];
+    String(text || "").replace(/\bepisodes?\s+(\d+)/gi, (m, n) => { if (!out.includes(Number(n))) out.push(Number(n)); });
+    return out;
+  }
+  // reps: {episode: replay} fetched before rendering, so ships named in the answer get chips too
+  function answerHtml(d, reps) {
+    reps = reps || {};
     const out = ['<div class="oak-ans">' + esc(d.answer || "").replace(/\n/g, "<br>") + "</div>"];
     const line = stepsLine(d.steps);
     if (line) out.push('<div class="oak-steps">' + esc(line) + "</div>");
-    const seenL = {};
-    const links = (Array.isArray(d.links) ? d.links : []).filter((lk) => {
-      const key = lk.episode + "|" + (lk.ship_id == null ? "" : lk.ship_id);
-      if (seenL[key]) return false;
-      seenL[key] = 1;
-      return true;
-    });
-    if (links.length) {
-      const chips = links.slice(0, 6).map((lk) => {
-        const i = linkStore.push(lk) - 1;
-        const name = L() ? L().shipName(lk) : null;
-        const label = (name ? name + " · " : "") + "episode " + lk.episode + (lk.hour != null ? " · h" + lk.hour : "");
-        return '<button class="oak-link" data-link="' + i + '">' + esc(label) + "</button>";
-      });
-      out.push('<div class="oak-links">' + chips.join("") + "</div>");
+    const links = (Array.isArray(d.links) ? d.links : []).filter((lk) => lk && lk.episode != null).map((lk) => Object.assign({}, lk, { episode: Number(lk.episode) }));
+    for (const n of epNums(d.answer)) if (!links.some((lk) => lk.episode === n)) links.push({ episode: n });
+    // ship names in the answer text, matched against the replay of each named episode
+    const text = String(d.answer || "").toUpperCase();
+    for (const ep of Object.keys(reps).map(Number)) {
+      // a name can call more than once a run; take its latest call
+      const byName = {};
+      for (const sh of (reps[ep] && reps[ep].ships) || []) {
+        const nm = String(sh.name || "").toUpperCase();
+        if (nm && text.includes(nm) && (!byName[nm] || (sh.late_h || 0) > (byName[nm].late_h || 0))) byName[nm] = sh;
+      }
+      for (const sh of Object.values(byName)) {
+        if (!links.some((lk) => lk.episode === ep && lk.ship_id != null && (reps[ep].ships || []).some((x) => x.id === lk.ship_id && x.name === sh.name))) links.push({ episode: ep, ship_id: sh.id, hour: sh.due != null && sh.late_h > 0 ? sh.due : sh.berth_hour });
+      }
     }
+    const chips = [], seenEp = {}, seenShip = {};
+    for (const lk of links) {
+      if (!seenEp[lk.episode]) {
+        seenEp[lk.episode] = 1;
+        const h = links.find((x) => x.episode === lk.episode && x.ship_id == null && x.hour != null);
+        chips.push(chip({ episode: lk.episode, hour: h ? h.hour : null }, "Show in 3D" + (h ? " at hour " + h.hour : "")));
+      }
+    }
+    for (const lk of links) {
+      if (lk.ship_id == null || seenShip[lk.episode + "|" + lk.ship_id]) continue;
+      seenShip[lk.episode + "|" + lk.ship_id] = 1;
+      const sh = reps[lk.episode] && (reps[lk.episode].ships || []).find((x) => x.id === lk.ship_id);
+      const name = sh ? sh.name : L() ? L().shipName(lk) : "ship " + lk.ship_id;
+      chips.push(chip(lk, name));
+    }
+    if (d.plan && d.plan.replay) chips.unshift('<button class="oak-link" data-plan="' + (linkStore.push({ plan: d.plan }) - 1) + '">Show plan in 3D</button>');
+    if (chips.length) out.push('<div class="oak-links">' + chips.slice(0, 10).join("") + "</div>");
     const w = d.what_if;
     if (w && typeof w === "object" && !w.error) {
       const sub = w.submitted || {};
@@ -87,7 +112,7 @@
         " cranes" + (typeof w.delta_reward === "number" ? ", reward " + (w.delta_reward >= 0 ? "+" : "") + w.delta_reward.toFixed(3) : "") + "</div>" +
         (w.plan ? '<button class="oak-link" data-whatif="1">show in 3D</button>' : "") + "</div>");
       const i = linkStore.push({ episode: w.episode, ship_id: w.ship, hour: a.berth_hour }) - 1;
-      out.push('<div class="oak-links"><button class="oak-link" data-link="' + i + '">' + esc(w.name || "ship " + w.ship) + " in episode " + esc(w.episode) + "</button></div>");
+      out.push('<div class="oak-links"><button class="oak-link" data-link="' + i + '">' + esc(w.name || "ship " + w.ship) + " in 3D</button></div>");
     }
     return out.join("");
   }
@@ -113,8 +138,29 @@
     const list = $("fb-list");
     if (list) { list.insertAdjacentHTML("beforeend", '<div class="fb-ai">' + html + "</div>"); list.scrollTop = list.scrollHeight; }
   }
+  // the Results tab: one card per proposal, the waiting line while the verifier runs
+  function propCard(p) {
+    const list = $("prop-list");
+    if (!list || !p || p.id == null) return;
+    let el = list.querySelector('[data-pid="' + p.id + '"]');
+    if (!el) { el = document.createElement("div"); el.className = "prop-card"; el.dataset.pid = p.id; list.prepend(el); }
+    const done = p.status === "accepted" || p.status === "rejected";
+    el.innerHTML = done ? resultHtml(p) : '<div class="oak-res-rule">' + esc(String(p.change || "a new rule").split("\n")[0]) + '</div><div class="prop-st">Verifying</div>';
+    waiting(done ? null : p);
+  }
+  function waiting(p) {
+    const box = $("opt-wait"), btn = $("opt-btn");
+    if (!box) return;
+    box.classList.toggle("hidden", !p);
+    if (btn) btn.disabled = !!p;
+    if (p) {
+      const m = typeof p.expected_minutes === "number" && p.expected_minutes > 0 ? Math.max(1, Math.round(p.expected_minutes)) : null;
+      $("opt-wait-text").textContent = "Checking on 4 held-out tasks" + (m ? ", about " + m + " min" : "");
+    }
+  }
   function watchProposal(p, run) {
     if (!p || p.id == null || watched[p.id]) return;
+    propCard(p);
     if (p.status === "accepted" || p.status === "rejected") { watched[p.id] = 1; addAi(resultHtml(p), p.status); return; }
     watched[p.id] = 1;
     const url = ENDPOINT.replace(/\/chat\/?$/, "") + "/proposal?run=" + encodeURIComponent(run) + "&id=" + encodeURIComponent(p.id);
@@ -122,16 +168,36 @@
       if (!r.ok || d.error) throw new Error(d.error || r.status + " " + r.statusText);
       return d;
     })).then((d) => {
-      if (d.status === "accepted" || d.status === "rejected") addAi(resultHtml(Object.assign({ change: p.change }, d)), d.status);
+      if (d.status === "accepted" || d.status === "rejected") {
+        const full = Object.assign({ change: p.change }, d);
+        addAi(resultHtml(full), d.status);
+        propCard(full);
+      }
       else setTimeout(tick, POLL_MS);
     }).catch((e) => {
+      waiting(null);
       const msg = "I could not check the proposal (" + e.message + "), so I stopped checking.";
       addAi('<div class="oak-steps">' + esc(msg) + "</div>", msg);
     });
     setTimeout(tick, POLL_MS);
   }
 
+  function reply(text, d) {
+    const eps = epNums(d.answer);
+    for (const lk of d.links || []) if (lk && lk.episode != null && !eps.includes(Number(lk.episode))) eps.push(Number(lk.episode));
+    const asked = /\bshow\b.*\bepisode\s+(\d+)/i.exec(text);
+    if (asked && !eps.includes(Number(asked[1]))) eps.push(Number(asked[1]));
+    const reps = {};
+    return Promise.all(eps.slice(0, 4).map((n) => (L() ? L().replayFor(n) : Promise.resolve(null)).then((r) => { if (r) reps[n] = r; }))).then(() => {
+      if (asked && L()) L().goTo({ episode: Number(asked[1]) });
+      watchProposal(d.proposal, runForApi());
+      return answerHtml(d, reps);
+    });
+  }
+
   function onLinkClick(e) {
+    const p = e.target.closest ? e.target.closest("[data-plan]") : null;
+    if (p && L()) { L().showPlan(linkStore[Number(p.dataset.plan)].plan); return; }
     const b = e.target.closest ? e.target.closest("[data-link]") : null;
     if (!b || !L()) return;
     L().goTo(linkStore[Number(b.dataset.link)]);
@@ -148,7 +214,7 @@
         user: { bubble: { backgroundColor: "var(--line)", color: "var(--text)", border: "none", borderRadius: "6px" } },
         ai: { bubble: { backgroundColor: "transparent", color: "var(--text)", border: "1px solid var(--line)", padding: "8px 0 8px 12px", borderWidth: "0 0 0 2px", borderColor: "var(--line-strong)", borderRadius: "0" } },
       },
-      loading: { message: { styles: { bubble: { backgroundColor: "transparent", border: "1px solid var(--line)" } } } },
+      loading: { message: { html: '<div class="oak-skel"></div><div class="oak-skel short"></div>', styles: { bubble: { backgroundColor: "transparent", border: "none", padding: "8px 0", width: "100%" } } } },
       error: { bubble: { backgroundColor: "transparent", color: "var(--bad)", border: "1px solid var(--bad)", borderRadius: "4px" } },
       intro: { bubble: { backgroundColor: "transparent", color: "var(--muted)", border: "none", padding: "4px 0", fontSize: "13px" } },
     };
@@ -177,6 +243,8 @@
           hover: { borderColor: "var(--accent)" },
         },
       },
+      "oak-skel": { styles: { default: { height: "8px", width: "220px", borderRadius: "4px", backgroundColor: "var(--line)", marginTop: "6px" } } },
+      "short": { styles: { default: { width: "140px" } } },
       "oak-whatif": { styles: { default: { marginTop: "8px", padding: "8px 10px", border: "1px solid var(--line-strong)", borderRadius: "4px" } } },
       "oak-wi1": { styles: { default: { font: "500 12px var(--mono)" } } },
       "oak-wi2": { styles: { default: { font: "11px var(--mono)", color: "var(--muted)", marginTop: "4px" } } },
@@ -204,8 +272,10 @@
         const last = msgs[msgs.length - 1] || {};
         const ctrl = new AbortController();
         if (signals.stopClicked) signals.stopClicked.listener = () => ctrl.abort();
-        ask(String(last.text || ""), ctrl.signal)
-          .then((d) => { signals.onResponse({ html: answerHtml(d) }); watchProposal(d.proposal, runForApi()); })
+        const text = String(last.text || "");
+        ask(text, ctrl.signal)
+          .then((d) => reply(text, d))
+          .then((html) => signals.onResponse({ html: html }))
           .catch((e) => signals.onResponse({ error: e.name === "AbortError" ? "Stopped." : "The operator could not answer: " + e.message }));
       },
     };
@@ -228,15 +298,24 @@
       submitUserMessage: (m) => {
         list.insertAdjacentHTML("beforeend", '<div class="fb-user">' + esc(m.text) + "</div>");
         const wait = document.createElement("div");
-        wait.className = "fb-ai muted";
-        wait.textContent = "Thinking";
+        wait.className = "fb-ai";
+        wait.innerHTML = '<div class="oak-skel"></div><div class="oak-skel short"></div>';
         list.appendChild(wait);
         list.scrollTop = list.scrollHeight;
-        ask(m.text).then((d) => { wait.className = "fb-ai"; wait.innerHTML = answerHtml(d); watchProposal(d.proposal, runForApi()); })
+        ask(m.text).then((d) => reply(m.text, d)).then((html) => { wait.className = "fb-ai"; wait.innerHTML = html; })
           .catch((err) => { wait.className = "fb-ai fb-err"; wait.textContent = "The operator could not answer: " + err.message; })
           .finally(() => (list.scrollTop = list.scrollHeight));
       },
     };
+  }
+
+  // a clean thread: no persistence anywhere, Clear empties it and the API history
+  function clear() {
+    history.length = 0;
+    linkStore = [];
+    if (chatEl && chatEl.clearMessages) chatEl.clearMessages(true);
+    const list = $("fb-list");
+    if (list) list.innerHTML = '<div class="fb-intro">' + esc(INTRO) + "</div>";
   }
 
   function send(text) {
@@ -254,6 +333,17 @@
       customElements.whenDefined("deep-chat").then(() => { if (!chatEl) { clearTimeout(t); mountDeepChat(); } });
     } else mountFallback();
     document.querySelectorAll("#chips .chip").forEach((b) => b.addEventListener("click", () => send(b.dataset.q)));
+    const clr = $("chat-clear");
+    if (clr) clr.addEventListener("click", clear);
+    const opt = $("opt-btn");
+    if (opt) opt.addEventListener("click", () => send("Optimize my playbook now"));
+    // the latest proposal of the run, if any: its card, and keep watching it while it verifies
+    setTimeout(() => {
+      const run = runForApi();
+      fetch(ENDPOINT.replace(/\/chat\/?$/, "") + "/proposal?run=" + encodeURIComponent(run))
+        .then((r) => (r.ok ? r.json() : null)).then((p) => { if (p && p.id != null) { if (p.status === "accepted" || p.status === "rejected") { watched[p.id] = 1; propCard(p); } else watchProposal(p, run); } })
+        .catch(() => { /* no operator server: no cards */ });
+    }, 1500);
     // Esc inside the chat returns focus to the scene
     $("learning").addEventListener("keydown", (e) => {
       if (e.key === "Escape") {
@@ -263,7 +353,7 @@
     });
   }
 
-  window.OakChat = { send, ask, stepsLine, answerHtml, resultHtml, addAi };
+  window.OakChat = { send, clear, ask, stepsLine, answerHtml, resultHtml, addAi, reply, propCard, waiting };
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
   else init();
 })();
