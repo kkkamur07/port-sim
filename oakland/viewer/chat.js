@@ -185,7 +185,10 @@
       "oak-res-v": { styles: { default: { font: "400 18px var(--mono)", marginTop: "4px" } } },
       "oak-res-ok": { styles: { default: { font: "500 13px var(--sans)", color: "var(--accent-text)", marginTop: "8px" } } },
       "oak-res-no": { styles: { default: { font: "500 13px var(--sans)", color: "var(--muted)", marginTop: "8px" } } },
-      "oak-res-rule": { styles: { default: { maxWidth: "296px", fontSize: "13px", lineHeight: "1.4", marginTop: "4px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" } } },
+      "oak-res": { styles: { default: { maxWidth: "100%", minWidth: "0", boxSizing: "border-box" } } },
+      // the rule wraps inside the chat column, at most three lines then an ellipsis
+      "oak-res-rule": { styles: { default: { fontSize: "13px", lineHeight: "1.4", marginTop: "4px", whiteSpace: "normal", overflowWrap: "anywhere",
+        display: "-webkit-box", WebkitBoxOrient: "vertical", WebkitLineClamp: "3", overflow: "hidden" } } },
     };
   }
 
