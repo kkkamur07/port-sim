@@ -10,7 +10,7 @@ playbook v0, verification 0.926, coach proposals v1 and v2 rejected by the gate,
 | 0:25 | Panel, **Operator** tab, port statistics | "Gemini Argon operates the port. Each episode it gets a disruption, uses its tools, checks plans against the rules and submits one berth plan." |
 | 0:35 | **Operator** tab, chat: type "Are you improving?" | "You can ask it why it did what it did. It answers from its own logs and can regrade a what-if with the real checker." |
 | 0:48 | **Results** tab, routine outcome and playbook versions front | "The self-improving part is two agents. The player operates. The coach reads the player's logs and rewrites its context, the playbook, one rule at a time. Every change is scored on held-out tasks against the exact optimum from a CP-SAT solver, and kept only if the score goes up." |
-| 1:05 | Point at v1 and v2 marked rejected | "Honest number: two of the three proposals so far were rejected. The verifier decides, not the model." |
+| 1:05 | Point at v1 and v2 marked rejected | "Honest number: every proposal so far was rejected by the gate: the coach's v1 and v2 at the prescreen, and the one I asked for from the chat on the held-out tasks (0.913 against 0.926). The verifier decides, not the model." |
 | 1:15 | Click **Optimize my playbook** | "This asks the coach for a new rule right now; the verification result lands in this panel in a few minutes." |
 | 1:25 | Back to the 3D view | "One more honesty line: the digital twin (world, checker, solver, viewer) was built by coding agents during this hackathon. Argon operates it." |
 
@@ -18,7 +18,7 @@ playbook v0, verification 0.926, coach proposals v1 and v2 rejected by the gate,
 >
 > - Restart the demo without the loop: `cd oakland && LOOP=off RUN=live ./demo.sh`
 > - Fixture fallback (a finished real run, no server state needed): `http://127.0.0.1:8765/viewer/?run=fixtures/run-demo`
-> - Chat server health: `http://127.0.0.1:8770/health` should return `{"ok": true, "model": "gemini-4-argon", ...}`
+> - Chat server health: `http://127.0.0.1:8771/health` should return `{"ok": true, "model": "gemini-4-argon", ...}`
 
 ## Likely judge questions
 
@@ -27,7 +27,8 @@ window's tasks (a pre-screen); if it falls below the window's own mean by more t
 which is what happened to v1 (-0.034) and v2 (-0.212). A candidate that passes plays the whole held-out verification
 set with the same frozen player, and is accepted only when its mean reward beats the accepted version's mean by at
 least 0.005. The reward is the kernel's deterministic v3 formula; episode and verification means are reported side
-by side, never averaged.
+by side, never averaged. Every proposal so far was rejected by the gate: the coach's v1 and v2 at the prescreen,
+and the one asked for from the chat on the held-out tasks (0.913 against 0.926). The verifier decides, not the model.
 
 **What is the optimum?** For every task a CP-SAT solver computes the minimum-cost plan (lateness in section-hours,
 priority weights, emergency penalties, a penalty per ship moved off its published section) and a task is kept only
