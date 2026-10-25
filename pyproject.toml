@@ -23,7 +23,7 @@ train = [
     "datasets>=3.0",
 ]
 serve = ["vllm>=0.30"]
-loop = ["langchain", "langgraph", "langchain-google-genai", "google-genai>=2.0"]
+loop = ["langchain", "langgraph", "langgraph-checkpoint-sqlite", "langchain-google-genai", "google-genai>=2.0"]
 
 [tool.setuptools]
 packages = ["portsim"]
