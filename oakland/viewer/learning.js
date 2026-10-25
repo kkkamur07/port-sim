@@ -15,8 +15,8 @@
   const POLL_MS = 5000;
   const VERDICT_TEXT = { accepted: "ACCEPTED", rejected: "REJECTED", overfit: "OVERFIT", minibatch: "MINIBATCH", baseline: "BASELINE" };
   // v0 muted, the newest accepted version in the accent, anything between in a second hue
-  const VERSION_COLORS = ["#8a94a3", "#2a8fb3", "#a9e8ff"];
-  const ACCENT = "#4fd1ff";
+  const VERSION_COLORS = ["var(--hollow)", "var(--warn)", "var(--text)"];
+  const ACCENT = "var(--accent)";
 
   const S = {
     api: null,
@@ -461,7 +461,7 @@
     const cands = R().coachRounds(S.evalRows);
     if (cands.length > prevRounds && cands[0]) {
       const c = cands[0];
-      const color = c.cls === "accepted" ? "var(--ok)" : c.cls === "overfit" ? "var(--warn)" : "var(--muted)";
+      const color = c.cls === "accepted" ? "var(--accent)" : c.cls === "overfit" ? "var(--warn)" : "var(--muted)";
       toast("Coach round " + c.round + ": playbook v" + esc(c.version) + ' <span class="tag" style="color:' + color + '">' + VERDICT_TEXT[c.cls] +
         "</span>, verification " + f2(c.evalBefore) + " → " + f2(c.evalAfter));
     } else if (newest > prevEp) {
@@ -496,6 +496,28 @@
     menu.addEventListener("keydown", (e) => { if (e.key === "Escape") { set(false); btn.focus(); } });
   }
 
+  // light by default; an explicit choice is remembered, else the OS preference decides
+  function isDark() {
+    const t = document.documentElement.dataset.theme;
+    if (t) return t === "dark";
+    return !!(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+  }
+  function wireTheme() {
+    const sync = () => document.documentElement.classList.toggle("is-dark", isDark());
+    sync();
+    const btn = $("theme-btn");
+    if (btn) btn.addEventListener("click", () => {
+      const next = isDark() ? "light" : "dark";
+      document.documentElement.dataset.theme = next;
+      try { localStorage.setItem("oak-theme", next); } catch (e) { /* private mode: not remembered */ }
+      sync();
+      renderAll(false);
+    });
+    if (window.matchMedia) {
+      try { window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", sync); } catch (e) { /* old browsers */ }
+    }
+  }
+
   function start(api) {
     if (S.started) return;
     S.started = true;
@@ -506,6 +528,7 @@
     setMode();
     wireMenu("scenario-btn", "scenario-menu");
     wireMenu("view-btn", "cam-rail");
+    wireTheme();
     const back = $("back-to-run");
     if (back) back.addEventListener("click", () => { if (S.episodes.length) showEpisode(S.shownEpisode || S.episodes[S.episodes.length - 1].episode, true); });
     $("playbook-btn").addEventListener("click", openPlaybook);
