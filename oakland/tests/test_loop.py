@@ -59,12 +59,13 @@ def demo_run(packs, tmp_path_factory):
 
 def test_metrics_parity_with_metrics_js():
     s = summary(json.loads(FIXTURE.read_text()))
-    assert s["reward"] == 0.833
-    assert s["ships_served"] == 14
-    assert s["on_time_pct"] == 85.7
-    assert s["occupancy_pct"] == 34
-    assert s["crane_util_pct"] == 71
-    assert s["avg_wait_h"] == 0.57
+    # the oict-demo fixture is the solver reference replay of the realistic viewer; metrics.js gives the same numbers
+    assert s["reward"] == 1.0
+    assert s["ships_served"] == 16
+    assert s["on_time_pct"] == 87.5
+    assert s["occupancy_pct"] == 10.7
+    assert s["crane_util_pct"] == 30.3
+    assert s["avg_wait_h"] == 0.88
     assert set(s["shifts"]) == {"day", "night", "hoot", "meal", "other"}
     assert sum(s["shifts"].values()) == s["crane_hours"]
 

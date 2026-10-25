@@ -65,20 +65,30 @@ def test_solver_fixture_replay(name):
     assert rp["grade"]["cost"] == rp["grade"]["optimal_cost"]
 
 
-def test_demo_fixtures_js_embeds_every_fixture():
+def test_demo_fixtures_js_embeds_every_scenario():
+    """demo-fixtures.js is a classic script so the viewer works from file://: every curated scenario it declares has
+    optimal, greedy and naive plans, and its replay JSON sits next to it; the solver fixtures are fetched when served."""
     js = (FIXTURES / "demo-fixtures.js").read_text()
-    prefix = "window.PORTSIM_FIXTURES = "
+    prefix = "window.PORTSIM_SCENARIOS = "
     line = next(ln for ln in js.splitlines() if ln.startswith(prefix))
-    embedded = json.loads(line[len(prefix):].rstrip().rstrip(";"))
-    for name in ("oict-demo", "matson-demo", *SOLVER_FIXTURES):
-        assert embedded[name] == json.loads((FIXTURES / f"{name}.json").read_text()), name
+    scenarios = json.loads(line[len(prefix):].rstrip().rstrip(";"))
+    assert len(scenarios) >= 6
+    for key, sc in scenarios.items():
+        assert sc["id"] == key and set(sc["plans"]) >= {"optimal", "greedy", "naive"}, key
+        assert (FIXTURES / f"{key}.json").exists(), key
+    for name in SOLVER_FIXTURES:
+        assert (FIXTURES / f"{name}.json").exists(), name
 
 
 def test_dashboard_manifest_lists_solver_replays():
+    """The static manifest numbers its episodes 1..n and ends with the three solver reference replays."""
     eps = json.loads((ROOT / "dashboard" / "episodes.json").read_text())
-    assert [e["episode"] for e in eps] == [1, 2, 3]
-    assert [Path(e["replay"]).stem for e in eps] == list(SOLVER_FIXTURES)
-    assert all(e["reward"] == 1.0 and "solver reference" in e["label"] for e in eps)
+    assert [e["episode"] for e in eps] == list(range(1, len(eps) + 1))
+    solver = [e for e in eps if "solver reference" in e["label"]]
+    assert [Path(e["replay"]).stem for e in solver] == list(SOLVER_FIXTURES)
+    assert all(e["reward"] == 1.0 for e in solver)
+    for e in eps:
+        assert (ROOT / "dashboard" / e["replay"]).resolve().exists(), e["replay"]
 
 
 @pytest.mark.parametrize("name", ["solve", "naive_plan", "greedy_plan", "generate_task", "build_pack", "render"])
