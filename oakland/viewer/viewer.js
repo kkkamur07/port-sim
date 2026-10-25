@@ -6,6 +6,10 @@
  * terminal geometry, fleets, depths and shifts follow the real terminals. The scene is not a survey-grade twin.
  *
  * Classic script with the global THREE build (r147) so that double-clicking index.html works on file://.
+ *
+ * Optional asset modules (assets/*.js, each a window global) are feature-detected: OakGeo places the terminal on its
+ * real quay line inside a map of the Port of Oakland, OakShips, OakCranes and OakYard replace the box ships, gantries
+ * and yard. Without them the viewer keeps its single-terminal layout and box geometry. KPIs come from kpi.js.
  */
 (function () {
   "use strict";
@@ -31,6 +35,14 @@
     "Matson": "#2a6fdb",
   };
   const YARD_COLORS = Object.values(LINE_COLORS).concat(["#8c8c8c", "#b5543c", "#2f7f8f"]);
+  const TERMINAL_TRIM = { OICT: "#5aa0d8", TraPac: "#e4262c", Everport: "#1d8a3a", Matson: "#f2b705" };
+  const TERMINALS = ["OICT", "TraPac", "Everport", "Matson"];
+  const SEA_IN = [-6500, 300];      // world [x, z] where ships enter the scene, west toward the Golden Gate
+  const MAX_CRANE_SPEEDUP = 60;     // asset cranes animate at most 60x real time so the trolley stays readable
+
+  // asset modules are optional window globals
+  const has = (name) => typeof window[name] !== "undefined";
+  const GEO = has("OakGeo"), SHIPS = has("OakShips"), CRANES = has("OakCranes"), YARD = has("OakYard");
 
   // ---------- small helpers ----------
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -150,6 +162,87 @@
     return new THREE.CanvasTexture(c);
   }
 
+  // Tileable wave normal map: a height field summed from sines with integer frequencies (so it wraps), then turned
+  // into normals by finite differences.
+  function waveNormalTexture(seed) {
+    const N = 128;
+    const r = rng(seed);
+    const waves = [];
+    for (let i = 0; i < 14; i++) {
+      waves.push({ fx: Math.floor(r() * 7) - 3, fz: 1 + Math.floor(r() * 6), ph: r() * Math.PI * 2,
+        a: 1 / (1 + i * 0.35) });
+    }
+    const hgt = new Float32Array(N * N);
+    for (let y = 0; y < N; y++) {
+      for (let x = 0; x < N; x++) {
+        let v = 0;
+        for (const w of waves) v += w.a * Math.sin(2 * Math.PI * (w.fx * x + w.fz * y) / N + w.ph);
+        hgt[y * N + x] = v;
+      }
+    }
+    const c = document.createElement("canvas");
+    c.width = c.height = N;
+    const ctx = c.getContext("2d");
+    const img = ctx.createImageData(N, N);
+    const k = 0.9;
+    for (let y = 0; y < N; y++) {
+      for (let x = 0; x < N; x++) {
+        const dx = hgt[y * N + (x + 1) % N] - hgt[y * N + (x + N - 1) % N];
+        const dy = hgt[((y + 1) % N) * N + x] - hgt[((y + N - 1) % N) * N + x];
+        const nx = -dx * k, ny = -dy * k, nz = 1;
+        const l = Math.hypot(nx, ny, nz);
+        const o = (y * N + x) * 4;
+        img.data[o] = (nx / l * 0.5 + 0.5) * 255;
+        img.data[o + 1] = (ny / l * 0.5 + 0.5) * 255;
+        img.data[o + 2] = (nz / l * 0.5 + 0.5) * 255;
+        img.data[o + 3] = 255;
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+    const tex = new THREE.CanvasTexture(c);
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+    return tex;
+  }
+
+  // a V-shaped foam trail, apex at the right edge (the stern), fading toward the left
+  function wakeTexture() {
+    const c = document.createElement("canvas");
+    c.width = 256;
+    c.height = 64;
+    const ctx = c.getContext("2d");
+    for (let x = 0; x < 256; x++) {
+      const u = x / 255;
+      const half = 4 + (1 - u) * 28;
+      const a = Math.pow(u, 0.7) * 0.85;
+      const g = ctx.createLinearGradient(0, 32 - half, 0, 32 + half);
+      g.addColorStop(0, "rgba(255,255,255,0)");
+      g.addColorStop(0.15, "rgba(255,255,255," + a + ")");
+      g.addColorStop(0.5, "rgba(255,255,255," + a * 0.35 + ")");
+      g.addColorStop(0.85, "rgba(255,255,255," + a + ")");
+      g.addColorStop(1, "rgba(255,255,255,0)");
+      ctx.fillStyle = g;
+      ctx.fillRect(x, 32 - half, 1, half * 2);
+    }
+    return new THREE.CanvasTexture(c);
+  }
+
+  function glowSprite(tex, color, size) {
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, color, blending: THREE.AdditiveBlending,
+      depthWrite: false, transparent: true }));
+    sp.scale.set(size, size, 1);
+    return sp;
+  }
+
+  function castShadows(obj, receive) {
+    obj.traverse((m) => {
+      if (m.isMesh || m.isInstancedMesh) {
+        m.castShadow = true;
+        if (receive) m.receiveShadow = true;
+      }
+    });
+    return obj;
+  }
+
   function box(w, h, d, mat, x, y, z) {
     const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
     m.position.set(x || 0, y || 0, z || 0);
@@ -161,7 +254,8 @@
   const ui = {
     scene: $("scene"), title: $("title"), subtitle: $("subtitle"), grade: $("grade"), banner: $("banner"),
     tbody: document.querySelector("#ships tbody"), legend: $("legend"), play: $("play"), scrub: $("scrub"),
-    clock: $("clock"), file: $("file"), fixture: $("fixture"), error: $("error"),
+    clock: $("clock"), file: $("file"), fixture: $("fixture"), error: $("error"), kpis: $("kpis"),
+    spark: $("spark"),
   };
 
   function showError(msg) {
@@ -178,43 +272,107 @@
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.outputEncoding = THREE.sRGBEncoding;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.05;
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   ui.scene.appendChild(renderer.domElement);
 
   const scene = new THREE.Scene();
   scene.fog = new THREE.Fog(0x8ec5ea, 2500, 18000);
-  const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 5, 40000);
+  const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 5, 60000);
   camera.position.set(0, 1600, 2600);
   const controls = new THREE.OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
   controls.maxPolarAngle = Math.PI * 0.49;
   controls.minDistance = 60;
-  controls.maxDistance = 14000;
+  controls.maxDistance = 24000;
 
+  // the hemisphere light takes the sky colour from above, which reads as a soft sky reflection on the water
   const hemi = new THREE.HemisphereLight(0xdfefff, 0x334455, 0.7);
   scene.add(hemi);
   const sun = new THREE.DirectionalLight(0xffffff, 0.8);
   sun.position.set(-2000, 3000, 1500);
-  scene.add(sun);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(2048, 2048);
+  sun.shadow.bias = -0.0004;
+  sun.shadow.normalBias = 0.6;
+  scene.add(sun, sun.target);
 
-  const waterMat = new THREE.MeshPhongMaterial({ color: 0x1d5f7a, shininess: 60, specular: 0x335566 });
+  // water: an opaque plane and a thin transparent layer, each with its own scrolling wave normal map
+  const waveA = waveNormalTexture(11), waveB = waveNormalTexture(23);
+  waveA.repeat.set(220, 220);
+  waveB.repeat.set(90, 90);
+  const waterMat = new THREE.MeshStandardMaterial({ color: 0x1d5f7a, roughness: 0.25, metalness: 0.1,
+    normalMap: waveA, normalScale: new THREE.Vector2(0.55, 0.55) });
   const water = new THREE.Mesh(new THREE.PlaneGeometry(60000, 60000), waterMat);
   water.rotation.x = -Math.PI / 2;
+  water.receiveShadow = true;
   scene.add(water);
+  const swellMat = new THREE.MeshStandardMaterial({ color: 0x1d5f7a, roughness: 0.2, metalness: 0.1,
+    normalMap: waveB, normalScale: new THREE.Vector2(0.4, 0.4), transparent: true, opacity: 0.35, depthWrite: false });
+  const swell = new THREE.Mesh(new THREE.PlaneGeometry(60000, 60000), swellMat);
+  swell.rotation.x = -Math.PI / 2;
+  swell.position.y = 0.05;
+  scene.add(swell);
 
   const landMat = new THREE.MeshLambertMaterial({ color: 0x4a4f55 });
   const land = new THREE.Mesh(new THREE.PlaneGeometry(60000, 6000), landMat);
   land.rotation.x = -Math.PI / 2;
   land.position.set(0, 2.5, -APRON_DEPTH - 3000);
+  land.receiveShadow = true;
   scene.add(land);
 
-  buildHorizon();
+  const horizon = buildHorizon();
+  const stars = buildStars();
+
+  // the real-port map (once), and the terminal root that carries the replay scene onto its real quay line
+  const mapGroup = GEO ? buildMapGroup() : null;
+  if (mapGroup) {
+    land.visible = false;      // the map carries the real shoreline, bridge and skyline direction
+    horizon.visible = false;
+  }
+  const terminalRoot = new THREE.Group();
+  scene.add(terminalRoot);
+  const GLOW = glowTexture(), WAKE = wakeTexture();
 
   // the dynamic world, rebuilt per replay
   let world = null;
   let replay = null;
   let L = 2100, X0 = -1050;
+  let frame = null;            // OakGeo terminal frame of the current replay, null for the single-terminal layout
 
-  const state = { t: 0, playing: false, speed: 4, dragging: false, anim: 0, lastHour: -1 };
+  const state = { t: 0, playing: false, speed: 4, dragging: false, anim: 0, lastHour: -1, kpiT: -1 };
+
+  function buildMapGroup() {
+    try {
+      const g = OakGeo.buildMap({ detail: "full", makeLabel: (text) => makeLabel(text, { height: 70 }) });
+      g.traverse((m) => { if (m.isMesh) m.receiveShadow = true; });
+      scene.add(g);
+      return g;
+    } catch (e) {
+      console.error("OakGeo.buildMap failed, keeping the single-terminal layout", e);
+      return null;
+    }
+  }
+
+  function buildStars() {
+    const r = rng(99);
+    const pts = [];
+    for (let i = 0; i < 1600; i++) {
+      const az = r() * Math.PI * 2, el = Math.asin(0.05 + r() * 0.95);
+      const R = 50000;
+      pts.push(Math.cos(az) * Math.cos(el) * R, Math.sin(el) * R, Math.sin(az) * Math.cos(el) * R);
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.Float32BufferAttribute(pts, 3));
+    const mat = new THREE.PointsMaterial({ color: 0xffffff, size: 1.6, sizeAttenuation: false, fog: false,
+      transparent: true, opacity: 0, depthWrite: false });
+    const p = new THREE.Points(geo, mat);
+    p.frustumCulled = false;
+    scene.add(p);
+    return p;
+  }
 
   function buildHorizon() {
     const sil = new THREE.MeshLambertMaterial({ color: 0x2b3442 });
@@ -265,6 +423,87 @@
     const pts = [at(0.02), p0, at(0.24)].map((p, i) => new THREE.Vector3(p.x, i === 1 ? 170 : 62, p.z));
     g.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), cableMat));
     scene.add(g);
+    return g;
+  }
+
+  // ---------- real-port placement (OakGeo) ----------
+  // A frame maps frame-local (lx along the quay from section 1's corner, lz toward the water) to world [x, z]:
+  // [ox + lx cos h - lz sin h, oz + lx sin h + lz cos h], the same formula as OakGeo.toWorld.
+  function frameOf(name) {
+    if (!mapGroup || typeof OakGeo.terminalFrame !== "function") return null;
+    try {
+      const f = OakGeo.terminalFrame(name);
+      if (!f || !f.origin) return null;
+      const o = Array.isArray(f.origin) ? f.origin : [f.origin.x, f.origin.z];
+      return { name, ox: o[0], oz: o[1], h: f.heading_rad || 0, side: f.water_side === -1 ? -1 : 1,
+        sections: f.sections };
+    } catch (e) {
+      console.warn("OakGeo.terminalFrame(" + name + ") failed", e);
+      return null;
+    }
+  }
+
+  function frameToWorld(f, lx, lz) {
+    const z = lz * f.side, c = Math.cos(f.h), s = Math.sin(f.h);
+    return [f.ox + lx * c - z * s, f.oz + lx * s + z * c];
+  }
+
+  function worldToFrame(f, x, z) {
+    const dx = x - f.ox, dz = z - f.oz, c = Math.cos(f.h), s = Math.sin(f.h);
+    return [dx * c + dz * s, (-dx * s + dz * c) * f.side];
+  }
+
+  // world [x, z] to the coordinates of world.group (section 1 at x = X0, water at +z)
+  function worldToGroup(x, z) {
+    if (!frame) return new THREE.Vector3(x, 0, z);
+    const [lx, lz] = worldToFrame(frame, x, z);
+    return new THREE.Vector3(lx + X0, 0, lz);
+  }
+
+  const LAND = landPolys();
+
+  function landPolys() {
+    if (!GEO) return [];
+    const src = OakGeo.land || (OakGeo.data && OakGeo.data.land) || [];
+    return src.map((p) => (Array.isArray(p) ? p : p.points || []))
+      .map((p) => p.map((q) => (Array.isArray(q) ? q : [q.x, q.z])))
+      .filter((p) => p.length > 2);
+  }
+
+  function onLand(x, z) {
+    for (const poly of LAND) {
+      let inside = false;
+      for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+        const [xi, zi] = poly[i], [xj, zj] = poly[j];
+        if ((zi > z) !== (zj > z) && x < (xj - xi) * (z - zi) / (zj - zi) + xi) inside = !inside;
+      }
+      if (inside) return true;
+    }
+    return false;
+  }
+
+  function placeTerminal(task) {
+    frame = frameOf(task.terminal);
+    terminalRoot.position.set(0, 0, 0);
+    terminalRoot.rotation.set(0, 0, 0);
+    terminalRoot.scale.set(1, 1, 1);
+    world.group.position.set(0, 0, 0);
+    if (frame) {
+      terminalRoot.position.set(frame.ox, 0, frame.oz);
+      terminalRoot.rotation.y = -frame.h;
+      terminalRoot.scale.z = frame.side;
+      world.group.position.x = -X0;            // section 1's corner on the frame origin
+      if (frame.sections && frame.sections !== world.nSec) {
+        console.warn(task.terminal + ": replay has " + world.nSec + " sections, the map frame " + frame.sections);
+      }
+    }
+    terminalRoot.updateMatrixWorld(true);
+    if (frame) {
+      const p = world.group.localToWorld(new THREE.Vector3(X0, 0, 0));
+      const want = typeof OakGeo.toWorld === "function" ? OakGeo.toWorld(frame.name, 0, 0) : [frame.ox, frame.oz];
+      const err = Math.hypot(p.x - want[0], p.z - want[1]);
+      if (err > 1) console.warn("terminal frame check: section 1 corner is " + err.toFixed(1) + " m off");
+    }
   }
 
   // ---------- geometry of one terminal ----------
@@ -276,11 +515,18 @@
     const nSec = (task.last_section || 0) - (task.first_section || 1) + 1 || inferSections(rep);
     L = nSec * SECTION_M;
     X0 = -L / 2;
+    frame = frameOf(task.terminal);            // set early so anchorage and sea paths use the real bay
     const g = new THREE.Group();
 
-    // quay apron and section ticks
-    const quayMat = new THREE.MeshLambertMaterial({ color: 0x8d9298 });
-    g.add(box(L + 60, QUAY_TOP + 2, APRON_DEPTH, quayMat, 0, (QUAY_TOP - 2) / 2, -APRON_DEPTH / 2));
+    // quay apron, yard ground and section ticks
+    const quayMat = new THREE.MeshStandardMaterial({ color: 0x9a9fa5, roughness: 0.9, metalness: 0 });
+    const apron = box(L + 60, QUAY_TOP + 2, APRON_DEPTH, quayMat, 0, (QUAY_TOP - 2) / 2, -APRON_DEPTH / 2);
+    apron.castShadow = apron.receiveShadow = true;
+    g.add(apron);
+    const ground = box(L + 60, QUAY_TOP + 2, 470, new THREE.MeshStandardMaterial({ color: 0x6b6f75, roughness: 1 }),
+      0, (QUAY_TOP - 2) / 2 - 0.1, -APRON_DEPTH - 235);
+    ground.receiveShadow = true;
+    g.add(ground);
     const edgeMat = new THREE.MeshLambertMaterial({ color: 0xe8c547 });
     g.add(box(L, 0.4, 1.2, edgeMat, 0, QUAY_TOP + 0.2, -1));
     const tickMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
@@ -300,8 +546,32 @@
     g.add(box(L + 40, 0.5, 1, railMat, 0, QUAY_TOP + 0.25, -6));
     g.add(box(L + 40, 0.5, 1, railMat, 0, QUAY_TOP + 0.25, -34));
 
+    // floodlight masts behind the crane rails, lit at night
+    const mastMat = new THREE.MeshLambertMaterial({ color: 0x7a8088 });
+    const lamps = [];
+    for (let x = X0 + 40; x <= X0 + L - 40; x += 150) {
+      g.add(box(1.2, 32, 1.2, mastMat, x, QUAY_TOP + 16, -62));
+      const sp = glowSprite(GLOW, 0xffe6b0, 46);
+      sp.position.set(x, QUAY_TOP + 32, -60);
+      sp.visible = false;
+      g.add(sp);
+      lamps.push(sp);
+    }
+
     // yard: stacked container blocks behind the quay
-    g.add(buildYard(nSec));
+    let yard = null;
+    if (YARD) {
+      try {
+        const lines = Array.from(new Set((rep.ships || []).map((s) => s.line).filter(Boolean)));
+        yard = OakYard.makeYard({ length_m: L, depth_m: 450, lines, seed: nSec * 13 + 1 });
+        yard.group.position.set(0, QUAY_TOP, 0);
+        g.add(castShadows(yard.group, true));
+      } catch (e) {
+        console.error("OakYard.makeYard failed, using the box yard", e);
+        yard = null;
+      }
+    }
+    if (!yard) g.add(castShadows(buildYard(nSec), true));
 
     // blocks: closed (red stripes), shallow (pale band), others (grey stripes)
     const blockObjs = [];
@@ -344,18 +614,28 @@
     const pool = (task.rules && task.rules.crane_pool) || maxCranes(rep) || 4;
     const craneMat = new THREE.MeshLambertMaterial({ color: 0xd6dbe1 });
     const accentMat = new THREE.MeshLambertMaterial({ color: 0xc0392b });
-    const glow = glowTexture();
+    const trim = TERMINAL_TRIM[task.terminal] || "#5aa0d8";
     const cranes = [];
     for (let i = 0; i < pool; i++) {
-      const c = buildCrane(craneMat, accentMat, glow);
+      let c = null;
+      if (CRANES) {
+        try {
+          const a = OakCranes.makeCrane({ rail_gauge_m: 28, height_m: 50, outreach_m: 65, seed: i + 1, color: trim });
+          c = { group: a.group, asset: a, home: 0, x: 0, z: -20, working: null };
+        } catch (e) {
+          console.error("OakCranes.makeCrane failed, using the box crane", e);
+        }
+      }
+      if (!c) c = buildCrane(craneMat, accentMat, GLOW);
       c.home = X0 + L * (i + 0.5) / pool;
-      c.group.position.set(c.home, QUAY_TOP, 0);
-      g.add(c.group);
+      c.group.position.set(c.home, QUAY_TOP, c.z);
+      g.add(castShadows(c.group));
       cranes.push(c);
     }
 
-    scene.add(g);
-    return { group: g, ships: shipObjs, cranes, craneMat, blocks: blockObjs, nSec, targets: new Map() };
+    terminalRoot.add(g);
+    return { group: g, ships: shipObjs, cranes, craneMat, blocks: blockObjs, nSec, lamps, yard,
+      targets: new Map() };
   }
 
   function inferSections(rep) {
@@ -402,33 +682,66 @@
     const beam = ts.beam_m || clamp(len / 7.3, 28, 60);
     const color = lineColor(s.line);
     const group = new THREE.Group();
-    const hullMat = new THREE.MeshLambertMaterial({ color: 0x23272e });
-    const lineMat = new THREE.MeshLambertMaterial({ color });
-    group.add(box(len * 0.92, 12, beam, hullMat, -len * 0.04, 6, 0));
-    const bow = box(beam * 0.72, 12, beam * 0.72, hullMat, len * 0.42, 6, 0);
-    bow.rotation.y = Math.PI / 4;
-    group.add(bow);
-    group.add(box(len * 0.92, 2, beam + 0.4, new THREE.MeshLambertMaterial({ color: 0x8a2b2b }), -len * 0.04, 1, 0));
-    // superstructure and funnel in the line colour
-    group.add(box(Math.max(12, len * 0.05), 26, beam * 0.86, lineMat, -len * 0.36, 25, 0));
-    group.add(box(Math.max(8, len * 0.03), 4, beam * 0.9, new THREE.MeshLambertMaterial({ color: 0xf2f2f2 }),
-      -len * 0.36, 39, 0));
-    group.add(box(10, 14, 10, lineMat, -len * 0.44, 21, 0));
-    // deck containers
-    const r = rng(1000 + i * 7);
-    const bays = [];
-    for (let x = -len * 0.31; x < len * 0.36; x += 13.5) bays.push(x);
-    const cont = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshLambertMaterial(), bays.length);
-    const m = new THREE.Matrix4(), col = new THREE.Color();
-    bays.forEach((x, k) => {
-      const h = (3 + Math.floor(r() * 5)) * 2.6;
-      m.makeScale(12.2, h, beam * 0.9);
-      m.setPosition(x, 12 + h / 2, 0);
-      cont.setMatrixAt(k, m);
-      const c = r() < 0.45 ? color : YARD_COLORS[Math.floor(r() * YARD_COLORS.length)];
-      cont.setColorAt(k, col.set(c));
-    });
-    group.add(cont);
+    let asset = null;
+    if (SHIPS) {
+      try {
+        asset = OakShips.makeShip({ name: s.name, line: s.line, length_m: len, beam_m: beam,
+          draught_m: ts.draught_m || 14, sections: s.sections, seed: s.id });
+        group.add(castShadows(asset.group));
+      } catch (e) {
+        console.error("OakShips.makeShip failed, using the box ship", e);
+        asset = null;
+      }
+    }
+    const lights = [];
+    if (!asset) {
+      const hull = new THREE.Group();
+      const hullMat = new THREE.MeshLambertMaterial({ color: 0x23272e });
+      const lineMat = new THREE.MeshLambertMaterial({ color });
+      hull.add(box(len * 0.92, 12, beam, hullMat, -len * 0.04, 6, 0));
+      const bow = box(beam * 0.72, 12, beam * 0.72, hullMat, len * 0.42, 6, 0);
+      bow.rotation.y = Math.PI / 4;
+      hull.add(bow);
+      hull.add(box(len * 0.92, 2, beam + 0.4, new THREE.MeshLambertMaterial({ color: 0x8a2b2b }), -len * 0.04, 1, 0));
+      // superstructure and funnel in the line colour
+      hull.add(box(Math.max(12, len * 0.05), 26, beam * 0.86, lineMat, -len * 0.36, 25, 0));
+      hull.add(box(Math.max(8, len * 0.03), 4, beam * 0.9, new THREE.MeshLambertMaterial({ color: 0xf2f2f2 }),
+        -len * 0.36, 39, 0));
+      hull.add(box(10, 14, 10, lineMat, -len * 0.44, 21, 0));
+      // deck containers
+      const r = rng(1000 + i * 7);
+      const bays = [];
+      for (let x = -len * 0.31; x < len * 0.36; x += 13.5) bays.push(x);
+      const cont = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshLambertMaterial(),
+        bays.length);
+      const m = new THREE.Matrix4(), col = new THREE.Color();
+      bays.forEach((x, k) => {
+        const h = (3 + Math.floor(r() * 5)) * 2.6;
+        m.makeScale(12.2, h, beam * 0.9);
+        m.setPosition(x, 12 + h / 2, 0);
+        cont.setMatrixAt(k, m);
+        const c = r() < 0.45 ? color : YARD_COLORS[Math.floor(r() * YARD_COLORS.length)];
+        cont.setColorAt(k, col.set(c));
+      });
+      hull.add(cont);
+      // night lights: bridge, bow and stern
+      for (const [x, y] of [[-len * 0.36, 42], [len * 0.44, 16], [-len * 0.46, 16]]) {
+        const sp = glowSprite(GLOW, 0xfff0d0, 22);
+        sp.position.set(x, y, 0);
+        sp.visible = false;
+        hull.add(sp);
+        lights.push(sp);
+      }
+      group.add(castShadows(hull));
+    }
+    // wake behind the stern, shown while the ship is under way
+    const wakeLen = len * 1.1;
+    const wake = new THREE.Mesh(new THREE.PlaneGeometry(wakeLen, beam * 2.6),
+      new THREE.MeshBasicMaterial({ map: WAKE, transparent: true, opacity: 0, depthWrite: false }));
+    wake.rotation.x = -Math.PI / 2;
+    wake.position.set(-len / 2 - wakeLen / 2 + 8, 0.35, 0);
+    wake.visible = false;
+    group.add(wake);
     // late flag
     const flag = new THREE.Group();
     flag.add(box(1.2, 40, 1.2, new THREE.MeshLambertMaterial({ color: 0xdddddd }), 0, 20, 0));
@@ -446,7 +759,8 @@
     group.visible = false;
     const cbh = new Map();
     for (const [h, c] of s.cranes_by_hour || []) cbh.set(h, c);
-    return { s, group, flag, label, lateLabel, beam, len, cbh, keys: shipKeys(s, beam) };
+    return { s, group, asset, lights, wake, flag, label, lateLabel, beam, len, cbh, keys: shipKeys(s, beam),
+      load: -1, lit: null };
   }
 
   function buildCrane(mat, accent, glow) {
@@ -476,80 +790,104 @@
     const glows = [];
     for (const z of [8, 38, -30]) {
       g.add(box(3, 1.5, 3, lampMat, 0, 53.5, z));
-      const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: glow, color: 0xffe2a8, blending: THREE.AdditiveBlending,
-        depthWrite: false, transparent: true }));
-      sp.scale.set(38, 38, 1);
+      const sp = glowSprite(glow, 0xffe2a8, 38);
       sp.position.set(0, 52, z);
       sp.visible = false;
       g.add(sp);
       glows.push(sp);
     }
-    return { group: g, trolley, spreader, cable, lampMat, glows, home: 0, x: 0 };
+    return { group: g, trolley, spreader, cable, lampMat, glows, home: 0, x: 0, z: 0 };
   }
 
   // ---------- ship motion ----------
+  // Keys are [hour, position, control]: with a control point the leg into that key is a quadratic curve.
   function anchorPos(id) {
-    const cols = 5;
-    return new THREE.Vector3(X0 + L * ((id % cols) + 0.5) / cols + ((id * 37) % 60) - 30,
-      0, ANCHOR_Z + Math.floor(id / cols) * 260 + ((id * 53) % 80));
+    if (!frame) {
+      const cols = 5;
+      return new THREE.Vector3(X0 + L * ((id % cols) + 0.5) / cols + ((id * 37) % 60) - 30,
+        0, ANCHOR_Z + Math.floor(id / cols) * 260 + ((id * 53) % 80));
+    }
+    // in the bay west of the terminal: frame-local x -600 to -1200, z +400 to +900, nudged off any land
+    let lx = -600 - (id % 3) * 270 - ((id * 37) % 50), lz = 400 + (Math.floor(id / 3) % 3) * 220 + ((id * 53) % 50);
+    for (let k = 0; k < 30; k++) {
+      const [x, z] = frameToWorld(frame, lx, lz);
+      if (!onLand(x, z)) break;
+      lx -= 120;
+      lz += 80;
+    }
+    return new THREE.Vector3(lx + X0, 0, lz);
+  }
+
+  function bend(a, b, side) {
+    const m = a.clone().lerp(b, 0.55);
+    const d = b.clone().sub(a);
+    return m.add(new THREE.Vector3(-d.z, 0, d.x).multiplyScalar(0.18 * side));
   }
 
   function shipKeys(s, beam) {
     const berth = new THREE.Vector3(spanCenter(s.first_section, s.sections), 0, beam / 2 + 5);
-    const seaIn = new THREE.Vector3(X0 - 3200 - (s.id % 4) * 300, 0, 3800 + (s.id % 3) * 400);
-    const seaOut = new THREE.Vector3(X0 - 3600, 0, 4600 + (s.id % 3) * 300);
+    let seaIn, seaOut;
+    if (frame) {
+      seaIn = worldToGroup(SEA_IN[0] - (s.id % 4) * 250, SEA_IN[1] + (s.id % 3) * 300);
+      seaOut = worldToGroup(SEA_IN[0] - 400, SEA_IN[1] - 300 + (s.id % 3) * 250);
+    } else {
+      seaIn = new THREE.Vector3(X0 - 3200 - (s.id % 4) * 300, 0, 3800 + (s.id % 3) * 400);
+      seaOut = new THREE.Vector3(X0 - 3600, 0, 4600 + (s.id % 3) * 300);
+    }
     const anch = anchorPos(s.id);
+    const approach = new THREE.Vector3(lerp(anch.x, berth.x, 0.7), 0, berth.z + 260);
     const k = [[s.arrival - 2, seaIn]];
     if (s.berth_hour > s.arrival) {
-      k.push([s.arrival, anch]);
+      k.push([s.arrival, anch, bend(seaIn, anch, 1)]);
       if (s.berth_hour - 1 > s.arrival) k.push([s.berth_hour - 1, anch]);
-      k.push([s.berth_hour, berth]);
+      k.push([s.berth_hour, berth, approach]);
     } else {
-      k.push([s.berth_hour, berth]);
+      k.push([s.berth_hour, berth, anch]);       // straight through the anchorage to the berth
     }
     k.push([s.departure, berth]);
-    k.push([s.departure + 2, seaOut]);
+    k.push([s.departure + 2, seaOut, new THREE.Vector3(berth.x - 300, 0, berth.z + 600)]);
     return k;
   }
 
+  const _tan = new THREE.Vector3();
+
+  // returns how fast the ship is moving, 0 (still) to 1 (mid leg)
   function placeShip(o, t) {
     const k = o.keys;
     if (t < k[0][0] || t > k[k.length - 1][0]) {
       o.group.visible = false;
-      return;
+      return 0;
     }
     o.group.visible = true;
     let j = 0;
     while (j < k.length - 2 && t >= k[j + 1][0]) j++;
-    const [t0, p0] = k[j], [t1, p1] = k[j + 1];
+    const [t0, p0] = k[j], [t1, p1, c] = k[j + 1];
     const u = t1 > t0 ? clamp((t - t0) / (t1 - t0), 0, 1) : 1;
     const e = smooth(u);
-    o.group.position.lerpVectors(p0, p1, e);
-    const d = p1.clone().sub(p0);
-    let yaw = 0;
-    if (d.lengthSq() > 1) {
-      const travel = Math.atan2(-d.z, d.x);
+    if (c) {
+      const a = (1 - e) * (1 - e), b = 2 * (1 - e) * e, d = e * e;
+      o.group.position.set(a * p0.x + b * c.x + d * p1.x, 0, a * p0.z + b * c.z + d * p1.z);
+      _tan.set(2 * (1 - e) * (c.x - p0.x) + 2 * e * (p1.x - c.x), 0,
+        2 * (1 - e) * (c.z - p0.z) + 2 * e * (p1.z - c.z));
+    } else {
+      o.group.position.lerpVectors(p0, p1, e);
+      _tan.subVectors(p1, p0);
+    }
+    let yaw = 0, speed = 0;
+    if (p1.distanceToSquared(p0) > 1 && _tan.lengthSq() > 1e-6) {
+      const travel = Math.atan2(-_tan.z, _tan.x);
       const w = Math.min(1, 3 * Math.sin(Math.PI * u));
       yaw = lerpAngle(0, travel, w);
+      speed = Math.sin(Math.PI * u);
     }
     o.group.rotation.y = yaw;
+    return speed;
   }
 
   function lerpAngle(a, b, u) {
     let d = ((b - a + Math.PI) % (2 * Math.PI)) - Math.PI;
     if (d < -Math.PI) d += 2 * Math.PI;
     return a + d * u;
-  }
-
-  function shipStatus(s, t, cbh) {
-    const h = Math.floor(t);
-    if (t < s.arrival) return { key: "sea", text: "at sea" };
-    if (t < s.berth_hour) return { key: "anchor", text: "at anchor" };
-    if (t < s.departure) {
-      const c = cbh.get(h) || 0;
-      return { key: "alongside", text: c ? "alongside, " + c + " cr" : "alongside, idle" };
-    }
-    return { key: "departed", text: "departed" };
   }
 
   // ---------- crane assignment ----------
@@ -598,9 +936,14 @@
   }
 
   // ---------- sky, fog, windows ----------
-  const NIGHT = new THREE.Color(0x0a1222), DAY = new THREE.Color(0x8ec5ea), DUSK = new THREE.Color(0xf0a070);
+  const NIGHT = new THREE.Color(0x0a1222), DAY = new THREE.Color(0x8ec5ea);
+  const DUSK = new THREE.Color(0xf0a070), DAWN = new THREE.Color(0xf3b7a0);
   const FOG_DAY = new THREE.Color(0xc9d1d8), FOG_NIGHT = new THREE.Color(0x3a4350);
   const WATER_DAY = new THREE.Color(0x1d5f7a), WATER_NIGHT = new THREE.Color(0x07161f);
+  const SUN_HIGH = new THREE.Color(0xfff4e2), SUN_LOW = new THREE.Color(0xff9a58);
+  const GROUND_DAY = new THREE.Color(0x3d5560), GROUND_NIGHT = new THREE.Color(0x0c141c);
+  const WHITE = new THREE.Color(0xffffff);
+  const _sky = new THREE.Color(), _fog = new THREE.Color(), _dir = new THREE.Vector3();
 
   function daylight(t) {
     const hd = ((t % 24) + 24) % 24;
@@ -624,48 +967,102 @@
     return (replay.no_moves || []).find((w) => t >= w.start && t < w.end);
   }
 
-  function updateSky(t) {
+  function updateSky(t, dt) {
     const d = daylight(t);
-    const sky = NIGHT.clone().lerp(DAY, d).lerp(DUSK, 4 * d * (1 - d) * 0.55);
+    const hd = ((t % 24) + 24) % 24;
+    const tint = 4 * d * (1 - d);
+    _sky.copy(NIGHT).lerp(DAY, d).lerp(hd < 12 ? DAWN : DUSK, tint * 0.55);
     const f = fogAmount(t);
-    const fogCol = FOG_NIGHT.clone().lerp(FOG_DAY, d);
-    const bg = sky.clone().lerp(fogCol, f * 0.85);
-    scene.background = bg;
+    _fog.copy(FOG_NIGHT).lerp(FOG_DAY, d).lerp(hd < 12 ? DAWN : DUSK, tint * 0.25);
+    const bg = scene.background && scene.background.isColor ? scene.background : (scene.background = new THREE.Color());
+    bg.copy(_sky).lerp(_fog, f * 0.85);
     scene.fog.color.copy(bg);
-    scene.fog.near = lerp(2500, 60, f);
-    scene.fog.far = lerp(18000, 1500, f);
-    hemi.intensity = 0.22 + 0.6 * d;
-    sun.intensity = 0.08 + 0.85 * d;
-    const ang = ((t % 24) / 24) * Math.PI * 2 - Math.PI / 2;
-    sun.position.set(Math.cos(ang) * 3000, 600 + Math.max(0, -Math.sin(ang)) * 3000, 1500);
-    waterMat.color.copy(WATER_NIGHT).lerp(WATER_DAY, d);
+    // fog distances follow the camera so the satellite view stays clear; the fog window closes them right in
+    const camDist = camera.position.distanceTo(controls.target);
+    scene.fog.near = lerp(Math.max(2500, camDist * 0.9), 60, f);
+    scene.fog.far = lerp(Math.max(18000, camDist * 4), 1500, f);
+    hemi.color.copy(_sky).lerp(WHITE, 0.35);
+    hemi.groundColor.copy(GROUND_NIGHT).lerp(GROUND_DAY, d);
+    hemi.intensity = 0.25 + 0.65 * d;
+    // the sun rises in the east (+x), crosses the south (+z) and sets in the west
+    const u = clamp((hd - 6) / 13.5, 0, 1);
+    const el = Math.max(0.12, Math.sin(Math.PI * u) * 1.1);
+    const az = Math.PI * u;
+    _dir.set(Math.cos(az) * Math.cos(el), Math.sin(el), (0.35 + 0.55 * Math.sin(az)) * Math.cos(el)).normalize();
+    sun.intensity = 0.06 + 1.45 * d * (1 - f * 0.6);
+    sun.color.copy(SUN_LOW).lerp(SUN_HIGH, smooth(clamp((el - 0.12) / 0.6, 0, 1)));
+    if (world && world.center) sun.target.position.copy(world.center);
+    sun.position.copy(sun.target.position).addScaledVector(_dir, 4000);
+    waterMat.color.copy(WATER_NIGHT).lerp(WATER_DAY, d).lerp(DUSK, tint * 0.12);
+    swellMat.color.copy(waterMat.color);
+    waveA.offset.x += dt * 0.0035;
+    waveA.offset.y += dt * 0.0012;
+    waveB.offset.x -= dt * 0.0016;
+    waveB.offset.y += dt * 0.0028;
+    stars.material.opacity = (1 - d) * (1 - f) * 0.9;
+    stars.visible = d < 0.95;
     return d;
   }
 
   // ---------- per-frame update ----------
-  function update(t) {
+  function update(t, dt) {
     if (!world) return;
-    const d = updateSky(t);
+    dt = dt || 0;
+    const d = updateSky(t, dt);
+    const night = d < 0.4;
     const h = Math.floor(t), frac = t - h;
     const meal = h % 24 === 17;
 
     for (const o of world.ships) {
-      placeShip(o, t);
+      const speed = placeShip(o, t);
       const late = o.s.late_h > 0 && t >= o.s.due && t < o.s.departure + 2;
       o.flag.visible = late;
       o.label.visible = !late;
       o.lateLabel.visible = late;
+      o.wake.visible = speed > 0.05;
+      o.wake.material.opacity = 0.65 * speed;
+      if (o.asset) {
+        if (o.lit !== night) {
+          o.asset.setLights(night);
+          o.lit = night;
+        }
+        const load = 1 - window.OakKPI.progress(replay, o.s, t);
+        if (Math.abs(load - o.load) > 0.01) {
+          o.asset.setLoad(load);
+          o.load = load;
+        }
+        if (o.group.visible) o.asset.update(dt, t);
+      } else {
+        o.lights.forEach((g) => (g.visible = night));
+      }
     }
 
     for (const blk of world.blocks) blk.obj.visible = t >= blk.b.start && t < blk.b.end;
+    world.lamps.forEach((g) => (g.visible = night));
+    if (world.yard && world.yard.update) world.yard.update(dt);
 
     const T0 = craneTargets(h), T1 = craneTargets(h + 1);
     const w = smooth(clamp((frac - 0.7) / 0.3, 0, 1));
+    const dtSim = state.playing ? Math.min(dt * SPEEDS[state.speed] * 3600, dt * MAX_CRANE_SPEEDUP) : 0;
     world.craneMat.color.setRGB(meal ? 0.42 : 0.84, meal ? 0.44 : 0.86, meal ? 0.47 : 0.89);
     world.cranes.forEach((c, i) => {
       c.x = lerp(T0.x[i], T1.x[i], w);
       c.group.position.x = c.x;
       const working = T0.working[i] && !meal;
+      const lit = working && d < 0.6;
+      if (c.asset) {
+        if (working !== c.working) {
+          c.asset.setWorking(working);
+          c.asset.setBoomUp(!working);
+          c.working = working;
+        }
+        if (lit !== c.lit && c.asset.setLights) {
+          c.asset.setLights(lit);
+          c.lit = lit;
+        }
+        c.asset.update(dtSim);
+        return;
+      }
       let tz = -20, sy = 50;
       if (working) {
         const ph = state.anim * 0.35 + i * 0.37;
@@ -678,7 +1075,6 @@
       pos.setXYZ(0, 0, 52, tz);
       pos.setXYZ(1, 0, sy + 0.8, tz);
       pos.needsUpdate = true;
-      const lit = working && d < 0.6;
       c.lampMat.color.set(lit ? 0xfff0c0 : meal ? 0x222222 : 0x444444);
       c.glows.forEach((g) => (g.visible = lit));
     });
@@ -692,33 +1088,135 @@
     ui.clock.textContent = clockText(t);
     ui.clock.title = shiftName(t);
     if (!state.dragging) ui.scrub.value = t.toFixed(2);
-    updateList(t);
+    if (Math.abs(t - state.kpiT) >= 0.05) {
+      state.kpiT = t;
+      updateList(t);
+      updateKpis(t);
+    }
+  }
+
+  // ---------- KPI overlay ----------
+  const KPI_TILES = [
+    ["occ", "Berth occupancy"], ["cranes", "Cranes working"], ["along", "Alongside"],
+    ["anchor", "At anchor"], ["dep", "Departed"], ["late", "Late ships"],
+    ["lateh", "Late ship-hours"], ["cost", "Cost so far"], ["reward", "Reward"],
+  ];
+  let kpiCells = {}, sparkSeries = null;
+
+  function buildKpis() {
+    ui.kpis.innerHTML = "";
+    kpiCells = {};
+    for (const [key, name] of KPI_TILES) {
+      const tile = document.createElement("div");
+      tile.className = "kpi";
+      tile.innerHTML = "<div class='kpi-name'></div><div class='kpi-val'></div><div class='kpi-sub'></div>";
+      tile.querySelector(".kpi-name").textContent = name;
+      ui.kpis.appendChild(tile);
+      kpiCells[key] = { tile, val: tile.querySelector(".kpi-val"), sub: tile.querySelector(".kpi-sub") };
+    }
+    sparkSeries = window.OakKPI.series(replay);
+  }
+
+  function setKpi(key, val, sub, cls) {
+    const c = kpiCells[key];
+    if (!c) return;
+    c.val.textContent = val;
+    c.sub.textContent = sub || "";
+    c.tile.className = "kpi" + (cls ? " " + cls : "");
+  }
+
+  function updateKpis(t) {
+    const k = window.OakKPI.at(replay, t);
+    const n = (replay.ships || []).length;
+    setKpi("occ", Math.round(k.occupancy * 100) + "%", k.sections_occupied + " of " + k.sections + " sections");
+    setKpi("cranes", k.cranes_working + " / " + k.cranes_pool, "pool this hour");
+    setKpi("along", String(k.ships_alongside), k.ships_at_sea + " still at sea");
+    setKpi("anchor", String(k.ships_anchored), "arrived, waiting", k.ships_anchored ? "warn" : "");
+    setKpi("dep", String(k.ships_departed), "of " + n + " ships");
+    setKpi("late", String(k.late_ships), "past their due hour", k.late_ships ? "bad" : "good");
+    setKpi("lateh", String(k.late_ship_hours), "hours past due", k.late_ship_hours ? "bad" : "");
+    setKpi("cost", String(k.cost_so_far), k.cost_final != null ? "final " + k.cost_final +
+      (k.optimal_cost != null ? ", optimal " + k.optimal_cost : "") : "");
+    setKpi("reward", k.reward != null ? k.reward.toFixed(3) : "n/a",
+      k.feasible == null ? "" : k.feasible ? "feasible plan" : "infeasible plan", k.feasible === false ? "bad" : "");
+    drawSpark(t);
+  }
+
+  function drawSpark(t) {
+    const cv = ui.spark;
+    if (!cv || !sparkSeries) return;
+    const W = 240, H = 40, dpr = Math.min(window.devicePixelRatio || 1, 2);
+    if (cv.width !== W * dpr) {
+      cv.width = W * dpr;
+      cv.height = H * dpr;
+    }
+    const ctx = cv.getContext("2d");
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+    const s = sparkSeries, n = s.hours.length;
+    const X = (i) => 1 + (W - 2) * i / Math.max(1, n - 1);
+    const Y = (v) => H - 3 - (H - 6) * clamp(v, 0, 1);
+    for (const w of replay.no_moves || []) {
+      ctx.fillStyle = "rgba(200,210,220,0.14)";
+      ctx.fillRect(X(w.start), 0, X(w.end) - X(w.start), H);
+    }
+    const line = (vals, color) => {
+      ctx.beginPath();
+      vals.forEach((v, i) => (i ? ctx.lineTo(X(i), Y(v)) : ctx.moveTo(X(i), Y(v))));
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1.4;
+      ctx.stroke();
+    };
+    line(s.occupancy, "#4cc3ff");
+    line(s.cranes.map((c, i) => (s.pool[i] ? c / s.pool[i] : 0)), "#5ad48a");
+    const x = X(clamp(t, 0, n - 1));
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(x - 0.75, 0, 1.5, H);
   }
 
   // ---------- side list and header ----------
+  const STATUS_WORDS = { sea: "at sea", anchor: "anchored", alongside: "alongside", departed: "departed" };
+
+  function shipStatus(s, t, cbh) {
+    const h = Math.floor(t);
+    if (t < s.arrival) return { key: "sea", text: STATUS_WORDS.sea };
+    if (t < s.berth_hour) return { key: "anchor", text: STATUS_WORDS.anchor };
+    if (t < s.departure) {
+      const c = cbh.get(h) || 0;
+      return { key: "alongside", text: STATUS_WORDS.alongside + (c ? ", " + c + " cr" : ", idle") };
+    }
+    return { key: "departed", text: STATUS_WORDS.departed };
+  }
+
   function buildList() {
     ui.tbody.innerHTML = "";
+    const tships = (replay.task && replay.task.ships) || [];
+    const mpch = (replay.task && replay.task.rules && replay.task.rules.moves_per_crane_hour) || 26;
     world.ships.forEach((o) => {
       const s = o.s;
+      const ts = tships[s.id] || {};
       const tr = document.createElement("tr");
       const late = s.late_h > 0;
       tr.innerHTML =
         "<td><span class='swatch'></span><span class='name'></span><div class='line'></div></td>" +
-        "<td class='status'></td><td></td><td></td><td></td>";
+        "<td><div class='status'></div><div class='bar'><i></i></div><div class='moves'></div></td>" +
+        "<td class='lt'></td>";
       tr.querySelector(".swatch").style.background = lineColor(s.line);
       tr.querySelector(".name").textContent = s.name;
       tr.querySelector(".line").textContent = s.line + ", " + Math.round(s.length_m) + " m, sec " + s.first_section +
-        "-" + (s.first_section + s.sections - 1);
-      const tds = tr.querySelectorAll("td");
-      tds[2].textContent = "h" + s.berth_hour;
-      tds[2].title = hourText(s.berth_hour) + " (arrived h" + s.arrival + ")";
-      tds[3].textContent = "h" + s.departure;
-      tds[3].title = hourText(s.departure) + " (due h" + s.due + ")";
-      tds[4].textContent = late ? "+" + s.late_h + " h" : "0";
-      if (late) tds[4].className = "late";
+        "-" + (s.first_section + s.sections - 1) + ", h" + s.berth_hour + " to h" + s.departure;
+      tr.title = "arrives " + hourText(s.arrival) + ", berths " + hourText(s.berth_hour) + ", departs " +
+        hourText(s.departure) + " (due " + hourText(s.due) + ")";
+      const lt = tr.querySelector(".lt");
+      lt.textContent = late ? "+" + s.late_h + " h" : "on time";
+      lt.className = "lt " + (late ? "late" : "muted");
       tr.addEventListener("click", () => focusShip(o));
-      o.statusCell = tds[1];
+      o.statusCell = tr.querySelector(".status");
+      o.barCell = tr.querySelector(".bar i");
+      o.movesCell = tr.querySelector(".moves");
+      o.moves = ts.workload ? Math.round(ts.workload * mpch) : 0;
       o.lastStatus = "";
+      o.lastPct = -1;
       ui.tbody.appendChild(tr);
     });
   }
@@ -732,17 +1230,25 @@
         o.statusCell.className = "status status-" + st.key;
         o.lastStatus = key;
       }
+      const p = window.OakKPI.progress(replay, o.s, t);
+      const pct = Math.round(p * 100);
+      if (pct !== o.lastPct) {
+        o.barCell.style.width = pct + "%";
+        o.movesCell.textContent = o.moves ? Math.round(p * o.moves).toLocaleString("en-US") + " of " +
+          o.moves.toLocaleString("en-US") + " moves" : pct + "% worked";
+        o.lastPct = pct;
+      }
     }
   }
 
   function buildHeader(rep) {
     const task = rep.task || {};
     const term = task.terminal || "Terminal";
-    ui.title.textContent = term + (task.quay ? ", berths " + task.quay : "") + ", week " + (task.week || 1);
+    ui.title.textContent = term + ", week " + (task.week || 1) + ", " + (task.kind || "berth") + " plan";
     document.title = term + " Berth Replay";
     const start = task.week_start_utc ? " from " + String(task.week_start_utc).slice(0, 10) : "";
-    ui.subtitle.textContent = (task.task_id || "replay") + start + ", " + (rep.ships || []).length +
-      " ships, " + (task.kind || "berth") + " plan. Ship calls are generated, not real records.";
+    ui.subtitle.textContent = (task.quay ? "berths " + task.quay + ", " : "") + (task.task_id || "replay") + start +
+      ", " + (rep.ships || []).length + " ships. Ship calls are generated, not real records.";
     const gr = rep.grade || {};
     const chips = [];
     if (typeof gr.reward === "number") chips.push(["reward <b>" + gr.reward.toFixed(2) + "</b>", ""]);
@@ -757,28 +1263,68 @@
     if (r.crane_pool) parts.push(r.crane_pool + " cranes" + (r.hoot_pool ? ", " + r.hoot_pool + " in hoot hours" : ""));
     parts.push("shifts: day 08-17, night 18-03, hoot 03-08, meal 17-18");
     parts.push("red stripes: closed quay; pale band: shallow; red flag: running late");
+    parts.push(frame ? "placed on its real quay line in a stylised Port of Oakland map" : "single-terminal layout");
     parts.push("stylised scene, not a survey-grade twin");
     ui.legend.textContent = parts.join(". ") + ".";
   }
 
   // ---------- camera presets ----------
+  // Presets are written in terminal coordinates (quay along +x, water at +z) and carried into the world frame.
+  const toWorld = (x, y, z) => world.group.localToWorld(new THREE.Vector3(x, y, z));
+
   function setCam(name) {
     const k = Math.max(L, 700) / 2100;
-    if (name === "quayside") {
-      camera.position.set(X0 - 160 * k, 70, 260 * k);
-      controls.target.set(X0 + L * 0.35, 25, -10);
+    if (name === "satellite") {
+      satelliteView();
+    } else if (name === "quayside") {
+      camera.position.copy(toWorld(X0 - 160 * k, 70, 260 * k));
+      controls.target.copy(toWorld(X0 + L * 0.35, 25, -10));
     } else if (name === "overhead") {
-      camera.position.set(0, 2600 * k + 300, 400 * k);
-      controls.target.set(0, 0, 350 * k);
+      camera.position.copy(toWorld(0, 2600 * k + 300, 400 * k));
+      controls.target.copy(toWorld(0, 0, 350 * k));
     } else {
-      camera.position.set(-300 * k, 1300 * k + 200, 2400 * k + 400);
-      controls.target.set(0, 0, 450 * k);
+      camera.position.copy(toWorld(-300 * k, 1300 * k + 200, 2400 * k + 400));
+      controls.target.copy(toWorld(0, 0, 450 * k));
     }
+    document.querySelectorAll("[data-cam]").forEach((b) => b.classList.toggle("on", b.dataset.cam === name));
     controls.update();
   }
 
+  // The Google Maps satellite look: high above the port, about 60 degrees down, from the south-south-west, north up
+  // on screen. Frames all four terminals when the map is loaded, else this terminal and its anchorage.
+  function satelliteView() {
+    const pts = [];
+    if (frame) {
+      for (const name of TERMINALS) {
+        const f = frameOf(name);
+        if (!f) continue;
+        const len = (f.sections || 20) * SECTION_M;
+        for (const [lx, lz] of [[0, 0], [len, 0], [0, -500], [len, -500], [len / 2, 350]]) {
+          pts.push(frameToWorld(f, lx, lz));
+        }
+      }
+    } else {
+      for (const [x, z] of [[X0, -540], [X0 + L, -540], [X0, ANCHOR_Z + 600], [X0 + L, ANCHOR_Z + 600]]) {
+        const p = toWorld(x, 0, z);
+        pts.push([p.x, p.z]);
+      }
+    }
+    let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
+    for (const [x, z] of pts) {
+      x0 = Math.min(x0, x); x1 = Math.max(x1, x);
+      z0 = Math.min(z0, z); z1 = Math.max(z1, z);
+    }
+    const cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
+    const el = Math.PI / 3, az = Math.PI / 12;
+    const tanV = Math.tan(camera.fov * Math.PI / 360);
+    const dist = 1.2 * Math.max((z1 - z0) / 2 * Math.sin(el) / tanV, (x1 - x0) / 2 / (tanV * camera.aspect), 600);
+    controls.target.set(cx, 0, cz);
+    camera.position.set(cx - dist * Math.sin(az) * Math.cos(el), dist * Math.sin(el), cz + dist * Math.cos(az) * Math.cos(el));
+  }
+
   function focusShip(o) {
-    const p = o.group.visible ? o.group.position : o.keys[o.keys.length - 3][1];
+    const p = o.group.visible ? o.group.getWorldPosition(new THREE.Vector3())
+      : world.group.localToWorld(o.keys[o.keys.length - 3][1].clone());
     const off = camera.position.clone().sub(controls.target).setLength(Math.max(500, o.len * 1.8));
     controls.target.copy(p);
     camera.position.copy(p).add(off);
@@ -807,7 +1353,7 @@
     }
     clearError();
     if (world) {
-      scene.remove(world.group);
+      terminalRoot.remove(world.group);
       world.group.traverse((obj) => {
         if (obj.geometry) obj.geometry.dispose();
         if (obj.material) {
@@ -818,11 +1364,19 @@
     }
     replay = rep;
     world = buildWorld(rep);
-    const horizon = rep.horizon_h || Math.max(...rep.ships.map((s) => s.departure + 2), 24);
-    ui.scrub.max = String(horizon);
+    placeTerminal(rep.task || {});
+    // sun shadows cover this terminal only, not the whole bay
+    world.center = world.group.localToWorld(new THREE.Vector3(0, 0, -150));
+    const R = L / 2 + 600, sc = sun.shadow.camera;
+    sc.left = -R; sc.right = R; sc.top = R; sc.bottom = -R;
+    sc.near = 100; sc.far = 9000;
+    sc.updateProjectionMatrix();
+    ui.scrub.max = String(window.OakKPI.horizon(rep));
     state.t = 0;
+    state.kpiT = -1;
     buildHeader(rep);
     buildList();
+    buildKpis();
     setCam("overview");
     update(state.t);
   }
@@ -891,7 +1445,7 @@
 
   // ---------- main loop ----------
   const clock = new THREE.Clock();
-  function frame() {
+  function tick() {
     const dt = Math.min(clock.getDelta(), 0.1);
     if (world && state.playing) {
       state.anim += dt;
@@ -902,14 +1456,14 @@
         setPlaying(false);
       }
     }
-    if (world) update(state.t);
+    if (world) update(state.t, dt);
     controls.update();
     renderer.render(scene, camera);
-    requestAnimationFrame(frame);
+    requestAnimationFrame(tick);
   }
 
   const params = new URLSearchParams(location.search);
   if (params.get("replay")) loadUrl(params.get("replay"));
   else loadFixture("oict-demo");
-  requestAnimationFrame(frame);
+  requestAnimationFrame(tick);
 })();

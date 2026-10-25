@@ -27,14 +27,24 @@
   <div id="banner" class="banner hidden">Bar closed: fog</div>
 
   <aside id="side">
+    <section id="kpi-panel" aria-label="Port KPIs at the current hour">
+      <div id="kpis" class="kpis"></div>
+      <canvas id="spark" width="240" height="40" title="Berth occupancy and crane use by hour; white line: now"></canvas>
+      <div class="spark-legend small muted">
+        <span><i class="sw" style="background:#4cc3ff"></i>berth occupancy</span>
+        <span><i class="sw" style="background:#5ad48a"></i>cranes working / pool</span>
+        <span><i class="sw" style="background:rgba(200,210,220,0.35)"></i>bar closed</span>
+      </div>
+    </section>
     <div class="cams">
+      <button data-cam="satellite">Satellite</button>
       <button data-cam="overview">Overview</button>
       <button data-cam="quayside">Quayside</button>
       <button data-cam="overhead">Overhead</button>
     </div>
     <table id="ships">
       <thead>
-        <tr><th>Ship</th><th>Status</th><th>Berth</th><th>Dep</th><th>Late</th></tr>
+        <tr><th>Ship</th><th>Status and moves</th><th>Late</th></tr>
       </thead>
       <tbody></tbody>
     </table>
@@ -58,6 +68,12 @@
   <script src="vendor/three.min.js"></script>
   <script src="vendor/OrbitControls.js"></script>
   <script src="fixtures/demo-fixtures.js"></script>
+  <!-- optional asset modules: viewer.js feature-detects each global and falls back when a file is missing -->
+  <script src="assets/oakland_geo.js"></script>
+  <script src="assets/ships.js"></script>
+  <script src="assets/cranes.js"></script>
+  <script src="assets/yard.js"></script>
+  <script src="kpi.js"></script>
   <script src="viewer.js"></script>
 </body>
 </html>
