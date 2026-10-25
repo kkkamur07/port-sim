@@ -1,0 +1,1650 @@
+{
+ "task": {
+  "task_id": "everport_crane_medium",
+  "split": "demo",
+  "quay": "35-38",
+  "terminal": "Everport",
+  "first_section": 1,
+  "last_section": 15,
+  "section_m": 42.0,
+  "week": 1,
+  "week_start_utc": "2026-10-26T07:00:00Z",
+  "ships": [
+   {
+    "id": 0,
+    "name": "CMA CGM ALTAIR",
+    "imo": "GEN9621311",
+    "length_m": 331.0,
+    "sections": 8,
+    "arrival": 17,
+    "handling": 21,
+    "planned_hour": 17,
+    "planned_section": 3,
+    "due": 38,
+    "from_port": "Xiamen",
+    "to_port": "Kaohsiung",
+    "beam_m": 43.6,
+    "draught_m": 13.7,
+    "workload": 1010,
+    "min_cranes": 1,
+    "max_cranes": 4,
+    "std_cranes": 2,
+    "weight": 1,
+    "berth_deadline": null,
+    "deadline_penalty": 0,
+    "line": "CMA CGM",
+    "service": "PEX3"
+   },
+   {
+    "id": 1,
+    "name": "EVER LEGEND",
+    "imo": "GEN9442962",
+    "length_m": 308.0,
+    "sections": 8,
+    "arrival": 38,
+    "handling": 14,
+    "planned_hour": 69,
+    "planned_section": 4,
+    "due": 52,
+    "from_port": "Kaohsiung",
+    "to_port": "Tokyo",
+    "beam_m": 40.5,
+    "draught_m": 12.6,
+    "workload": 660,
+    "min_cranes": 1,
+    "max_cranes": 4,
+    "std_cranes": 2,
+    "weight": 1,
+    "berth_deadline": 43,
+    "deadline_penalty": 40,
+    "line": "Evergreen",
+    "service": "CPS"
+   },
+   {
+    "id": 2,
+    "name": "YM TOPAZ",
+    "imo": "GEN9238990",
+    "length_m": 316.0,
+    "sections": 8,
+    "arrival": 52,
+    "handling": 17,
+    "planned_hour": 146,
+    "planned_section": 2,
+    "due": 69,
+    "from_port": "Kaohsiung",
+    "to_port": "Busan",
+    "beam_m": 41.6,
+    "draught_m": 12.8,
+    "workload": 810,
+    "min_cranes": 1,
+    "max_cranes": 4,
+    "std_cranes": 2,
+    "weight": 1,
+    "berth_deadline": null,
+    "deadline_penalty": 0,
+    "line": "Yang Ming",
+    "service": "PS5"
+   },
+   {
+    "id": 3,
+    "name": "COSCO CORAL",
+    "imo": "GEN9152032",
+    "length_m": 305.0,
+    "sections": 8,
+    "arrival": 129,
+    "handling": 21,
+    "planned_hour": 279,
+    "planned_section": 6,
+    "due": 95,
+    "from_port": "Shanghai",
+    "to_port": "Xiamen",
+    "beam_m": 40.1,
+    "draught_m": 12.3,
+    "workload": 1030,
+    "min_cranes": 1,
+    "max_cranes": 4,
+    "std_cranes": 2,
+    "weight": 3,
+    "berth_deadline": null,
+    "deadline_penalty": 0,
+    "line": "COSCO",
+    "service": "AAC"
+   },
+   {
+    "id": 4,
+    "name": "EVER LUCENT",
+    "imo": "GEN9179194",
+    "length_m": 335.0,
+    "sections": 8,
+    "arrival": 95,
+    "handling": 16,
+    "planned_hour": 190,
+    "planned_section": 1,
+    "due": 111,
+    "from_port": "Kaohsiung",
+    "to_port": "Tokyo",
+    "beam_m": 44.1,
+    "draught_m": 13.6,
+    "workload": 820,
+    "min_cranes": 1,
+    "max_cranes": 4,
+    "std_cranes": 2,
+    "weight": 3,
+    "berth_deadline": null,
+    "deadline_penalty": 0,
+    "line": "Evergreen",
+    "service": "CPS"
+   },
+   {
+    "id": 5,
+    "name": "CMA CGM SIRIUS",
+    "imo": "GEN9291389",
+    "length_m": 321.0,
+    "sections": 8,
+    "arrival": 127,
+    "handling": 18,
+    "planned_hour": 233,
+    "planned_section": 3,
+    "due": 130,
+    "from_port": "Xiamen",
+    "to_port": "Kaohsiung",
+    "beam_m": 42.2,
+    "draught_m": 13.1,
+    "workload": 860,
+    "min_cranes": 1,
+    "max_cranes": 4,
+    "std_cranes": 2,
+    "weight": 1,
+    "berth_deadline": null,
+    "deadline_penalty": 0,
+    "line": "CMA CGM",
+    "service": "PEX3"
+   },
+   {
+    "id": 6,
+    "name": "YM GARNET",
+    "imo": "GEN9412817",
+    "length_m": 307.0,
+    "sections": 8,
+    "arrival": 140,
+    "handling": 18,
+    "planned_hour": 332,
+    "planned_section": 5,
+    "due": 154,
+    "from_port": "Kaohsiung",
+    "to_port": "Busan",
+    "beam_m": 40.4,
+    "draught_m": 12.6,
+    "workload": 860,
+    "min_cranes": 1,
+    "max_cranes": 4,
+    "std_cranes": 2,
+    "weight": 1,
+    "berth_deadline": null,
+    "deadline_penalty": 0,
+    "line": "Yang Ming",
+    "service": "PS5"
+   },
+   {
+    "id": 7,
+    "name": "COSCO JADE",
+    "imo": "GEN9740011",
+    "length_m": 314.0,
+    "sections": 8,
+    "arrival": 158,
+    "handling": 23,
+    "planned_hour": 377,
+    "planned_section": 1,
+    "due": 177,
+    "from_port": "Shanghai",
+    "to_port": "Xiamen",
+    "beam_m": 41.3,
+    "draught_m": 13.0,
+    "workload": 1110,
+    "min_cranes": 1,
+    "max_cranes": 4,
+    "std_cranes": 2,
+    "weight": 1,
+    "berth_deadline": null,
+    "deadline_penalty": 0,
+    "line": "COSCO",
+    "service": "AAC"
+   },
+   {
+    "id": 8,
+    "name": "YM GARNET",
+    "imo": "GEN9400725",
+    "length_m": 307.0,
+    "sections": 8,
+    "arrival": 42,
+    "handling": 18,
+    "planned_hour": 106,
+    "planned_section": 1,
+    "due": 64,
+    "from_port": "Kaohsiung",
+    "to_port": "Busan",
+    "beam_m": 40.4,
+    "draught_m": 12.7,
+    "workload": 850,
+    "min_cranes": 1,
+    "max_cranes": 4,
+    "std_cranes": 2,
+    "weight": 1,
+    "berth_deadline": null,
+    "deadline_penalty": 0,
+    "line": "Yang Ming",
+    "service": "PS5"
+   }
+  ],
+  "blocks": [
+   {
+    "first": 9,
+    "last": 14,
+    "start": 0,
+    "end": 7,
+    "kind": "alongside",
+    "label": "WAN HAI 372 (Wan Hai, generated call)",
+    "cranes": 2,
+    "max_draught_m": null
+   }
+  ],
+  "notices": [
+   "Generated calls (not real records) at Everport, berths 35-38, over 1 week(s). Hour 0 is Monday 00:00 Pacific.",
+   "Ship 7 COSCO JADE was delayed by weather on the Pacific crossing: it now arrives at hour 158 (planned berthing hour 154). Its planned departure stays hour 177.",
+   "Ship 3 COSCO CORAL was delayed by weather on the Pacific crossing: it now arrives at hour 129 (planned berthing hour 74). Its planned departure stays hour 95.",
+   "Ship 6 YM GARNET was delayed by weather on the Pacific crossing: it now arrives at hour 140 (planned berthing hour 136). Its planned departure stays hour 154.",
+   "Ship 5 CMA CGM SIRIUS was delayed by weather on the Pacific crossing: it now arrives at hour 127 (planned berthing hour 112). Its planned departure stays hour 130.",
+   "1 of the terminal's 4 quay cranes are out of service from hour 27 to hour 44 (gantry repair): 3 cranes in day and night shifts, 1 in hoot shifts during that window.",
+   "Unscheduled call: ship 8 YM GARNET (307 m, 8 sections, 850 moves) arrives at hour 42 and asks to sail by hour 64. It has no planned berth, so placing it anywhere costs no move penalty.",
+   "Emergency: reefer plant failure on ship 1 EVER LEGEND, which carries export agricultural cargo. It must be berthed by hour 43 or the terminal pays 40 per hour it berths later.",
+   "Priority cargo: ship 4 EVER LUCENT carries time-critical cargo; each hour it leaves late counts three times.",
+   "Priority cargo: ship 3 COSCO CORAL carries time-critical cargo; each hour it leaves late counts three times.",
+   "Berths and berthing hours are fixed (see the ship table). Choose each ship's crane profile: cranes per day, night and hoot shift (hoot 0 hires no hoot gang)."
+  ],
+  "disruptions": [
+   {
+    "type": "late",
+    "ship": 7,
+    "hours": 4
+   },
+   {
+    "type": "late",
+    "ship": 3,
+    "hours": 55
+   },
+   {
+    "type": "late",
+    "ship": 6,
+    "hours": 4
+   },
+   {
+    "type": "late",
+    "ship": 5,
+    "hours": 15
+   },
+   {
+    "type": "crane_outage",
+    "start": 27,
+    "end": 44,
+    "cranes": 1,
+    "reason": "gantry repair"
+   },
+   {
+    "type": "extra",
+    "ship": 8
+   },
+   {
+    "type": "emergency",
+    "ship": 1,
+    "deadline": 43,
+    "penalty": 40
+   },
+   {
+    "type": "priority",
+    "ship": 4
+   },
+   {
+    "type": "priority",
+    "ship": 3
+   }
+  ],
+  "difficulty": "busy",
+  "rules": {
+   "crane_pool": 4,
+   "crane_outages": [
+    {
+     "start": 27,
+     "end": 44,
+     "cranes": 1
+    }
+   ],
+   "max_moves_per_hour": 2,
+   "no_moves": [],
+   "reward": 3,
+   "gap_k": 100,
+   "moves_per_crane_hour": 26,
+   "shifts": {
+    "day": [
+     8,
+     17
+    ],
+    "night": [
+     18,
+     27
+    ],
+    "hoot": [
+     3,
+     8
+    ]
+   },
+   "meal_hours": [
+    17
+   ],
+   "hoot_pool": 2,
+   "hoot_gang_cost": 2,
+   "fixed_berths": true
+  },
+  "kind": "crane",
+  "weeks": 1
+ },
+ "plan": [
+  {
+   "ship": 0,
+   "cranes": {
+    "day": 1,
+    "night": 4,
+    "hoot": 0
+   }
+  },
+  {
+   "ship": 1,
+   "cranes": {
+    "day": 4,
+    "night": 4,
+    "hoot": 2
+   }
+  },
+  {
+   "ship": 2,
+   "cranes": {
+    "day": 4,
+    "night": 4,
+    "hoot": 0
+   }
+  },
+  {
+   "ship": 3,
+   "cranes": {
+    "day": 4,
+    "night": 4,
+    "hoot": 4
+   }
+  },
+  {
+   "ship": 4,
+   "cranes": {
+    "day": 4,
+    "night": 4,
+    "hoot": 2
+   }
+  },
+  {
+   "ship": 5,
+   "cranes": {
+    "day": 4,
+    "night": 4,
+    "hoot": 4
+   }
+  },
+  {
+   "ship": 6,
+   "cranes": {
+    "day": 4,
+    "night": 4,
+    "hoot": 2
+   }
+  },
+  {
+   "ship": 7,
+   "cranes": {
+    "day": 4,
+    "night": 4,
+    "hoot": 2
+   }
+  },
+  {
+   "ship": 8,
+   "cranes": {
+    "day": 4,
+    "night": 4,
+    "hoot": 4
+   }
+  }
+ ],
+ "grade": {
+  "reward": 1.0,
+  "feasible": true,
+  "cost": 13380,
+  "optimal_cost": 13380,
+  "violations": []
+ },
+ "horizon_h": 168,
+ "ships": [
+  {
+   "id": 0,
+   "name": "CMA CGM ALTAIR",
+   "line": "CMA CGM",
+   "length_m": 331.0,
+   "sections": 8,
+   "first_section": 3,
+   "arrival": 17,
+   "berth_hour": 17,
+   "departure": 35,
+   "due": 38,
+   "late_h": 0,
+   "cranes_by_hour": [
+    [
+     18,
+     4
+    ],
+    [
+     19,
+     4
+    ],
+    [
+     20,
+     4
+    ],
+    [
+     21,
+     4
+    ],
+    [
+     22,
+     4
+    ],
+    [
+     23,
+     4
+    ],
+    [
+     24,
+     4
+    ],
+    [
+     25,
+     4
+    ],
+    [
+     26,
+     4
+    ],
+    [
+     32,
+     1
+    ],
+    [
+     33,
+     1
+    ],
+    [
+     34,
+     1
+    ]
+   ],
+   "problems": []
+  },
+  {
+   "id": 1,
+   "name": "EVER LEGEND",
+   "line": "Evergreen",
+   "length_m": 308.0,
+   "sections": 8,
+   "first_section": 4,
+   "arrival": 38,
+   "berth_hour": 69,
+   "departure": 76,
+   "due": 52,
+   "late_h": 24,
+   "cranes_by_hour": [
+    [
+     69,
+     4
+    ],
+    [
+     70,
+     4
+    ],
+    [
+     71,
+     4
+    ],
+    [
+     72,
+     4
+    ],
+    [
+     73,
+     4
+    ],
+    [
+     74,
+     4
+    ],
+    [
+     75,
+     2
+    ]
+   ],
+   "problems": []
+  },
+  {
+   "id": 2,
+   "name": "YM TOPAZ",
+   "line": "Yang Ming",
+   "length_m": 316.0,
+   "sections": 8,
+   "first_section": 2,
+   "arrival": 52,
+   "berth_hour": 146,
+   "departure": 159,
+   "due": 69,
+   "late_h": 90,
+   "cranes_by_hour": [
+    [
+     146,
+     4
+    ],
+    [
+     152,
+     4
+    ],
+    [
+     153,
+     4
+    ],
+    [
+     154,
+     4
+    ],
+    [
+     155,
+     4
+    ],
+    [
+     156,
+     4
+    ],
+    [
+     157,
+     4
+    ],
+    [
+     158,
+     4
+    ]
+   ],
+   "problems": []
+  },
+  {
+   "id": 3,
+   "name": "COSCO CORAL",
+   "line": "COSCO",
+   "length_m": 305.0,
+   "sections": 8,
+   "first_section": 6,
+   "arrival": 129,
+   "berth_hour": 279,
+   "departure": 290,
+   "due": 95,
+   "late_h": 195,
+   "cranes_by_hour": [
+    [
+     279,
+     4
+    ],
+    [
+     280,
+     4
+    ],
+    [
+     282,
+     4
+    ],
+    [
+     283,
+     4
+    ],
+    [
+     284,
+     4
+    ],
+    [
+     285,
+     4
+    ],
+    [
+     286,
+     4
+    ],
+    [
+     287,
+     4
+    ],
+    [
+     288,
+     4
+    ],
+    [
+     289,
+     4
+    ]
+   ],
+   "problems": []
+  },
+  {
+   "id": 4,
+   "name": "EVER LUCENT",
+   "line": "Evergreen",
+   "length_m": 335.0,
+   "sections": 8,
+   "first_section": 1,
+   "arrival": 95,
+   "berth_hour": 190,
+   "departure": 201,
+   "due": 111,
+   "late_h": 90,
+   "cranes_by_hour": [
+    [
+     190,
+     4
+    ],
+    [
+     191,
+     4
+    ],
+    [
+     192,
+     4
+    ],
+    [
+     193,
+     4
+    ],
+    [
+     194,
+     4
+    ],
+    [
+     195,
+     2
+    ],
+    [
+     196,
+     2
+    ],
+    [
+     197,
+     2
+    ],
+    [
+     198,
+     2
+    ],
+    [
+     199,
+     2
+    ],
+    [
+     200,
+     4
+    ]
+   ],
+   "problems": []
+  },
+  {
+   "id": 5,
+   "name": "CMA CGM SIRIUS",
+   "line": "CMA CGM",
+   "length_m": 321.0,
+   "sections": 8,
+   "first_section": 3,
+   "arrival": 127,
+   "berth_hour": 233,
+   "departure": 243,
+   "due": 130,
+   "late_h": 113,
+   "cranes_by_hour": [
+    [
+     234,
+     4
+    ],
+    [
+     235,
+     4
+    ],
+    [
+     236,
+     4
+    ],
+    [
+     237,
+     4
+    ],
+    [
+     238,
+     4
+    ],
+    [
+     239,
+     4
+    ],
+    [
+     240,
+     4
+    ],
+    [
+     241,
+     4
+    ],
+    [
+     242,
+     4
+    ]
+   ],
+   "problems": []
+  },
+  {
+   "id": 6,
+   "name": "YM GARNET",
+   "line": "Yang Ming",
+   "length_m": 307.0,
+   "sections": 8,
+   "first_section": 5,
+   "arrival": 140,
+   "berth_hour": 332,
+   "departure": 342,
+   "due": 154,
+   "late_h": 188,
+   "cranes_by_hour": [
+    [
+     332,
+     4
+    ],
+    [
+     333,
+     4
+    ],
+    [
+     334,
+     4
+    ],
+    [
+     335,
+     4
+    ],
+    [
+     336,
+     4
+    ],
+    [
+     337,
+     4
+    ],
+    [
+     338,
+     4
+    ],
+    [
+     339,
+     2
+    ],
+    [
+     340,
+     2
+    ],
+    [
+     341,
+     2
+    ]
+   ],
+   "problems": []
+  },
+  {
+   "id": 7,
+   "name": "COSCO JADE",
+   "line": "COSCO",
+   "length_m": 314.0,
+   "sections": 8,
+   "first_section": 1,
+   "arrival": 158,
+   "berth_hour": 377,
+   "departure": 391,
+   "due": 177,
+   "late_h": 214,
+   "cranes_by_hour": [
+    [
+     378,
+     4
+    ],
+    [
+     379,
+     4
+    ],
+    [
+     380,
+     4
+    ],
+    [
+     381,
+     4
+    ],
+    [
+     382,
+     4
+    ],
+    [
+     383,
+     4
+    ],
+    [
+     384,
+     4
+    ],
+    [
+     385,
+     4
+    ],
+    [
+     386,
+     4
+    ],
+    [
+     387,
+     2
+    ],
+    [
+     388,
+     2
+    ],
+    [
+     389,
+     2
+    ],
+    [
+     390,
+     2
+    ]
+   ],
+   "problems": []
+  },
+  {
+   "id": 8,
+   "name": "YM GARNET",
+   "line": "Yang Ming",
+   "length_m": 307.0,
+   "sections": 8,
+   "first_section": 1,
+   "arrival": 42,
+   "berth_hour": 106,
+   "departure": 116,
+   "due": 64,
+   "late_h": 52,
+   "cranes_by_hour": [
+    [
+     106,
+     4
+    ],
+    [
+     107,
+     4
+    ],
+    [
+     108,
+     4
+    ],
+    [
+     109,
+     4
+    ],
+    [
+     110,
+     4
+    ],
+    [
+     111,
+     4
+    ],
+    [
+     112,
+     4
+    ],
+    [
+     114,
+     4
+    ],
+    [
+     115,
+     4
+    ]
+   ],
+   "problems": []
+  }
+ ],
+ "blocks": [
+  {
+   "first": 9,
+   "last": 14,
+   "start": 0,
+   "end": 7,
+   "kind": "alongside",
+   "label": "WAN HAI 372 (Wan Hai, generated call)",
+   "cranes": 2,
+   "cranes_by_hour": [
+    [
+     0,
+     2
+    ],
+    [
+     1,
+     2
+    ],
+    [
+     2,
+     2
+    ],
+    [
+     3,
+     2
+    ],
+    [
+     4,
+     2
+    ],
+    [
+     5,
+     2
+    ],
+    [
+     6,
+     2
+    ]
+   ]
+  }
+ ],
+ "no_moves": [],
+ "crane_pool_by_hour": [
+  [
+   0,
+   4
+  ],
+  [
+   1,
+   4
+  ],
+  [
+   2,
+   4
+  ],
+  [
+   3,
+   2
+  ],
+  [
+   4,
+   2
+  ],
+  [
+   5,
+   2
+  ],
+  [
+   6,
+   2
+  ],
+  [
+   7,
+   2
+  ],
+  [
+   8,
+   4
+  ],
+  [
+   9,
+   4
+  ],
+  [
+   10,
+   4
+  ],
+  [
+   11,
+   4
+  ],
+  [
+   12,
+   4
+  ],
+  [
+   13,
+   4
+  ],
+  [
+   14,
+   4
+  ],
+  [
+   15,
+   4
+  ],
+  [
+   16,
+   4
+  ],
+  [
+   17,
+   4
+  ],
+  [
+   18,
+   4
+  ],
+  [
+   19,
+   4
+  ],
+  [
+   20,
+   4
+  ],
+  [
+   21,
+   4
+  ],
+  [
+   22,
+   4
+  ],
+  [
+   23,
+   4
+  ],
+  [
+   24,
+   4
+  ],
+  [
+   25,
+   4
+  ],
+  [
+   26,
+   4
+  ],
+  [
+   27,
+   2
+  ],
+  [
+   28,
+   2
+  ],
+  [
+   29,
+   2
+  ],
+  [
+   30,
+   2
+  ],
+  [
+   31,
+   2
+  ],
+  [
+   32,
+   3
+  ],
+  [
+   33,
+   3
+  ],
+  [
+   34,
+   3
+  ],
+  [
+   35,
+   3
+  ],
+  [
+   36,
+   3
+  ],
+  [
+   37,
+   3
+  ],
+  [
+   38,
+   3
+  ],
+  [
+   39,
+   3
+  ],
+  [
+   40,
+   3
+  ],
+  [
+   41,
+   3
+  ],
+  [
+   42,
+   3
+  ],
+  [
+   43,
+   3
+  ],
+  [
+   44,
+   4
+  ],
+  [
+   45,
+   4
+  ],
+  [
+   46,
+   4
+  ],
+  [
+   47,
+   4
+  ],
+  [
+   48,
+   4
+  ],
+  [
+   49,
+   4
+  ],
+  [
+   50,
+   4
+  ],
+  [
+   51,
+   2
+  ],
+  [
+   52,
+   2
+  ],
+  [
+   53,
+   2
+  ],
+  [
+   54,
+   2
+  ],
+  [
+   55,
+   2
+  ],
+  [
+   56,
+   4
+  ],
+  [
+   57,
+   4
+  ],
+  [
+   58,
+   4
+  ],
+  [
+   59,
+   4
+  ],
+  [
+   60,
+   4
+  ],
+  [
+   61,
+   4
+  ],
+  [
+   62,
+   4
+  ],
+  [
+   63,
+   4
+  ],
+  [
+   64,
+   4
+  ],
+  [
+   65,
+   4
+  ],
+  [
+   66,
+   4
+  ],
+  [
+   67,
+   4
+  ],
+  [
+   68,
+   4
+  ],
+  [
+   69,
+   4
+  ],
+  [
+   70,
+   4
+  ],
+  [
+   71,
+   4
+  ],
+  [
+   72,
+   4
+  ],
+  [
+   73,
+   4
+  ],
+  [
+   74,
+   4
+  ],
+  [
+   75,
+   2
+  ],
+  [
+   76,
+   2
+  ],
+  [
+   77,
+   2
+  ],
+  [
+   78,
+   2
+  ],
+  [
+   79,
+   2
+  ],
+  [
+   80,
+   4
+  ],
+  [
+   81,
+   4
+  ],
+  [
+   82,
+   4
+  ],
+  [
+   83,
+   4
+  ],
+  [
+   84,
+   4
+  ],
+  [
+   85,
+   4
+  ],
+  [
+   86,
+   4
+  ],
+  [
+   87,
+   4
+  ],
+  [
+   88,
+   4
+  ],
+  [
+   89,
+   4
+  ],
+  [
+   90,
+   4
+  ],
+  [
+   91,
+   4
+  ],
+  [
+   92,
+   4
+  ],
+  [
+   93,
+   4
+  ],
+  [
+   94,
+   4
+  ],
+  [
+   95,
+   4
+  ],
+  [
+   96,
+   4
+  ],
+  [
+   97,
+   4
+  ],
+  [
+   98,
+   4
+  ],
+  [
+   99,
+   2
+  ],
+  [
+   100,
+   2
+  ],
+  [
+   101,
+   2
+  ],
+  [
+   102,
+   2
+  ],
+  [
+   103,
+   2
+  ],
+  [
+   104,
+   4
+  ],
+  [
+   105,
+   4
+  ],
+  [
+   106,
+   4
+  ],
+  [
+   107,
+   4
+  ],
+  [
+   108,
+   4
+  ],
+  [
+   109,
+   4
+  ],
+  [
+   110,
+   4
+  ],
+  [
+   111,
+   4
+  ],
+  [
+   112,
+   4
+  ],
+  [
+   113,
+   4
+  ],
+  [
+   114,
+   4
+  ],
+  [
+   115,
+   4
+  ],
+  [
+   116,
+   4
+  ],
+  [
+   117,
+   4
+  ],
+  [
+   118,
+   4
+  ],
+  [
+   119,
+   4
+  ],
+  [
+   120,
+   4
+  ],
+  [
+   121,
+   4
+  ],
+  [
+   122,
+   4
+  ],
+  [
+   123,
+   2
+  ],
+  [
+   124,
+   2
+  ],
+  [
+   125,
+   2
+  ],
+  [
+   126,
+   2
+  ],
+  [
+   127,
+   2
+  ],
+  [
+   128,
+   4
+  ],
+  [
+   129,
+   4
+  ],
+  [
+   130,
+   4
+  ],
+  [
+   131,
+   4
+  ],
+  [
+   132,
+   4
+  ],
+  [
+   133,
+   4
+  ],
+  [
+   134,
+   4
+  ],
+  [
+   135,
+   4
+  ],
+  [
+   136,
+   4
+  ],
+  [
+   137,
+   4
+  ],
+  [
+   138,
+   4
+  ],
+  [
+   139,
+   4
+  ],
+  [
+   140,
+   4
+  ],
+  [
+   141,
+   4
+  ],
+  [
+   142,
+   4
+  ],
+  [
+   143,
+   4
+  ],
+  [
+   144,
+   4
+  ],
+  [
+   145,
+   4
+  ],
+  [
+   146,
+   4
+  ],
+  [
+   147,
+   2
+  ],
+  [
+   148,
+   2
+  ],
+  [
+   149,
+   2
+  ],
+  [
+   150,
+   2
+  ],
+  [
+   151,
+   2
+  ],
+  [
+   152,
+   4
+  ],
+  [
+   153,
+   4
+  ],
+  [
+   154,
+   4
+  ],
+  [
+   155,
+   4
+  ],
+  [
+   156,
+   4
+  ],
+  [
+   157,
+   4
+  ],
+  [
+   158,
+   4
+  ],
+  [
+   159,
+   4
+  ],
+  [
+   160,
+   4
+  ],
+  [
+   161,
+   4
+  ],
+  [
+   162,
+   4
+  ],
+  [
+   163,
+   4
+  ],
+  [
+   164,
+   4
+  ],
+  [
+   165,
+   4
+  ],
+  [
+   166,
+   4
+  ],
+  [
+   167,
+   4
+  ]
+ ]
+}

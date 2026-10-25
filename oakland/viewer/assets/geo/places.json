@@ -1,0 +1,713 @@
+{
+  "version": 0.6,
+  "generator": "Overpass API 0.7.62.11 87bfad18",
+  "osm3s": {
+    "timestamp_osm_base": "2026-06-01T08:52:28Z",
+    "copyright": "The data included in this document is from www.openstreetmap.org. The data is made available under ODbL."
+  },
+  "elements": [
+
+{
+  "type": "node",
+  "id": 150944669,
+  "lat": 37.7724287,
+  "lon": -122.2810806,
+  "tags": {
+    "ele": "6",
+    "gnis:feature_id": "1702824",
+    "name": "West End",
+    "place": "neighbourhood",
+    "wikidata": "Q7985023"
+  }
+},
+{
+  "type": "node",
+  "id": 150946271,
+  "lat": 37.7763176,
+  "lon": -122.2858028,
+  "tags": {
+    "ele": "4",
+    "gnis:feature_id": "1702827",
+    "name": "Woodstock",
+    "place": "neighbourhood",
+    "wikidata": "Q8033387"
+  }
+},
+{
+  "type": "node",
+  "id": 150955389,
+  "lat": 37.8116041,
+  "lon": -122.2905628,
+  "tags": {
+    "ele": "4",
+    "gnis:feature_id": "253355",
+    "name": "West Oakland",
+    "place": "suburb",
+    "wikidata": "Q7986100",
+    "wikipedia": "en:West Oakland, Oakland, California"
+  }
+},
+{
+  "type": "node",
+  "id": 150960053,
+  "lat": 37.7999301,
+  "lon": -122.2702386,
+  "tags": {
+    "alt_name": "Oakland Chinatown",
+    "ele": "12",
+    "gnis:feature_id": "1693016",
+    "name": "Chinatown",
+    "place": "neighbourhood",
+    "wikidata": "Q5100154",
+    "wikipedia": "en:Chinatown, Oakland, California"
+  }
+},
+{
+  "type": "node",
+  "id": 150980203,
+  "lat": 37.8314089,
+  "lon": -122.2865266,
+  "tags": {
+    "ele": "7",
+    "gnis:feature_id": "1658499",
+    "name": "Emeryville",
+    "place": "town",
+    "population": "12086",
+    "population:date": "2019",
+    "source:population": "United States Census",
+    "wikidata": "Q499178",
+    "wikipedia": "en:Emeryville, California"
+  }
+},
+{
+  "type": "node",
+  "id": 150980683,
+  "lat": 37.8044557,
+  "lon": -122.2713560,
+  "tags": {
+    "capital": "6",
+    "ele": "13",
+    "gnis:feature_id": "277566",
+    "name": "Oakland",
+    "name:af": "Oakland",
+    "name:an": "Oakland",
+    "name:ar": "أوكلاند (كاليفورنيا)",
+    "name:ast": "Oakland",
+    "name:az": "Oklend",
+    "name:azb": "اوکلند",
+    "name:be": "Окленд",
+    "name:be-tarask": "Оўклэнд",
+    "name:bg": "Оукланд",
+    "name:bm": "Oakland",
+    "name:bn": "ওকল্যান্ড",
+    "name:br": "Oakland",
+    "name:ca": "Oakland",
+    "name:ceb": "Oakland",
+    "name:cs": "Oakland",
+    "name:cy": "Oakland",
+    "name:da": "Oakland",
+    "name:de": "Oakland",
+    "name:el": "Όουκλαντ",
+    "name:eml": "Oakland",
+    "name:en": "Oakland",
+    "name:eo": "Oakland",
+    "name:es": "Oakland",
+    "name:et": "Oakland",
+    "name:eu": "Oakland",
+    "name:fa": "اوکلند، کالیفرنیا",
+    "name:fi": "Oakland",
+    "name:fr": "Oakland",
+    "name:fy": "Oakland",
+    "name:ga": "Oakland",
+    "name:gl": "Oakland",
+    "name:he": "אוקלנד (קליפורניה)",
+    "name:hr": "Oakland",
+    "name:ht": "Oakland",
+    "name:hu": "Oakland",
+    "name:hy": "Օքլենդ",
+    "name:ia": "Oakland",
+    "name:id": "Oakland",
+    "name:ie": "Oakland",
+    "name:io": "Oakland",
+    "name:is": "Oakland",
+    "name:it": "Oakland",
+    "name:ja": "オークランド",
+    "name:jv": "Oakland",
+    "name:ka": "ოკლენდი",
+    "name:ko": "오클랜드",
+    "name:kw": "Oakland",
+    "name:la": "Quercupolis",
+    "name:li": "Oakland",
+    "name:lmo": "Oakland",
+    "name:lt": "Oklandas",
+    "name:lv": "Oklenda",
+    "name:mg": "Oakland",
+    "name:mk": "Оукленд",
+    "name:ml": "ഓക്‌ലാന്റ്, കാലിഫോർണിയ",
+    "name:mr": "ओकलंड",
+    "name:mrj": "Окленд",
+    "name:ms": "Oakland",
+    "name:nan": "Oakland",
+    "name:ne": "ओकल्याण्ड",
+    "name:new": "ओकल्यान्ड, क्यालिफोर्निया",
+    "name:nl": "Oakland",
+    "name:nn": "Oakland i California",
+    "name:no": "Oakland",
+    "name:nv": "Chéchʼiltah Hatsoh",
+    "name:oc": "Oakland",
+    "name:pam": "Oakland",
+    "name:pl": "Oakland",
+    "name:pms": "Oakland",
+    "name:pnb": "اوکلینڈ",
+    "name:pt": "Oakland",
+    "name:ro": "Oakland",
+    "name:ru": "Окленд",
+    "name:sco": "Oakland",
+    "name:sh": "Oakland",
+    "name:sk": "Oakland",
+    "name:sl": "Oakland",
+    "name:so": "Oakland",
+    "name:sq": "Oakland",
+    "name:sr": "Оукланд",
+    "name:sv": "Oakland",
+    "name:sw": "Oakland",
+    "name:szl": "Oakland",
+    "name:ta": "ஓக்லண்ட், கலிபோர்னியா",
+    "name:tl": "Oakland",
+    "name:tr": "Oakland",
+    "name:tt": "Оукленд",
+    "name:uk": "Окленд",
+    "name:ur": "اوکلینڈ، کیلیفورنیا",
+    "name:uz": "Oakland",
+    "name:vi": "Oakland",
+    "name:vo": "Oakland",
+    "name:war": "Oakland",
+    "name:yi": "אקלאנד, קאליפארניע",
+    "name:yo": "Oakland",
+    "name:yue": "奧克蘭",
+    "name:zh": "奥克兰;奧克蘭;屋崙",
+    "name:zh-Hans": "奥克兰",
+    "name:zh-Hant": "奧克蘭;屋崙",
+    "name:zh-Hant-HK": "屋崙",
+    "name:zh-Hant-TW": "奧克蘭",
+    "place": "city",
+    "population": "433031",
+    "population:date": "2019",
+    "source:name:oc": "Lo Congrès",
+    "source:population": "United States Census",
+    "website": "https://www.oaklandca.gov/",
+    "wikidata": "Q17042",
+    "wikipedia": "en:Oakland, California"
+  }
+},
+{
+  "type": "node",
+  "id": 358768154,
+  "lat": 37.7957886,
+  "lon": -122.2746851,
+  "tags": {
+    "alt_name": "Produce District",
+    "ele": "2",
+    "gnis:feature_id": "226037",
+    "name": "Jack London Square",
+    "place": "neighbourhood",
+    "wikidata": "Q1833634"
+  }
+},
+{
+  "type": "node",
+  "id": 358808952,
+  "lat": 37.8013168,
+  "lon": -122.2746915,
+  "tags": {
+    "ele": "12",
+    "gnis:feature_id": "1661752",
+    "historic": "district",
+    "name": "Old Oakland Historic District",
+    "place": "neighbourhood",
+    "wikidata": "Q7084649"
+  }
+},
+{
+  "type": "node",
+  "id": 358822394,
+  "lat": 37.8202051,
+  "lon": -122.2641350,
+  "tags": {
+    "ele": "26",
+    "gnis:feature_id": "1702822",
+    "name": "Pill Hill",
+    "place": "neighbourhood"
+  }
+},
+{
+  "type": "node",
+  "id": 1102389836,
+  "lat": 37.8038335,
+  "lon": -122.2630807,
+  "tags": {
+    "name": "Lakeside",
+    "old_name": "Gold Coast",
+    "place": "neighbourhood",
+    "wikidata": "Q6479073",
+    "wikipedia": "en:Lakeside Apartments District, Oakland, California"
+  }
+},
+{
+  "type": "node",
+  "id": 1102403164,
+  "lat": 37.8276971,
+  "lon": -122.2510043,
+  "tags": {
+    "name": "Piedmont Avenue",
+    "place": "neighbourhood",
+    "wikidata": "Q7191494",
+    "wikipedia": "en:Piedmont Avenue (Oakland, California)"
+  }
+},
+{
+  "type": "node",
+  "id": 1214036318,
+  "lat": 37.8092757,
+  "lon": -122.2699467,
+  "tags": {
+    "name": "Uptown",
+    "place": "neighbourhood",
+    "wikidata": "Q7899442"
+  }
+},
+{
+  "type": "node",
+  "id": 1214036332,
+  "lat": 37.8099237,
+  "lon": -122.2649406,
+  "tags": {
+    "alt_name": "Lake Merritt Financial District",
+    "name": "Financial District",
+    "place": "neighbourhood",
+    "wikidata": "Q599301"
+  }
+},
+{
+  "type": "node",
+  "id": 1214036338,
+  "lat": 37.8104030,
+  "lon": -122.2559026,
+  "tags": {
+    "name": "Adams Point",
+    "place": "neighbourhood",
+    "wikidata": "Q4680391"
+  }
+},
+{
+  "type": "node",
+  "id": 1214036345,
+  "lat": 37.8036295,
+  "lon": -122.2715244,
+  "tags": {
+    "alt_name": "Downtown Oakland",
+    "name": "Downtown",
+    "place": "neighbourhood",
+    "wikidata": "Q5303527"
+  }
+},
+{
+  "type": "node",
+  "id": 1214036355,
+  "lat": 37.8163018,
+  "lon": -122.2679082,
+  "tags": {
+    "name": "Koreatown Northgate",
+    "old_name": "Northgate",
+    "place": "neighbourhood",
+    "short_name": "KONO"
+  }
+},
+{
+  "type": "node",
+  "id": 1214036363,
+  "lat": 37.8168101,
+  "lon": -122.2592824,
+  "tags": {
+    "name": "Westlake",
+    "place": "neighbourhood"
+  }
+},
+{
+  "type": "node",
+  "id": 1603884612,
+  "lat": 37.7848213,
+  "lon": -122.2691010,
+  "tags": {
+    "leisure": "marina",
+    "name": "Marina Village Yacht Harbor",
+    "seamark:harbour:category": "marina",
+    "seamark:type": "harbour"
+  }
+},
+{
+  "type": "node",
+  "id": 2157162589,
+  "lat": 37.7884969,
+  "lon": -122.3558473,
+  "tags": {
+    "alt_name": "Bay Area",
+    "alt_name:en": "Bay Area",
+    "alt_name:es": "Área de la Bahía",
+    "alt_name:vi": "Vùng vịnh San Francisco;Vùng vịnh Cựu Kim Sơn",
+    "is_in:country": "USA",
+    "is_in:state": "California",
+    "name": "San Francisco Bay Area",
+    "name:en": "San Francisco Bay Area",
+    "name:es": "Área de la Bahía de San Francisco",
+    "name:hu": "San Francisco Bay Area",
+    "name:vi": "Khu vực vịnh San Francisco",
+    "name:yue": "三藩市灣區",
+    "name:zh": "舊金山灣區",
+    "name:zh-Hans": "旧金山湾区",
+    "name:zh-Hant": "舊金山灣區",
+    "place": "region",
+    "population": "7468390",
+    "wikidata": "Q213205",
+    "wikipedia": "en:San Francisco Bay Area"
+  }
+},
+{
+  "type": "node",
+  "id": 2240238741,
+  "lat": 37.8116147,
+  "lon": -122.2463535,
+  "tags": {
+    "name": "Grand Lake",
+    "place": "neighbourhood",
+    "wikidata": "Q5594722",
+    "wikipedia": "en:Grand Lake, Oakland, California"
+  }
+},
+{
+  "type": "node",
+  "id": 2521367678,
+  "lat": 37.8171154,
+  "lon": -122.2570779,
+  "tags": {
+    "name": "Harrison/Oakland",
+    "place": "neighbourhood"
+  }
+},
+{
+  "type": "node",
+  "id": 2729523599,
+  "lat": 37.8104219,
+  "lon": -122.2993142,
+  "tags": {
+    "name": "Lower Bottoms",
+    "old_name": "Oakland Point",
+    "place": "neighbourhood",
+    "wikidata": "Q6693337",
+    "wikipedia": "en:Prescott, Oakland, California"
+  }
+},
+{
+  "type": "node",
+  "id": 2984041196,
+  "lat": 37.8044195,
+  "lon": -122.2981304,
+  "tags": {
+    "name": "South Prescott",
+    "place": "neighbourhood",
+    "website": "https://oaklandwiki.org/South_Prescott"
+  }
+},
+{
+  "type": "node",
+  "id": 2984041827,
+  "lat": 37.8244372,
+  "lon": -122.2586352,
+  "tags": {
+    "name": "Broadway Auto Row",
+    "place": "neighbourhood"
+  }
+},
+{
+  "type": "node",
+  "id": 2984041828,
+  "lat": 37.8246406,
+  "lon": -122.2638655,
+  "tags": {
+    "name": "Mosswood",
+    "place": "neighbourhood"
+  }
+},
+{
+  "type": "node",
+  "id": 2984042203,
+  "lat": 37.8330999,
+  "lon": -122.2718931,
+  "tags": {
+    "name": "Longfellow",
+    "place": "neighbourhood",
+    "wikidata": "Q6673776",
+    "wikipedia": "en:Longfellow, Oakland, California"
+  }
+},
+{
+  "type": "node",
+  "id": 2984042204,
+  "lat": 37.8213206,
+  "lon": -122.2729445,
+  "tags": {
+    "alt_name": "Ghost Town",
+    "name": "Hoover-Foster",
+    "place": "neighbourhood",
+    "wikidata": "Q14682013",
+    "wikipedia": "en:Ghost Town, Oakland, California"
+  }
+},
+{
+  "type": "node",
+  "id": 3462777776,
+  "lat": 37.7666189,
+  "lon": -122.2858250,
+  "tags": {
+    "depth": "6 fathoms",
+    "fuel": "yes",
+    "leisure": "marina",
+    "name": "Ballena Isle Marina",
+    "sanitary_dump_station": "yes",
+    "seamark:harbour:category": "marina",
+    "seamark:type": "harbour",
+    "website": "http://ballenaisle.com/"
+  }
+},
+{
+  "type": "node",
+  "id": 4259927957,
+  "lat": 37.8201884,
+  "lon": -122.2594957,
+  "tags": {
+    "alt_name": "Glen Echo",
+    "name": "Oak Glen Park",
+    "place": "neighbourhood"
+  }
+},
+{
+  "type": "node",
+  "id": 4287067158,
+  "lat": 37.8005844,
+  "lon": -122.2647345,
+  "tags": {
+    "name": "Civic Center",
+    "place": "neighbourhood",
+    "wikidata": "Q5124273"
+  }
+},
+{
+  "type": "node",
+  "id": 4287067162,
+  "lat": 37.8045458,
+  "lon": -122.2453249,
+  "tags": {
+    "name": "Cleveland Heights",
+    "place": "neighbourhood"
+  }
+},
+{
+  "type": "node",
+  "id": 4287067163,
+  "lat": 37.8089240,
+  "lon": -122.2738754,
+  "tags": {
+    "name": "San Pablo Gateway",
+    "place": "neighbourhood"
+  }
+},
+{
+  "type": "node",
+  "id": 4609282242,
+  "lat": 37.7666505,
+  "lon": -122.2642378,
+  "tags": {
+    "name": "Gold Coast",
+    "place": "neighbourhood"
+  }
+},
+{
+  "type": "node",
+  "id": 4812440187,
+  "lat": 37.7756348,
+  "lon": -122.2997050,
+  "tags": {
+    "leisure": "marina",
+    "name": "Nelson’s Marine Boat Yard and Nelson Yachts",
+    "seamark:harbour:category": "marina",
+    "seamark:type": "harbour"
+  }
+},
+{
+  "type": "node",
+  "id": 5587001259,
+  "lat": 37.7898140,
+  "lon": -122.2689010,
+  "tags": {
+    "leisure": "marina",
+    "name": "Portobello Marina",
+    "seamark:harbour:category": "marina",
+    "seamark:type": "harbour",
+    "source": "Bing"
+  }
+},
+{
+  "type": "node",
+  "id": 6290506838,
+  "lat": 37.7927426,
+  "lon": -122.2751420,
+  "tags": {
+    "name": "Oakland Marinas Fuel Dock",
+    "seamark:small_craft_facility:category": "fuel_station",
+    "seamark:type": "small_craft_facility",
+    "waterway": "fuel"
+  }
+},
+{
+  "type": "node",
+  "id": 6383916996,
+  "lat": 37.8066052,
+  "lon": -122.3001107,
+  "tags": {
+    "comment": "City of Oakland designated historic neighborhood",
+    "historic": "neighbourhood",
+    "name": "7th Street Historic District",
+    "place": "neighbourhood",
+    "source": "Mapbox"
+  }
+},
+{
+  "type": "node",
+  "id": 8068770016,
+  "lat": 37.7811628,
+  "lon": -122.2514640,
+  "tags": {
+    "addr:city": "Alameda",
+    "addr:postcode": "94501",
+    "addr:state": "CA",
+    "addr:street": "Coast Guard Island",
+    "addr:unit": "WMSL 750",
+    "description": "U.S. Coast Guard National Security Cutter: length-418 feet, top speed-28 knots, range-of 12,000 nautical miles. Equipped with a flight deck and 2x hangars, and outfitted with the most advanced command, control, and communications equipment.",
+    "image": "https://www.dvidshub.net/image/5594785/cgc-bertholf-patrol-east-china-sea",
+    "landuse": "military",
+    "military_service": "coast_guard",
+    "name": "USCGC Bertohlf",
+    "seamark:type": "berth",
+    "source:date": "2017-03-22",
+    "source_ref": "https://www.dcms.uscg.mil/Portals/10/DOL/Base%20Alameda/Alameda-Official-CGIsland-Tour-Guide.pdf?ver=2017-03-22-084956-160",
+    "website": "https://www.pacificarea.uscg.mil/Our-Organization/Cutters/cgcBertholf/"
+  }
+},
+{
+  "type": "node",
+  "id": 8068770017,
+  "lat": 37.7804780,
+  "lon": -122.2502270,
+  "tags": {
+    "addr:city": "Alameda",
+    "addr:postcode": "94501",
+    "addr:state": "CA",
+    "addr:street": "Coast Guard Island",
+    "addr:unit": "WMSL 755",
+    "description": "U.S. Coast Guard National Security Cutter: length-418 feet, top speed-28 knots, range-of 12,000 nautical miles. Equipped with a flight deck and 2x hangars, and outfitted with the most advanced command, control, and communications equipment.",
+    "image": "https://www.dvidshub.net/image/3294477/coast-guard-cutter-munro-passes-under-golden-gate-bridge",
+    "landuse": "military",
+    "military_service": "coast_guard",
+    "name": "USCGC Munro",
+    "seamark:type": "berth",
+    "source:date": "2017-03-22",
+    "source_ref": "https://www.dcms.uscg.mil/Portals/10/DOL/Base%20Alameda/Alameda-Official-CGIsland-Tour-Guide.pdf?ver=2017-03-22-084956-160",
+    "website": "https://www.pacificarea.uscg.mil/Our-Organization/Cutters/cgcMunro/"
+  }
+},
+{
+  "type": "node",
+  "id": 8068770018,
+  "lat": 37.7797906,
+  "lon": -122.2490090,
+  "tags": {
+    "addr:city": "Alameda",
+    "addr:postcode": "94501",
+    "addr:state": "CA",
+    "addr:street": "Coast Guard Island",
+    "addr:unit": "WMSL 752",
+    "description": "U.S. Coast Guard National Security Cutter: length-418 feet, top speed-28 knots, range-of 12,000 nautical miles. Equipped with a flight deck and 2x hangars, and outfitted with the most advanced command, control, and communications equipment.",
+    "image": "https://www.dvidshub.net/image/5663195/uscg-cutter-stratton-arrives-lumut-malaysia-mta-malaysia-2019",
+    "landuse": "military",
+    "military_service": "coast_guard",
+    "name": "USCGC Stratton",
+    "seamark:type": "berth",
+    "source:date": "2017-03-22",
+    "source_ref": "https://www.dcms.uscg.mil/Portals/10/DOL/Base%20Alameda/Alameda-Official-CGIsland-Tour-Guide.pdf?ver=2017-03-22-084956-160",
+    "website": "https://www.pacificarea.uscg.mil/Our-Organization/Cutters/cgcStratton/"
+  }
+},
+{
+  "type": "node",
+  "id": 8068770019,
+  "lat": 37.7791246,
+  "lon": -122.2478830,
+  "tags": {
+    "addr:city": "Alameda",
+    "addr:postcode": "94501",
+    "addr:state": "CA",
+    "addr:street": "Coast Guard Island",
+    "addr:unit": "WMSL 751",
+    "description": "U.S. Coast Guard National Security Cutter: length-418 feet, top speed-28 knots, range-of 12,000 nautical miles. Equipped with a flight deck and 2x hangars, and outfitted with the most advanced command, control, and communications equipment.",
+    "image": "https://www.dvidshub.net/image/6339844/alameda-california-based-coast-guard-cutter-departs-western-pacific-patrol",
+    "landuse": "military",
+    "military_service": "coast_guard",
+    "name": "USCGC Waesche",
+    "seamark:type": "berth",
+    "source:date": "2017-03-22",
+    "source_ref": "https://www.dcms.uscg.mil/Portals/10/DOL/Base%20Alameda/Alameda-Official-CGIsland-Tour-Guide.pdf?ver=2017-03-22-084956-160",
+    "website": "https://www.pacificarea.uscg.mil/Our-Organization/Cutters/cgcWaesche/"
+  }
+},
+{
+  "type": "node",
+  "id": 9153151026,
+  "lat": 37.7982846,
+  "lon": -122.2492509,
+  "tags": {
+    "alt_name": "East Lake Merritt",
+    "name": "Eastlake",
+    "name:zh": "東湖",
+    "name:zh-Hans": "东湖",
+    "name:zh-Hant": "東湖",
+    "place": "neighbourhood"
+  }
+},
+{
+  "type": "node",
+  "id": 10139029526,
+  "lat": 37.8043196,
+  "lon": -122.2711889,
+  "tags": {
+    "name": "Downtown Oakland",
+    "place": "suburb",
+    "wikidata": "Q5303527",
+    "wikipedia": "en:Downtown Oakland"
+  }
+},
+{
+  "type": "node",
+  "id": 11905073723,
+  "lat": 37.7956457,
+  "lon": -122.2529830,
+  "tags": {
+    "alt_name": "Clinton Park",
+    "name": "Clinton",
+    "place": "neighbourhood",
+    "wikidata": "Q5134031",
+    "wikipedia": "en:Clinton, Oakland, California"
+  }
+}
+
+  ]
+}
