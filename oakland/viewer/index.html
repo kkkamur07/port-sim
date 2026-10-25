@@ -8,6 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Schibsted+Grotesk:wght@400;500;600;700&display=swap">
   <link rel="stylesheet" href="style.css">
+  <script>try { const t = localStorage.getItem("oak-theme"); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; } catch (e) {}</script>
 </head>
 <body>
   <div id="scene"></div>
@@ -21,30 +22,43 @@
     <div id="now" class="now" aria-live="polite">Loading run</div>
     <div class="top-right">
       <span id="mode-pill" class="mode-pill" data-mode="replay"><i class="dot" aria-hidden="true"></i><span id="mode-text">REPLAY</span></span>
+      <button type="button" id="theme-btn" class="icon-btn" aria-label="Switch theme" title="Switch theme">
+        <svg class="i-moon" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M13.5 10.2A6 6 0 0 1 5.8 2.5a6 6 0 1 0 7.7 7.7z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>
+        <svg class="i-sun" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="3" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3 3l1.4 1.4M11.6 11.6L13 13M3 13l1.4-1.4M11.6 4.4L13 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+      </button>
     </div>
   </header>
 
   <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
 
-  <!-- the one panel: score, evolution front, last coach decision -->
-  <aside id="learning" aria-label="Learning">
-    <div class="l-head">
-      <span class="label">Learning</span>
-      <button type="button" id="playbook-btn" class="btn">Playbook</button>
-    </div>
-    <section class="l-sec">
-      <span class="label">Verification score <span id="head-version" class="accent"></span></span>
-      <div id="head-score" class="num big">0.00</div>
-      <div id="head-delta" class="delta"></div>
+  <!-- the one panel is the chat: a condensed status strip, the port now, then the operator -->
+  <aside id="learning" aria-label="Operator">
+    <section class="score-block" aria-label="Verification score">
+      <span class="label">Verification</span>
+      <b id="head-score" class="num">0.00</b>
+      <p id="head-delta" class="delta"></p>
     </section>
-    <section class="l-sec">
-      <span class="label">Evolution front</span>
+    <section class="front-block" aria-label="Evolution front">
       <div id="front" class="front"></div>
       <div id="front-tip" class="front-tip hidden" role="tooltip"></div>
     </section>
-    <section class="l-sec">
-      <span class="label">Last coach decision</span>
-      <p id="coach-say" class="say"></p>
+    <section class="l-port" aria-label="Port now">
+      <div id="quay" class="quay" tabindex="0" role="group" aria-label="Quay at the current hour. Left and right arrows move one hour."></div>
+      <div class="tiles">
+        <div class="tile"><span class="t-n">Alongside</span><span id="k-along" class="num">0</span></div>
+        <div class="tile"><span class="t-n">Cranes / pool</span><span id="k-cranes" class="num">0/0</span></div>
+        <div class="tile"><span class="t-n">Late ship-h</span><span id="k-late" class="num">0</span></div>
+        <div class="tile"><span class="t-n">Cost / opt</span><span id="k-cost" class="num">0</span></div>
+      </div>
+    </section>
+    <section class="chat" aria-label="Ask the operator">
+      <div id="chat-host" class="chat-host"></div>
+      <div id="chips" class="chips" role="group" aria-label="Quick questions">
+        <button type="button" class="chip" data-q="How is the port doing?">How is the port doing?</button>
+        <button type="button" class="chip" data-q="Are you improving?">Are you improving?</button>
+        <button type="button" class="chip" data-q="What changed last?">What changed last?</button>
+        <button type="button" class="chip accent" data-q="Optimize my playbook now">Optimize my playbook</button>
+      </div>
     </section>
   </aside>
 
@@ -116,6 +130,7 @@
           </div>
           <span class="menu-label">Replay file</span>
           <label class="btn file-btn">Load replay JSON<input id="file-in" type="file" accept=".json,application/json"></label>
+          <button type="button" id="playbook-btn" class="btn ghost">Playbook <kbd>P</kbd></button>
           <button type="button" id="back-to-run" class="btn ghost">Back to the learning run</button>
           <span class="menu-label">Camera</span>
           <div class="menu-grid">
@@ -171,6 +186,8 @@
   <script src="control_panel.js"></script>
   <script src="runs.js"></script>
   <script src="learning.js"></script>
+  <script type="module" src="https://unpkg.com/deep-chat@2.5.0/dist/deepChat.js"></script>
+  <script src="chat.js"></script>
   <script src="viewer.js"></script>
 </body>
 </html>

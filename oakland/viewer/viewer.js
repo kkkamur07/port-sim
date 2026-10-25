@@ -1757,6 +1757,17 @@
     load,
     play(p) { setPlaying(p === undefined ? !state.playing : !!p); },
     fallback() { loadFixture(state.activeScenario); },
+    getT() { return state.t; },
+    getReplay() { return replay; },
+    seek(t) {
+      if (!replay) return;
+      state.t = Math.max(0, Math.min(Number(ui.scrub.max), t));
+      update(state.t, 0);
+    },
+    selectShip(idx) {
+      if (HUD && window.OakControlPanel) window.OakControlPanel.selectShip(idx, replay, state.t);
+      else if (world && world.ships[idx]) focusShip(world.ships[idx]);
+    },
     cycleCam() {
       const name = CAMS[(CAMS.indexOf(state.cam) + 1) % CAMS.length];
       setCam(name);

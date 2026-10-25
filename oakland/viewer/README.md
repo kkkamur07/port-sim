@@ -7,13 +7,24 @@ reads a replay JSON (see `docs/replay_schema.md`) and never recomputes rules: ev
 
 ## The learning HUD
 
-The screen is the 3D port, a top bar, one Learning panel and the playback bar. The top bar centre says which episode
-is shown ("Episode 4 of 9 · TraPac · storm · playbook v2") and a pill says LIVE (following a run) or REPLAY. The
-Learning panel has three blocks: the verification score of the accepted playbook with its delta since v0, the
-evolution front (playbook versions by coach round, height = verification score, accepted in the accent, rejected as
-outlines, overfit in amber, a halo on the Pareto front, the accepted lineage as one line; hover or focus a node for
-its change) and the last coach decision in one sentence. The Playbook button opens the playbook in force with the
-rules added since v0 highlighted, and the reward per episode chart below it. Nothing is trained: only that text changes.
+The screen is the 3D port, a top bar, one panel and the playback bar. The top bar centre names the terminal and the
+weather of the task on screen ("OICT · storm"); a pill says LIVE (following a run) or REPLAY, and the sun/moon button
+switches between the light theme (default) and dark (remembered in localStorage). The panel holds four blocks, top to
+bottom: the verification score of the accepted playbook ("up 0.07 since the start"), the evolution front (playbook
+versions by coach round, height = verification score, the accepted lineage in the accent, rejected as outlines; hover
+or focus a node for its change), Port now (the quay strip at the current hour, ships alongside as blocks, waiting
+ships as hollow dots, click a block to select the ship; then Alongside, Cranes / pool, Late ship-hours, Cost /
+optimum) and the chat with the operator, which fills the rest. The playbook (P, or Playbook in the "..." menu) shows
+the playbook in force with the rules added since v0 highlighted, and the reward per episode chart. Nothing is
+trained: only that text changes.
+
+The chat is the Deep Chat web component (`deep-chat@2.5.0` from unpkg, a minimal list and input if it does not load)
+posting to the operator API (`oakland/chat`, POST `http://127.0.0.1:8771/chat`) with the history, the run name and the
+episode on screen. Answers show the tools used in one muted line, link chips that load an episode, select the ship and
+scrub to the hour, and a card for a what-if regrade. "Optimize my playbook" returns a proposal; the page polls
+`GET /proposal?run=&id=` every 10 s and adds one result card (before, after, Accepted or Rejected, the rule).
+`?chat=<url>` points at another endpoint, `?chatrun=<name>` names the run the server reads (the bundled run-demo maps
+to real-berth-gepa). Esc in the chat returns focus to the scene.
 
 - `?run=<path>` loads a loop run directory (`episodes.json` or `episodes.jsonl`, `eval.jsonl`, `playbooks/`,
   `replays/`), relative to this page, plays the newest episode and polls every 5 s; a new episode or coach round

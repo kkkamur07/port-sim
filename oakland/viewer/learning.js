@@ -15,8 +15,8 @@
   const POLL_MS = 5000;
   const VERDICT_TEXT = { accepted: "ACCEPTED", rejected: "REJECTED", overfit: "OVERFIT", minibatch: "MINIBATCH", baseline: "BASELINE" };
   // v0 muted, the newest accepted version in the accent, anything between in a second hue
-  const VERSION_COLORS = ["#8a94a3", "#2a8fb3", "#a9e8ff"];
-  const ACCENT = "#4fd1ff";
+  const VERSION_COLORS = ["var(--hollow)", "var(--warn)", "var(--text)"];
+  const ACCENT = "var(--accent)";
 
   const S = {
     api: null,
@@ -91,16 +91,12 @@
     const last = evo.lineage[evo.lineage.length - 1] || { value: null, version: 0 };
     const score = last.value;
     $("head-score").textContent = score == null ? "n/a" : f2(score);
-    $("head-version").textContent = "playbook v" + (last.version != null ? last.version : 0);
     const d = $("head-delta");
-    if (score != null && evo.baseline != null && last.version !== 0 && last.version != null) {
-      const delta = score - evo.baseline;
-      d.innerHTML = "<b>" + (delta >= 0 ? "▲ +" : "▼ ") + delta.toFixed(2) + "</b> since v0 (" + f2(evo.baseline) + ")";
-      d.className = "delta " + (delta >= 0 ? "up" : "down");
-    } else {
-      d.textContent = evo.baseline != null ? "starting playbook, no change accepted yet" : "waiting for the v0 verification";
-      d.className = "delta";
-    }
+    const rounds = R().coachRounds(S.evalRows);
+    if (score == null) d.textContent = "waiting for the first verification";
+    else if (!rounds.length) d.textContent = "waiting for the first coach round";
+    else if (evo.baseline == null || Math.abs(score - evo.baseline) < 0.005) d.textContent = "unchanged since the start";
+    else d.textContent = (score > evo.baseline ? "up " : "down ") + Math.abs(score - evo.baseline).toFixed(2) + " since the start";
   }
 
   // ---------- evolution chart ----------
@@ -214,7 +210,7 @@
   function renderFront(fresh) {
     const el = $("front");
     const nodes = frontNodes();
-    const W = 320, H = 150, padL = 4, padR = 44, padT = 14, padB = 14;
+    const W = 320, H = 60, padL = 4, padR = 36, padT = 12, padB = 6;
     if (!nodes.length) {
       el.innerHTML = '<svg viewBox="0 0 ' + W + " 60" + '" role="img" aria-label="Evolution front"><text class="wait" x="0" y="30">waiting for the v0 verification</text></svg>';
       return;
@@ -232,7 +228,7 @@
     const best = nodes.reduce((b, n) => (n.cls === "accepted" && n.eval_mean > b.eval_mean ? n : b), base);
     const o = ['<svg viewBox="0 0 ' + W + " " + H + '" role="group" aria-label="Evolution front: playbook versions by coach round, height is the verification score">'];
     const by = pos[base.version][1];
-    o.push('<line class="base" x1="0" x2="' + (W - padR + 8) + '" y1="' + by.toFixed(1) + '" y2="' + by.toFixed(1) + '"/>');
+    if (nodes.length > 1) o.push('<line class="base" x1="0" x2="' + (W - padR + 8) + '" y1="' + by.toFixed(1) + '" y2="' + by.toFixed(1) + '"/>');
     o.push('<text class="ax" x="' + (W - padR + 12) + '" y="' + (by + 3).toFixed(1) + '">' + f2(base.eval_mean) + "</text>");
     if (best !== base) {
       const yy = pos[best.version][1];
@@ -256,12 +252,11 @@
       const tip = "v" + n.version + " · " + (n.version === 0 ? "start" : n.cls) + " · " + f2(n.eval_mean) + (n.change ? " · " + R().uiText(n.change).slice(0, 80) : "");
       const anim = fresh && n.version === newest ? " front-fresh" : "";
       o.push('<g class="node' + anim + '" tabindex="0" data-tip="' + esc(tip) + '" data-x="' + cx.toFixed(1) + '" data-y="' + cy.toFixed(1) + '" aria-label="' + esc(tip) + '">');
-      if (n.front) o.push('<circle class="halo" cx="' + cx.toFixed(1) + '" cy="' + cy.toFixed(1) + '" r="10"/>');
-      o.push('<circle class="n ' + n.cls + '" cx="' + cx.toFixed(1) + '" cy="' + cy.toFixed(1) + '" r="4.5"/>');
-      o.push('<text class="vlab" x="' + cx.toFixed(1) + '" y="' + (cy + (n.cls === "accepted" ? -10 : 16)).toFixed(1) + '" text-anchor="middle">v' + n.version + "</text>");
+      if (n.front) o.push('<circle class="halo" cx="' + cx.toFixed(1) + '" cy="' + cy.toFixed(1) + '" r="8"/>');
+      o.push('<circle class="n ' + n.cls + '" cx="' + cx.toFixed(1) + '" cy="' + cy.toFixed(1) + '" r="3.5"/>');
       o.push("</g>");
     }
-    if (nodes.length === 1) o.push('<text class="wait" x="4" y="' + (by + 28).toFixed(1) + '">waiting for the first coach round</text>');
+    if (nodes.length === 1) o.push('<text class="wait" x="20" y="' + (by + 4).toFixed(1) + '">waiting for the first coach round</text>');
     o.push("</svg>");
     el.innerHTML = o.join("");
     const tipEl = $("front-tip");
@@ -291,6 +286,7 @@
   function renderSay() {
     const rounds = R().coachRounds(S.evalRows);
     const el = $("coach-say");
+    if (!el) return;
     const r = rounds[0];
     if (!r) { el.textContent = "No coach round yet. I play with the starting playbook and the coach reads my logs after each window of episodes."; return; }
     const nums = '<span class="num">' + f2(r.evalBefore) + " → " + f2(r.evalAfter) + "</span>";
@@ -300,6 +296,7 @@
     else if (r.cls === "overfit") txt = "Round " + r.round + ": tried to " + esc(what) + ". Overfit, better on my episodes only. Kept v" + esc(r.parent) + ".";
     else txt = "Round " + r.round + ": tried to " + esc(what) + ". Rejected, no gain.";
     el.innerHTML = txt;
+    el.title = el.textContent;
   }
 
   // ---------- playbook sheet ----------
@@ -330,7 +327,8 @@
     const sheet = $("playbook-sheet");
     if (sheet.classList.contains("hidden")) return false;
     sheet.classList.add("hidden");
-    $("playbook-btn").focus();
+    const pb = $("playbook-btn");
+    if (pb && pb.offsetParent) pb.focus();
     return true;
   }
 
@@ -343,6 +341,9 @@
   }
   function showShipCard(idx, rep, t) {
     const s = rep && rep.ships && rep.ships[idx];
+    S.selectedShip = s ? idx : null;
+    if (S.pointer) { lastPointer = S.pointer; S.pointer = null; }
+    renderPort();
     const card = $("ship-card");
     if (!s) { card.classList.add("hidden"); return; }
     let cranes = 0;
@@ -370,6 +371,7 @@
   }
   function hideShipCard() {
     $("ship-card").classList.add("hidden");
+    if (S.selectedShip != null) { S.selectedShip = null; renderPort(); }
   }
 
   function renderAll(fresh) {
@@ -382,8 +384,8 @@
   // ---------- replay of an episode ----------
   function showEpisode(epNum, userPicked) {
     const e = S.episodes.find((x) => x.episode === epNum);
-    if (!e || !S.api) return;
-    fetch(S.base + "/" + e.replay, { cache: "no-store" })
+    if (!e || !S.api) return Promise.resolve(false);
+    return fetch(S.base + "/" + e.replay, { cache: "no-store" })
       .then((r) => { if (!r.ok) throw new Error(r.status + " " + r.statusText); return r.json(); })
       .then((rep) => {
         S.shownEpisode = epNum;
@@ -393,6 +395,7 @@
         if (S.live) S.api.play(true);
         renderChart();
         S.lastHourKey = "";
+        return true;
       })
       .catch((err) => toast("Could not load " + e.replay + ": " + err.message));
   }
@@ -400,30 +403,100 @@
   // ---------- top bar and KPIs, driven by the replay clock ----------
   function onHour(rep, t) {
     if (!rep) return;
+    schedulePort(rep, t);
     const mine = rep === S.shownReplay && S.shownEpisode != null;
     const key = (mine ? "e" + S.shownEpisode : "x" + ((rep.task || {}).task_id || "")) + "|" + S.episodes.length;
     if (key === S.lastHourKey) return;
     S.lastHourKey = key;
     const task = rep.task || {};
     const parts = [];
+    // at most two muted words: terminal and weather of the task on screen
     if (mine) {
       const e = S.episodes.find((x) => x.episode === S.shownEpisode) || {};
-      const tw = taskWords(e.task_id || task.task_id).split(" ");
-      parts.push("<b>Episode " + S.shownEpisode + " of " + S.episodes.length + "</b>");
-      if (tw[0]) parts.push(esc(tw[0]));
-      if (tw[1]) parts.push(esc(tw[1]));
-      parts.push("playbook v" + esc(e.playbook_version != null ? e.playbook_version : "?"));
-    } else {
-      parts.push("<b>" + esc(task.terminal || "Terminal") + "</b>");
-      if (task.difficulty) parts.push(esc(task.difficulty));
-      parts.push("scenario, not a run episode");
+      taskWords(e.task_id || task.task_id).split(" ").filter(Boolean).forEach((w) => parts.push(esc(w)));
     }
+    if (!parts.length) parts.push(esc(task.terminal || "Terminal"));
     const nowEl = $("now");
     const html = parts.join('<span class="sep">·</span>');
     if (nowEl.innerHTML !== html) {
       nowEl.innerHTML = html;
       crossfade(nowEl);
     }
+  }
+
+  // ---------- port now: what is happening at the quay this hour ----------
+  let portTimer = null, portLast = 0, sparkCache = { rep: null, html: "", H: 0 };
+  function schedulePort(rep, t) {
+    S.portRep = rep; S.portT = t;
+    const now = Date.now();
+    if (now - portLast >= 100) { portLast = now; renderPort(); return; }
+    clearTimeout(portTimer);
+    portTimer = setTimeout(() => { portLast = Date.now(); renderPort(); }, 100);
+  }
+
+  function renderPort() {
+    const rep = S.portRep, t = S.portT;
+    if (!rep || !window.OakKPI) return;
+    const K = window.OakKPI;
+    const k = K.at(rep, t);
+    const H = K.horizon(rep);
+    const ph = $("port-hour");
+    if (ph) ph.textContent = "hour " + Math.floor(t);
+    $("k-along").textContent = String(k.ships_alongside);
+    $("k-cranes").textContent = k.cranes_working + "/" + k.cranes_pool;
+    $("k-late").textContent = String(Math.round(k.late_ship_hours));
+    $("k-cost").textContent = (k.cost_so_far != null ? k.cost_so_far : "n/a") + (k.optimal_cost != null ? "/" + k.optimal_cost : "");
+
+    // quay strip
+    const W = 320, Q = 46, barY = 18, barH = 22;
+    const nSec = Math.max(1, k.sections || 1);
+    const sx = (sec) => ((sec - 1) / nSec) * W;
+    const o = ['<svg viewBox="0 -2 ' + W + " " + Q + '" aria-hidden="false">'];
+    o.push('<rect class="bar" x="0.5" y="' + barY + '" width="' + (W - 1) + '" height="' + barH + '"/>');
+    const step = nSec > 40 ? 5 : 1;
+    for (let i = 1; i < nSec; i += step) o.push('<line class="tick" x1="' + sx(i + 1).toFixed(1) + '" x2="' + sx(i + 1).toFixed(1) + '" y1="' + (barY + barH - 4) + '" y2="' + (barY + barH) + '"/>');
+    (rep.ships || []).forEach((s, idx) => {
+      const secs = s.sections || 1;
+      if (t >= s.berth_hour && t < s.departure) {
+        const x0 = sx(s.first_section) + 1, w = Math.max(3, (secs / nSec) * W - 2);
+        const late = s.due != null && t > s.due;
+        const sel = S.selectedShip === idx;
+        o.push('<rect class="ship' + (late ? " late" : "") + (sel ? " sel" : "") + '" data-idx="' + idx + '" x="' + x0.toFixed(1) + '" y="' + (barY + 2) + '" width="' + w.toFixed(1) + '" height="' + (barH - 4) + '"><title>' + esc(s.name) + (late ? ", past its due hour" : "") + "</title></rect>");
+        const nm = String(s.name || "").split(" ").pop();
+        if (nm.length * 5.6 + 6 < w) o.push('<text class="sname" x="' + (x0 + w / 2).toFixed(1) + '" y="' + (barY + barH / 2 + 3) + '" text-anchor="middle">' + esc(nm) + "</text>");
+      } else if (t >= s.arrival && t < s.berth_hour) {
+        o.push('<circle class="wait" cx="' + (sx(s.first_section) + (secs / nSec) * W / 2).toFixed(1) + '" cy="8" r="3"><title>' + esc(s.name) + " at anchor</title></circle>");
+      }
+    });
+    o.push('<text class="ax" x="0" y="' + (Q - 1) + '">sec 1</text><text class="ax" x="' + W + '" y="' + (Q - 1) + '" text-anchor="end">' + nSec + "</text></svg>");
+    const quay = $("quay");
+    quay.innerHTML = o.join("");
+    quay.querySelectorAll(".ship").forEach((r) => r.addEventListener("click", (e) => {
+      const idx = Number(r.dataset.idx);
+      S.pointer = { x: e.clientX, y: e.clientY };
+      if (S.api && S.api.selectShip) S.api.selectShip(idx);
+    }));
+
+    // cranes in use per hour against the pool, fog bands, playhead
+    const SW = 320, SH = 40;
+    if (!$("cranes-spark")) return;
+    if (sparkCache.rep !== rep) {
+      const ser = K.series(rep);
+      const maxC = Math.max(1, Math.max.apply(null, ser.pool.concat(ser.cranes)));
+      const px = (h) => (h / Math.max(1, H)) * SW, py = (v) => SH - 2 - (v / maxC) * (SH - 6);
+      const parts = [];
+      for (const w of rep.no_moves || []) {
+        const a = w.start != null ? w.start : w[0], b = w.end != null ? w.end : w[1];
+        parts.push('<rect class="fog" x="' + px(a).toFixed(1) + '" y="0" width="' + Math.max(1, px(b) - px(a)).toFixed(1) + '" height="' + SH + '"><title>' + esc(w.label || "no movements") + "</title></rect>");
+      }
+      parts.push('<polyline class="pool" points="' + ser.hours.map((h, i) => px(h).toFixed(1) + "," + py(ser.pool[i]).toFixed(1)).join(" ") + '"/>');
+      parts.push('<polyline class="use" points="' + ser.hours.map((h, i) => px(h).toFixed(1) + "," + py(ser.cranes[i]).toFixed(1)).join(" ") + '"/>');
+      sparkCache = { rep: rep, html: parts.join(""), H: H };
+    }
+    const hx = ((t / Math.max(1, H)) * SW).toFixed(1);
+    $("cranes-spark").innerHTML = '<svg viewBox="0 0 ' + SW + " " + (SH + 12) + '" role="img" aria-label="Cranes in use per hour against the pool, with the current hour">' + sparkCache.html +
+      '<line class="head" x1="' + hx + '" x2="' + hx + '" y1="0" y2="' + SH + '"/>' +
+      '<text class="ax" x="0" y="' + (SH + 11) + '">cranes in use</text><text class="ax" x="' + SW + '" y="' + (SH + 11) + '" text-anchor="end">pool, dashed · ' + Math.round(H / 24) + " days</text></svg>";
   }
 
   function crossfade(el) {
@@ -461,12 +534,12 @@
     const cands = R().coachRounds(S.evalRows);
     if (cands.length > prevRounds && cands[0]) {
       const c = cands[0];
-      const color = c.cls === "accepted" ? "var(--ok)" : c.cls === "overfit" ? "var(--warn)" : "var(--muted)";
-      toast("Coach round " + c.round + ": playbook v" + esc(c.version) + ' <span class="tag" style="color:' + color + '">' + VERDICT_TEXT[c.cls] +
+      const color = c.cls === "accepted" ? "var(--accent-text)" : "var(--muted)";
+      toast('Coach round: <span class="tag" style="color:' + color + '">' + VERDICT_TEXT[c.cls] +
         "</span>, verification " + f2(c.evalBefore) + " → " + f2(c.evalAfter));
     } else if (newest > prevEp) {
       const e = S.episodes[S.episodes.length - 1];
-      toast("Episode " + newest + " finished: reward " + f2(num(e.reward)) + " with playbook v" + esc(e.playbook_version));
+      toast("New episode finished, reward " + f2(num(e.reward)));
     }
     if (newest > prevEp && S.followNewest !== false) showEpisode(newest, false);
   }
@@ -496,6 +569,28 @@
     menu.addEventListener("keydown", (e) => { if (e.key === "Escape") { set(false); btn.focus(); } });
   }
 
+  // light by default; an explicit choice is remembered, else the OS preference decides
+  function isDark() {
+    const t = document.documentElement.dataset.theme;
+    if (t) return t === "dark";
+    return !!(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+  }
+  function wireTheme() {
+    const sync = () => document.documentElement.classList.toggle("is-dark", isDark());
+    sync();
+    const btn = $("theme-btn");
+    if (btn) btn.addEventListener("click", () => {
+      const next = isDark() ? "light" : "dark";
+      document.documentElement.dataset.theme = next;
+      try { localStorage.setItem("oak-theme", next); } catch (e) { /* private mode: not remembered */ }
+      sync();
+      renderAll(false);
+    });
+    if (window.matchMedia) {
+      try { window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", sync); } catch (e) { /* old browsers */ }
+    }
+  }
+
   function start(api) {
     if (S.started) return;
     S.started = true;
@@ -506,13 +601,20 @@
     setMode();
     wireMenu("scenario-btn", "scenario-menu");
     wireMenu("view-btn", "cam-rail");
+    wireTheme();
     const back = $("back-to-run");
     if (back) back.addEventListener("click", () => { if (S.episodes.length) showEpisode(S.shownEpisode || S.episodes[S.episodes.length - 1].episode, true); });
     $("playbook-btn").addEventListener("click", openPlaybook);
+    $("quay").addEventListener("keydown", (e) => {
+      if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+      e.preventDefault();
+      if (S.api && S.api.seek) S.api.seek(Math.round(S.api.getT()) + (e.key === "ArrowRight" ? 1 : -1));
+    });
     $("pb-close").addEventListener("click", closePlaybook);
     window.addEventListener("keydown", (e) => {
-      const tag = (e.target && e.target.tagName) || "";
-      if (["INPUT", "TEXTAREA", "SELECT"].includes(tag) || e.metaKey || e.ctrlKey || e.altKey) return;
+      const src = (e.composedPath && e.composedPath()[0]) || e.target;
+      const tag = (src && src.tagName) || "";
+      if (["INPUT", "TEXTAREA", "SELECT", "DEEP-CHAT"].includes(tag) || (src && src.isContentEditable) || (e.target && e.target.tagName === "DEEP-CHAT") || e.metaKey || e.ctrlKey || e.altKey) return;
       if (e.key === "Escape") {
         if (!closePlaybook()) hideShipCard();
       } else if (/^[1-9]$/.test(e.key)) {
@@ -537,5 +639,27 @@
     });
   }
 
-  window.OakLearning = { start, onHour, showEpisode, showShipCard, hideShipCard, _state: S };
+    // for chat.js: which run and episode are on screen, and jumping to a ship of an episode
+  function runName() { return S.base.split("/").filter(Boolean).pop() || S.base; }
+  function currentEpisode() { return S.shownReplay && S.api && S.api.getReplay() === S.shownReplay ? S.shownEpisode : null; }
+  function goTo(link) {
+    const ep = link && link.episode != null ? Number(link.episode) : S.shownEpisode;
+    const ready = ep === S.shownEpisode && S.api.getReplay() === S.shownReplay ? Promise.resolve(true) : showEpisode(ep, true);
+    return Promise.resolve(ready).then(() => {
+      const rep = S.api.getReplay();
+      if (link.hour != null) S.api.seek(Number(link.hour));
+      if (link.ship_id != null && rep) {
+        const idx = (rep.ships || []).findIndex((x) => x.id === link.ship_id);
+        if (idx >= 0) S.api.selectShip(idx);
+      }
+    });
+  }
+  function shipName(link) {
+    if (link.ship_id == null) return null;
+    const rep = link.episode === S.shownEpisode ? S.shownReplay : null;
+    const s = rep && (rep.ships || []).find((x) => x.id === link.ship_id);
+    return s ? s.name : "ship " + link.ship_id;
+  }
+
+  window.OakLearning = { start, onHour, showEpisode, showShipCard, hideShipCard, runName, currentEpisode, goTo, shipName, toast, _state: S };
 })();

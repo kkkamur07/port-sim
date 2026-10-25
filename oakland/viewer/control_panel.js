@@ -1266,7 +1266,9 @@
 
     // Global keyboard shortcuts (Cmd+K, /, G, T, V, N, H, Escape)
     window.addEventListener("keydown", (e) => {
-      const inInput = ["INPUT", "TEXTAREA", "SELECT"].includes((e.target && e.target.tagName) || "");
+      const src = (e.composedPath && e.composedPath()[0]) || e.target;
+      const inInput = ["INPUT", "TEXTAREA", "SELECT", "DEEP-CHAT"].includes((src && src.tagName) || "") || !!(src && src.isContentEditable) ||
+        ((e.target && e.target.tagName) || "") === "DEEP-CHAT";
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
         if (searchIn) { searchIn.focus(); searchIn.select(); }
