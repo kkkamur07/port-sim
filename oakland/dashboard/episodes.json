@@ -1,4 +1,62 @@
 [
-  {"episode": 1, "replay": "../viewer/fixtures/oict-demo.json", "reward": 0.833, "label": "OICT demo (generated calls)"},
-  {"episode": 2, "replay": "../viewer/fixtures/matson-demo.json", "reward": 0.945, "label": "Matson demo (generated calls)"}
+  {
+    "episode": 1,
+    "scenario": "oict_berth_medium",
+    "terminal": "OICT",
+    "kind": "berth",
+    "plan": "naive",
+    "replay": "../viewer/fixtures/oict_berth_medium.json",
+    "reward": 0.200775,
+    "label": "OICT (Berths 55\u201359) \u00b7 Standard Week (Naive Baseline)"
+  },
+  {
+    "episode": 2,
+    "scenario": "matson_berth_easy",
+    "terminal": "Matson",
+    "kind": "berth",
+    "plan": "greedy",
+    "replay": "../viewer/fixtures/matson_berth_easy.json",
+    "reward": 0.494304,
+    "label": "Matson (Berths 60\u201363) \u00b7 Hawaii Express ConRo"
+  },
+  {
+    "episode": 3,
+    "scenario": "trapac_berth_medium",
+    "terminal": "TraPac",
+    "kind": "berth",
+    "plan": "greedy",
+    "replay": "../viewer/fixtures/trapac_berth_medium.json",
+    "reward": 0.495882,
+    "label": "TraPac (Berths 25\u201333) \u00b7 Outer Harbor Operations"
+  },
+  {
+    "episode": 4,
+    "scenario": "everport_crane_medium",
+    "terminal": "Everport",
+    "kind": "crane",
+    "plan": "optimal",
+    "replay": "../viewer/fixtures/everport_crane_medium.json",
+    "reward": 1.0,
+    "label": "Everport (Berths 35\u201337) \u00b7 Ben E. Nutter Crane Schedule"
+  },
+  {
+    "episode": 5,
+    "scenario": "oict_crane_hard",
+    "terminal": "OICT",
+    "kind": "crane",
+    "plan": "optimal",
+    "replay": "../viewer/fixtures/oict_crane_hard.json",
+    "reward": 1.0,
+    "label": "OICT (Berths 55\u201359) \u00b7 Fog Closure + Crane Outage"
+  },
+  {
+    "episode": 6,
+    "scenario": "oict_berth_surge",
+    "terminal": "OICT",
+    "kind": "berth",
+    "plan": "optimal",
+    "replay": "../viewer/fixtures/oict_berth_surge.json",
+    "reward": 1.0,
+    "label": "OICT (Berths 55\u201359) \u00b7 Peak Congestion Stress Test (CP-SAT Optimal)"
+  }
 ]
