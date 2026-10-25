@@ -1,7 +1,8 @@
-"""OaklandEnv and its HTTP server: the episode flow on a task from the eval parquet.
+"""OaklandEnv and its HTTP server: the episode flow on two generated Oakland tasks (an OICT berth task and a Matson
+crane task, published plan intact).
 
-Ship calls are GENERATED (not real records); the tasks here are PortSim-shaped, which the episode flow accepts
-unchanged."""
+Ship calls are GENERATED (not real records). On these undisturbed tasks the published plan is feasible, and on the
+berth task it costs 0, so it is the optimum there."""
 
 from __future__ import annotations
 
@@ -18,22 +19,11 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from env import MAX_CHECKS, OaklandEnv  # noqa: E402
-from oakland_core import Task  # noqa: E402
+from oakland_core import Task, world  # noqa: E402
 from server import make_server  # noqa: E402
 
-PARQUET_CANDIDATES = [
-    ROOT.parent / "data" / "raw" / "tasks" / "eval.parquet",
-    Path("/Users/krishuagarwal/Desktop/Programming/leibler/port-sim/data/raw/tasks/eval.parquet"),
-]
-
-
-def _tasks(n: int = 2) -> list[Task]:
-    pq = pytest.importorskip("pyarrow.parquet")
-    path = next((p for p in PARQUET_CANDIDATES if p.is_file()), None)
-    if path is None:
-        pytest.skip("no eval.parquet found")
-    col = pq.read_table(path, columns=["task"]).column("task")
-    return [Task.from_dict(json.loads(col[i].as_py())) for i in range(n)]
+def _tasks() -> list[Task]:
+    return [world.make_task(7, "OICT", 1, "berth"), world.make_task(8, "Matson", 1, "crane")]
 
 
 @pytest.fixture(scope="module")
@@ -46,8 +36,14 @@ def env(tasks) -> OaklandEnv:
     return OaklandEnv(tasks)
 
 
-def _optimal(task: Task) -> list[dict]:
-    return task.reference["optimal_plan"]
+def _published(task: Task) -> list[dict]:
+    """The published plan: every ship at its planned hour and section with its std cranes (berth tasks), or std
+    cranes in every shift (crane tasks)."""
+    if task.kind == "crane":
+        return [{"ship": s.id, "cranes": {"day": s.std_cranes, "night": s.std_cranes, "hoot": s.std_cranes}}
+                for s in task.ships]
+    return [{"ship": s.id, "berth_hour": s.planned_hour, "section": s.planned_section, "cranes": s.std_cranes}
+            for s in task.ships]
 
 
 def test_reset_keys(env, tasks):
@@ -63,24 +59,24 @@ def test_reset_keys(env, tasks):
     assert env.reset(split=tasks[0].split, index=1)["task_id"] == tasks[1].task_id
 
 
-def test_check_optimal_is_feasible_without_reward(env, tasks):
+def test_check_published_is_feasible_without_reward(env, tasks):
     env.reset(index=0)
-    out = env.check_plan(_optimal(tasks[0]))
+    out = env.check_plan(_published(tasks[0]))
     assert out["feasible"] is True
-    assert out["cost"] == tasks[0].reference["optimal_cost"]
+    assert out["cost"] == 0
     assert out["violations"] == [] and out["parse_problems"] == []
     assert out["checks_left"] == MAX_CHECKS - 1
     assert "reward" not in out
     for k in ("optimal_cost", "naive_cost", "optimal_plan", "quality"):
         assert k not in out
     # the plan as a JSON string in a fence works the same
-    fenced = "```json\n" + json.dumps(_optimal(tasks[0])) + "\n```"
+    fenced = "```json\n" + json.dumps(_published(tasks[0])) + "\n```"
     assert env.check_plan(fenced)["feasible"] is True
 
 
 def test_check_limit(env, tasks):
     env.reset(index=0)
-    plan = json.dumps(_optimal(tasks[0]))
+    plan = json.dumps(_published(tasks[0]))
     for i in range(MAX_CHECKS):
         out = env.check_plan(plan)
         assert "error" not in out and out["checks_left"] == MAX_CHECKS - 1 - i
@@ -91,21 +87,30 @@ def test_check_limit(env, tasks):
     assert env.submit_plan(plan)["reward"] == 1.0
 
 
-def test_submit_optimal_scores_one_and_ends(env, tasks):
+def test_submit_published_scores_one_and_ends(env, tasks):
     env.reset(index=0)
-    g = env.submit_plan(_optimal(tasks[0]))
+    g = env.submit_plan(_published(tasks[0]))
     assert g["reward"] == 1.0 and g["feasible"] is True
-    assert g["cost"] == g["optimal_cost"] == tasks[0].reference["optimal_cost"]
+    assert g["cost"] == 0
     for k in ("naive_cost", "violations", "parse_problems"):
         assert k in g
-    assert "error" in env.check_plan(_optimal(tasks[0]))
-    assert "error" in env.submit_plan(_optimal(tasks[0]))
+    assert "error" in env.check_plan(_published(tasks[0]))
+    assert "error" in env.submit_plan(_published(tasks[0]))
     calls = [e["call"] for e in env.transcript]
     assert calls == ["reset", "submit_plan", "check_plan", "submit_plan"]
     assert all("t" in e and "result" in e for e in env.transcript)
     # a new episode starts clean
     obs = env.reset(index=0)
     assert obs["checks_left"] == MAX_CHECKS and env.transcript[-1]["call"] == "reset"
+
+
+def test_crane_task_published_plan(env, tasks):
+    obs = env.reset(index=1)
+    assert obs["kind"] == "crane" and obs["terminal"] == "Matson"
+    out = env.check_plan(_published(tasks[1]))
+    assert out["feasible"] is True and out["violations"] == [] and "reward" not in out
+    g = env.submit_plan(_published(tasks[1]))
+    assert g["feasible"] is True and g["reward"] > 0
 
 
 def test_malformed_plan(env):
@@ -127,7 +132,7 @@ def test_calls_before_reset_error(tasks):
 
 def test_deterministic(tasks):
     a, b = OaklandEnv(tasks), OaklandEnv(tasks)
-    plan = _optimal(tasks[0])[:-1]
+    plan = _published(tasks[0])[:-1]
     for e in (a, b):
         e.reset(index=0)
     assert a.check_plan(plan) == b.check_plan(plan)
@@ -165,11 +170,11 @@ def test_server_round_trip(tasks):
         assert st == 200 and obs["task_id"] == tasks[0].task_id
         st, sit = _call(port, "GET", "/situation")
         assert st == 200 and obs["situation"] in sit["situation"]
-        st, chk = _call(port, "POST", "/check", {"plan": _optimal(tasks[0])})
+        st, chk = _call(port, "POST", "/check", {"plan": _published(tasks[0])})
         assert st == 200 and chk["feasible"] is True and "reward" not in chk
-        st, g = _call(port, "POST", "/submit", {"plan": json.dumps(_optimal(tasks[0]))})
+        st, g = _call(port, "POST", "/submit", {"plan": json.dumps(_published(tasks[0]))})
         assert st == 200 and g["reward"] == 1.0
-        st, again = _call(port, "POST", "/submit", {"plan": _optimal(tasks[0])})
+        st, again = _call(port, "POST", "/submit", {"plan": _published(tasks[0])})
         assert st == 400 and "error" in again
         st, _ = _call(port, "POST", "/reset", {"task_id": "no-such-task"})
         assert st == 400

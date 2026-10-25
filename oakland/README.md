@@ -134,6 +134,7 @@ python server.py --tasks tasks/berth-eval.jsonl --port 8011
 | `POST /check` | `{"plan": [...]}` or `{"plan": "json text"}` | violations and cost (no reward) |
 | `POST /submit` | `{"plan": [...]}` | the grade; ends the episode |
 | `GET /replay` | | replay JSON of the last submission |
+| `GET /ais?hour=12` | | `{"source", "hour", "positions", "events"}`: AIS-shaped ship positions (see Ship feed) |
 
 Errors (no episode, checks used up, episode ended, unknown task) come back as HTTP 400 with `{"error": ...}`.
 
@@ -144,6 +145,41 @@ curl http://127.0.0.1:8011/situation
 curl -X POST http://127.0.0.1:8011/check -d '{"plan": [{"ship": 0, "berth_hour": 12, "section": 7, "cranes": 3}]}'
 curl -X POST http://127.0.0.1:8011/submit -d '{"plan": [{"ship": 0, "berth_hour": 12, "section": 7, "cranes": 3}]}'
 curl http://127.0.0.1:8011/replay
+curl 'http://127.0.0.1:8011/ais?hour=12'
+```
+
+## Ship feed (`feed.py`)
+
+Ship positions in the shape of real AIS messages, so the viewer and an agent see the same message either way:
+
+- **Synthetic** (`SyntheticAIS(task, plan=None)`, the default): for every GENERATED ship call of the task, a stylised
+  route from the Golden Gate across the Bay and the Oakland bar channel to the terminal's anchorage (reached at the
+  ship's arrival hour) and its berth (reached at its berth hour from the plan, else the published planned hour), then
+  back out the same way after departure. `positions(t_h)` gives every ship in the area at hour `t_h`; `events(t_h)`
+  gives `eta_update` notices for ships arriving later than planned. These positions are generated, not real records,
+  and the routes and berth coordinates are a stylised representation.
+- **Real** (`AISStream()`): when `AISSTREAM_API_KEY` is set, a background thread subscribes to the aisstream.io
+  websocket for the box 37.70-37.90 N, 122.20-122.50 W (position reports and static data) and keeps the latest
+  position per MMSI. It needs the optional `websockets` package; without the key it never connects. The key is never
+  logged or printed.
+
+Every position is one dict:
+
+```json
+{"mmsi": 538504040, "imo": "GEN9109966", "name": "ONE CYGNUS", "lat": 37.797812, "lon": -122.316063,
+ "sog_kn": 0.0, "cog_deg": 100.0, "heading_deg": 100, "nav_status": "moored", "eta": "2026-10-26T13:00",
+ "destination": "US OAK", "ship_type": 70, "length_m": 347.0, "beam_m": 45.7, "draught_m": 13.5,
+ "ts": "2026-10-26T19:00:00Z", "source": "synthetic"}
+```
+
+`nav_status` is `under way`, `at anchor` or `moored`; `eta` and `ts` are UTC (hour 0 is Monday 26 October 2026
+00:00 Pacific, 07:00 UTC). `GET /ais?hour=<float>` serves the real stream when the key is set, else the synthetic feed
+of the current episode's task (following the submitted plan once there is one), or of the first task when no episode
+is active.
+
+```bash
+python examples/ais_tail.py                      # synthetic positions of a generated OICT task at hours 0, 12, 24
+AISSTREAM_API_KEY=... python examples/ais_tail.py   # the real stream for 20 seconds
 ```
 
 ## Building tasks
@@ -169,7 +205,9 @@ python -m pytest -q tests/
 ```
 
 `tests/test_env.py` covers the episode flow (reset keys, checks without rewards, the 10-check limit, submission
-ends the episode, malformed plans, determinism) and an HTTP round trip.
+ends the episode, malformed plans, determinism) and an HTTP round trip on generated OICT berth and Matson crane
+tasks; `tests/test_feed.py` covers the ship feed (keys, anchorage distance, nav status progression, no connection
+without a key, `GET /ais`).
 
 ## Licence and attribution
 

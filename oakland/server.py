@@ -8,9 +8,11 @@
     POST /submit     {"plan": [...] or "json text"}                                   -> the grade, ends the episode
     GET  /tasks                                                                       -> ids, kind, difficulty, terminal
     GET  /replay                                                                      -> replay JSON of the last submission
+    GET  /ais?hour=<float>                                                            -> AIS-shaped ship positions
 
-Ship calls are GENERATED (not real records); terminal geometry, fleets, depths and shifts are real. Standard library
-only. CORS is open so a browser agent or the viewer can call it.
+Ship calls are GENERATED (not real records); terminal geometry, fleets, depths and shifts are real. /ais streams real
+positions from aisstream.io when AISSTREAM_API_KEY is set, else synthesises them for the current episode's task (see
+feed.py). Standard library only. CORS is open so a browser agent or the viewer can call it.
 """
 
 from __future__ import annotations
@@ -19,11 +21,28 @@ import argparse
 import json
 import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
+from urllib.parse import parse_qs
 
 from env import OaklandEnv
+from feed import AISStream, SyntheticAIS
 
 
-def make_handler(env: OaklandEnv, lock: threading.Lock) -> type[BaseHTTPRequestHandler]:
+def ais_payload(env: OaklandEnv, hour: float, stream: AISStream | None) -> dict:
+    """GET /ais: the real stream when one is running, else the synthetic feed of the current episode's task (the
+    submitted plan once there is one) or of the first task when no episode is active."""
+    if stream is not None and stream.enabled:
+        return {"source": stream.source, "hour": hour, "positions": stream.positions(), "events": []}
+    task = env.task or env.tasks[0]
+    plan = env.submitted_plan if env.task is not None and env.done else None
+    try:
+        feed = SyntheticAIS(task, plan)
+    except Exception:   # noqa: BLE001, an unreadable submission falls back to the published plan
+        feed = SyntheticAIS(task)
+    return {"source": feed.source, "hour": hour, "positions": feed.positions(hour), "events": feed.events(hour)}
+
+
+def make_handler(env: OaklandEnv, lock: threading.Lock,
+                 stream: AISStream | None = None) -> type[BaseHTTPRequestHandler]:
     class Handler(BaseHTTPRequestHandler):
         server_version = "OaklandEnv/1"
 
@@ -57,9 +76,17 @@ def make_handler(env: OaklandEnv, lock: threading.Lock) -> type[BaseHTTPRequestH
             self._send(204, {})
 
         def do_GET(self):
-            path = self.path.split("?", 1)[0].rstrip("/")
+            path, _, query = self.path.partition("?")
+            path = path.rstrip("/")
             with lock:
-                if path == "/tasks":
+                if path == "/ais":
+                    try:
+                        hour = float(parse_qs(query).get("hour", ["0"])[0])
+                    except ValueError:
+                        self._send(400, {"error": "hour must be a number"})
+                        return
+                    self._send(200, ais_payload(env, hour, stream))
+                elif path == "/tasks":
                     self._send(200, env.task_list())
                 elif path == "/situation":
                     try:
@@ -97,9 +124,13 @@ def make_handler(env: OaklandEnv, lock: threading.Lock) -> type[BaseHTTPRequestH
     return Handler
 
 
-def make_server(env: OaklandEnv, host: str = "127.0.0.1", port: int = 8011) -> HTTPServer:
-    """A single-threaded server: requests are handled one at a time, so one episode is live at a time."""
-    return HTTPServer((host, port), make_handler(env, threading.Lock()))
+def make_server(env: OaklandEnv, host: str = "127.0.0.1", port: int = 8011,
+                stream: AISStream | None = None) -> HTTPServer:
+    """A single-threaded server: requests are handled one at a time, so one episode is live at a time. Without a
+    `stream`, one is started when AISSTREAM_API_KEY is set (it does not connect otherwise)."""
+    if stream is None:
+        stream = AISStream()
+    return HTTPServer((host, port), make_handler(env, threading.Lock(), stream))
 
 
 def main() -> None:
@@ -117,7 +148,8 @@ def main() -> None:
     print(f"  curl {base}/situation")
     print(f"  curl -X POST {base}/check -d '{{\"plan\": [{{\"ship\": 0, \"berth_hour\": 12, \"section\": 7, \"cranes\": 3}}]}}'")
     print(f"  curl -X POST {base}/submit -d '{{\"plan\": [{{\"ship\": 0, \"berth_hour\": 12, \"section\": 7, \"cranes\": 3}}]}}'")
-    print(f"  curl {base}/replay", flush=True)
+    print(f"  curl {base}/replay")
+    print(f"  curl '{base}/ais?hour=12'", flush=True)
     try:
         srv.serve_forever()
     except KeyboardInterrupt:
