@@ -418,4 +418,5 @@ body.learning-hidden .toast { left: 50vw; }
 .oak-res-v { font: 400 18px/1 var(--mono); margin-top: 4px; }
 .oak-res-ok { font: 500 13px var(--sans); color: var(--accent-text); margin-top: 8px; }
 .oak-res-no { font: 500 13px var(--sans); color: var(--muted); margin-top: 8px; }
-.oak-res-rule { font-size: 13px; line-height: 1.4; margin-top: 4px; }
+.oak-res { max-width: 100%; min-width: 0; }
+.oak-res-rule { font-size: 13px; line-height: 1.4; margin-top: 4px; white-space: normal; overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }
