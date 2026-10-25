@@ -1,5 +1,80 @@
 [
-  {"episode": 1, "replay": "../viewer/fixtures/oict-solver.json", "reward": 1.0, "label": "OICT berth, solver reference (oak-oict-berth-storm-6, generated calls)"},
-  {"episode": 2, "replay": "../viewer/fixtures/trapac-solver.json", "reward": 1.0, "label": "TraPac berth, solver reference (oak-trapac-berth-standard-100004, generated calls)"},
-  {"episode": 3, "replay": "../viewer/fixtures/matson-crane.json", "reward": 1.0, "label": "Matson crane, solver reference (oak-matson-crane-busy-100001, generated calls)"}
+  {
+    "episode": 1,
+    "scenario": "oict_berth_medium",
+    "terminal": "OICT",
+    "kind": "berth",
+    "plan": "naive",
+    "replay": "../viewer/fixtures/oict_berth_medium.json",
+    "reward": 0.200775,
+    "label": "OICT (Berths 55–59) · Standard Week (Naive Baseline)"
+  },
+  {
+    "episode": 2,
+    "scenario": "matson_berth_easy",
+    "terminal": "Matson",
+    "kind": "berth",
+    "plan": "greedy",
+    "replay": "../viewer/fixtures/matson_berth_easy.json",
+    "reward": 0.494304,
+    "label": "Matson (Berths 60–63) · Hawaii Express ConRo"
+  },
+  {
+    "episode": 3,
+    "scenario": "trapac_berth_medium",
+    "terminal": "TraPac",
+    "kind": "berth",
+    "plan": "greedy",
+    "replay": "../viewer/fixtures/trapac_berth_medium.json",
+    "reward": 0.495882,
+    "label": "TraPac (Berths 25–33) · Outer Harbor Operations"
+  },
+  {
+    "episode": 4,
+    "scenario": "everport_crane_medium",
+    "terminal": "Everport",
+    "kind": "crane",
+    "plan": "optimal",
+    "replay": "../viewer/fixtures/everport_crane_medium.json",
+    "reward": 1.0,
+    "label": "Everport (Berths 35–37) · Ben E. Nutter Crane Schedule"
+  },
+  {
+    "episode": 5,
+    "scenario": "oict_crane_hard",
+    "terminal": "OICT",
+    "kind": "crane",
+    "plan": "optimal",
+    "replay": "../viewer/fixtures/oict_crane_hard.json",
+    "reward": 1.0,
+    "label": "OICT (Berths 55–59) · Fog Closure + Crane Outage"
+  },
+  {
+    "episode": 6,
+    "scenario": "oict_berth_surge",
+    "terminal": "OICT",
+    "kind": "berth",
+    "plan": "optimal",
+    "replay": "../viewer/fixtures/oict_berth_surge.json",
+    "reward": 1.0,
+    "label": "OICT (Berths 55–59) · Peak Congestion Stress Test (CP-SAT Optimal)"
+  },
+  {
+    "episode": 7,
+    "replay": "../viewer/fixtures/oict-solver.json",
+    "reward": 1.0,
+    "label": "OICT berth, solver reference (oak-oict-berth-storm-6, generated calls)"
+  },
+  {
+    "episode": 8,
+    "replay": "../viewer/fixtures/trapac-solver.json",
+    "reward": 1.0,
+    "label": "TraPac berth, solver reference (oak-trapac-berth-standard-100004, generated calls)"
+  },
+  {
+    "episode": 9,
+    "replay": "../viewer/fixtures/matson-crane.json",
+    "reward": 1.0,
+    "label": "Matson crane, solver reference (oak-matson-crane-busy-100001, generated calls)"
+  }
 ]
