@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>OakShips Demo</title>
+  <style>
+    html, body { margin: 0; height: 100%; overflow: hidden; background: #9fc3dc; font: 13px -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; }
+    #scene { position: absolute; inset: 0; }
+    #panel { position: absolute; top: 12px; left: 12px; padding: 10px 14px; background: rgba(12,18,28,0.82); color: #fff; border-radius: 8px; max-width: 340px; }
+    #panel h1 { font-size: 14px; margin: 0 0 6px; }
+    #panel label { display: block; margin: 6px 0; }
+    #panel .muted { color: #a9b6c3; font-size: 11px; margin-top: 8px; }
+    #stats { white-space: pre; font: 11px ui-monospace, Menlo, monospace; color: #cfd8e2; margin-top: 6px; }
+  </style>
+</head>
+<body>
+  <div id="scene"></div>
+  <div id="panel">
+    <h1>OakShips: procedural container ships</h1>
+    <label>Load <input id="load" type="range" min="0" max="100" value="100"> <span id="loadv">100%</span></label>
+    <label><input id="night" type="checkbox"> Night</label>
+    <label><input id="underway" type="checkbox"> Underway (6 m/s, shows wake)</label>
+    <div id="stats"></div>
+    <div class="muted">Ship names are GENERATED; the ships are a stylised representation, not models of real vessels.</div>
+  </div>
+
+  <script src="../vendor/three.min.js"></script>
+  <script src="../vendor/OrbitControls.js"></script>
+  <script src="ships.js"></script>
+  <script>
+  (function () {
+    "use strict";
+    const el = document.getElementById("scene");
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+    renderer.setSize(el.clientWidth, el.clientHeight);
+    renderer.outputEncoding = THREE.sRGBEncoding;
+    renderer.shadowMap.enabled = true;
+    el.appendChild(renderer.domElement);
+
+    const scene = new THREE.Scene();
+    const DAY_SKY = new THREE.Color("#9fc3dc"), NIGHT_SKY = new THREE.Color("#0b1220");
+    scene.background = DAY_SKY.clone();
+    scene.fog = new THREE.Fog(scene.background, 900, 2600);
+
+    const camera = new THREE.PerspectiveCamera(40, el.clientWidth / el.clientHeight, 1, 6000);
+    camera.position.set(-420, 260, 620);
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.target.set(0, 10, 150);
+    controls.update();
+
+    const hemi = new THREE.HemisphereLight("#dfefff", "#3a4a55", 0.75);
+    scene.add(hemi);
+    const sun = new THREE.DirectionalLight("#fff3e0", 1.1);
+    sun.position.set(-300, 400, 250);
+    sun.castShadow = true;
+    sun.shadow.mapSize.set(2048, 2048);
+    Object.assign(sun.shadow.camera, { left: -400, right: 400, top: 400, bottom: -400, near: 10, far: 1500 });
+    sun.target.position.set(0, 0, 150);
+    scene.add(sun, sun.target);
+
+    const water = new THREE.Mesh(new THREE.PlaneGeometry(8000, 8000), new THREE.MeshStandardMaterial({ color: "#2f5f7a", roughness: 0.35, metalness: 0.1 }));
+    water.rotation.x = -Math.PI / 2;
+    water.receiveShadow = true;
+    scene.add(water);
+
+    // Example specs (GENERATED names): one of each class plus a Matson ship.
+    const specs = [
+      { name: "Wan Hai 172", line: "Wan Hai", length_m: 172, beam_m: 27.6, draught_m: 9.5, seed: 11 },
+      { name: "Maersk Example", line: "Maersk", length_m: 294, beam_m: 32.3, draught_m: 12, seed: 22 },
+      { name: "ONE Demonstration", line: "ONE", length_m: 366, beam_m: 51, draught_m: 14.5, seed: 33 },
+      { name: "Matson Sample", line: "Matson", length_m: 260, beam_m: 34.8, draught_m: 11.5, seed: 44 },
+    ];
+    const ships = [];
+    let z = 0;
+    for (const s of specs) {
+      const ship = OakShips.makeShip(s);
+      z += s.beam_m / 2;
+      ship.group.position.set(0, 0, z);
+      z += s.beam_m / 2 + 45;
+      scene.add(ship.group);
+      ships.push(ship);
+    }
+    document.getElementById("stats").textContent = ships.map((sh, i) => {
+      const l = sh.layout;
+      return specs[i].length_m + " m " + l.cls.padEnd(10) + " bays " + l.bays + " rows " + l.rows + " tiers " + l.tiers +
+        "\n   " + l.containers + " boxes, " + l.teu + " TEU, " + sh.triangles + " tris";
+    }).join("\n");
+
+    const load = document.getElementById("load");
+    load.addEventListener("input", () => {
+      document.getElementById("loadv").textContent = load.value + "%";
+      for (const sh of ships) sh.setLoad(load.value / 100);
+    });
+    document.getElementById("night").addEventListener("change", (e) => {
+      const on = e.target.checked;
+      for (const sh of ships) sh.setLights(on);
+      scene.background.copy(on ? NIGHT_SKY : DAY_SKY);
+      scene.fog.color.copy(scene.background);
+      hemi.intensity = on ? 0.12 : 0.75;
+      sun.intensity = on ? 0.05 : 1.1;
+    });
+    document.getElementById("underway").addEventListener("change", (e) => {
+      for (const sh of ships) sh.setSpeed(e.target.checked ? 6 : 0);
+    });
+
+    window.addEventListener("resize", () => {
+      renderer.setSize(el.clientWidth, el.clientHeight);
+      camera.aspect = el.clientWidth / el.clientHeight;
+      camera.updateProjectionMatrix();
+    });
+
+    const clock = new THREE.Clock();
+    let simH = 0;
+    (function frame() {
+      const dt = Math.min(0.1, clock.getDelta());
+      simH += dt / 3600;
+      for (const sh of ships) sh.update(dt, simH);
+      controls.update();
+      renderer.render(scene, camera);
+      requestAnimationFrame(frame);
+    })();
+  })();
+  </script>
+</body>
+</html>
