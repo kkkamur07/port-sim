@@ -3,228 +3,78 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Port of Oakland · 3D Operations Control Room HUD</title>
+  <title>Port of Oakland Berth Control</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Schibsted+Grotesk:wght@400;500;600;700&display=swap">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div id="scene"></div>
 
-  <!-- 1. TOP COMMAND BAR -->
+  <!-- top bar: wordmark, what is shown now, live state and the scenario menu -->
   <header id="topbar">
-    <div class="brand-cluster">
-      <div class="brand-emblem" title="Port of Oakland Vessel Traffic &amp; Berth Control">
-        <span class="pulse-dot"></span>
-        <span class="brand-code">USOAK</span>
-      </div>
-      <div class="title">
-        <div class="title-row">
-          <h1 id="title">Port of Oakland · Berth Control</h1>
-          <div id="terminal-meta" class="terminal-meta-pill">SSA Marine · 2,089m Quay · 10 STS · 50ft Draft · BERTH</div>
-        </div>
-        <div id="subtitle" class="muted">Select terminal scenario or load replay JSON</div>
-      </div>
+    <div class="wordmark">
+      <span class="wm-name">Port of Oakland</span>
+      <span class="wm-sub">Berth control</span>
     </div>
-
-    <div class="command-cluster">
-      <div class="control-group" title="Terminal &amp; Scenario Selector">
-        <label class="ctrl-label" for="scenario-select">TERMINAL</label>
-        <select id="scenario-select" aria-label="Terminal and Scenario">
-          <option value="oict-demo">OICT (Berths 55-59)</option>
-          <option value="trapac-demo">TraPac (Berths 25-33)</option>
-          <option value="everport-demo">Everport (Berths 35-37)</option>
-          <option value="matson-demo">Matson (Berths 60-63)</option>
-        </select>
-        <!-- Legacy #fixture kept synced for viewer.js compatibility -->
-        <select id="fixture" class="hidden" aria-hidden="true">
-          <option value="oict-demo">OICT demo</option>
-          <option value="matson-demo">Matson demo</option>
-        </select>
-      </div>
-
-      <div class="control-group" title="Plan Policy Switcher">
-        <span class="ctrl-label">POLICY</span>
-        <div id="plan-switcher" class="seg-group" role="group" aria-label="Plan Policy">
-          <button type="button" class="plan-btn on" data-plan="optimal">Optimal</button>
-          <button type="button" class="plan-btn" data-plan="greedy">Greedy</button>
-          <button type="button" class="plan-btn" data-plan="naive">Naive</button>
-        </div>
-        <label class="file-btn" title="Load custom replay JSON">
-          <span>JSON</span>
-          <input id="file-in" type="file" accept=".json,application/json">
-        </label>
-        <label class="file hidden" aria-hidden="true"><input id="file" type="file" accept=".json,application/json"></label>
-      </div>
-    </div>
-
-    <div class="telemetry-cluster">
-      <div id="shift-badge" class="hud-badge shift-day" title="ILWU Local 10 Shift &amp; Crane Productivity">
-        <span class="badge-kicker">ILWU SHIFT</span>
-        <strong id="shift-label">DAY 1.00×</strong>
-        <span id="shift-mph" class="badge-sub">26.0 MPH</span>
-      </div>
-
-      <div id="weather-badge" class="hud-badge weather-clear" title="SF Bay Weather, Tide &amp; Golden Gate Bar Pilot Status">
-        <span class="badge-kicker">SF BAY / BAR</span>
-        <strong id="weather-label">CLEAR · 14 kt NW</strong>
-        <span id="weather-sub" class="badge-sub">Tide +4.2 ft · Bar Open</span>
-      </div>
-
-      <div id="grade" class="grade hidden"></div>
-    </div>
-
-    <div class="search-cluster">
-      <div class="search-wrap">
-        <span class="search-icon">⌕</span>
-        <input id="quick-search" type="search" placeholder="Jump ship / QC… (⌘K or /)" autocomplete="off" spellcheck="false">
-        <kbd class="search-kbd">/</kbd>
-        <div id="search-results" class="search-dropdown hidden"></div>
-      </div>
+    <div id="now" class="now" aria-live="polite">Loading run</div>
+    <div class="top-right">
+      <span id="mode-pill" class="mode-pill" data-mode="replay"><i class="dot" aria-hidden="true"></i><span id="mode-text">REPLAY</span></span>
     </div>
   </header>
 
-  <div id="banner" class="banner hidden">Bar closed: fog</div>
+  <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
 
-  <!-- 2. LEFT TELEMETRY & ROSTER COLUMN -->
-  <aside id="side" aria-label="Port Telemetry and Vessel Roster">
-    <section id="kpi-panel" class="hud-section" aria-label="Port KPIs at the current hour">
-      <div class="section-head">
-        <span class="section-title">PORT TELEMETRY · 2×3 KPI MATRIX</span>
-        <span id="kpi-plan-tag" class="pill-tag">OPTIMAL</span>
-      </div>
-      <!-- Legacy #kpis kept for viewer.js; #kpi-grid renders the 2x3 Portwise KPI cards -->
-      <div id="kpis" class="hidden" aria-hidden="true"></div>
-      <div id="kpi-grid" class="kpis">
-        <div class="kpi" data-kpi="alongside">
-          <div class="kpi-name">ALONGSIDE</div>
-          <div class="kpi-val" id="kpi-val-alongside">0</div>
-          <div class="kpi-sub" id="kpi-sub-alongside">0% quay occ</div>
-        </div>
-        <div class="kpi" data-kpi="cranes">
-          <div class="kpi-name">CRANES ACTIVE</div>
-          <div class="kpi-val" id="kpi-val-cranes">0 / 10</div>
-          <div class="kpi-sub" id="kpi-sub-cranes">0 MPH gross</div>
-        </div>
-        <div class="kpi" data-kpi="moves">
-          <div class="kpi-name">MOVES DONE</div>
-          <div class="kpi-val" id="kpi-val-moves">0</div>
-          <div class="kpi-sub" id="kpi-sub-moves">of 0 moves</div>
-        </div>
-        <div class="kpi" data-kpi="wait">
-          <div class="kpi-name">AVG WAIT / TURN</div>
-          <div class="kpi-val" id="kpi-val-wait">0.0h / 0.0h</div>
-          <div class="kpi-sub" id="kpi-sub-wait">anchor · port stay</div>
-        </div>
-        <div class="kpi" data-kpi="late">
-          <div class="kpi-name">LATE SHIPS</div>
-          <div class="kpi-val" id="kpi-val-late">0</div>
-          <div class="kpi-sub" id="kpi-sub-late">0.0 late ship-hrs</div>
-        </div>
-        <div class="kpi" data-kpi="reward">
-          <div class="kpi-name">REWARD (+Δ vs Greedy)</div>
-          <div class="kpi-val" id="kpi-val-reward">—</div>
-          <div class="kpi-sub" id="kpi-sub-reward">cost 0 vs opt 0</div>
-        </div>
-      </div>
-
-      <div class="spark-wrap">
-        <canvas id="spark" width="240" height="40" title="Berth occupancy and crane use by hour; white line: now"></canvas>
-        <div class="spark-legend small muted">
-          <span><i class="sw" style="background:#4cc3ff"></i>Berth Occ</span>
-          <span><i class="sw" style="background:#5ad48a"></i>Cranes / Pool</span>
-          <span><i class="sw" style="background:rgba(255,180,70,0.45)"></i>Bar Closed</span>
-        </div>
-      </div>
+  <!-- the one panel: score, evolution front, last coach decision -->
+  <aside id="learning" aria-label="Learning">
+    <div class="l-head">
+      <span class="label">Learning</span>
+      <button type="button" id="playbook-btn" class="btn">Playbook</button>
+    </div>
+    <section class="l-sec">
+      <span class="label">Verification score <span id="head-version" class="accent"></span></span>
+      <div id="head-score" class="num big">0.00</div>
+      <div id="head-delta" class="delta"></div>
     </section>
-
-    <!-- STS Crane Fleet Strip (click QC-01..10 to open Crane Inspector) -->
-    <section id="crane-fleet-section" class="hud-section">
-      <div class="section-head">
-        <span class="section-title">STS QUAY CRANES (CLICK TO INSPECT)</span>
-        <span id="crane-fleet-summary" class="muted small">10 ZPMC</span>
-      </div>
-      <div id="crane-strip" class="crane-strip"></div>
+    <section class="l-sec">
+      <span class="label">Evolution front</span>
+      <div id="front" class="front"></div>
+      <div id="front-tip" class="front-tip hidden" role="tooltip"></div>
     </section>
-
-    <!-- Active Disruptions & VTS Alerts Panel -->
-    <section id="disruptions-panel" class="hud-section">
-      <div class="section-head">
-        <span class="section-title">ACTIVE DISRUPTIONS &amp; VTS ALERTS</span>
-        <span id="alert-count-badge" class="pill-tag warn">0 ALERTS</span>
-      </div>
-      <div id="vts-alerts" class="vts-alerts"></div>
-    </section>
-
-    <!-- Interactive Vessel Roster -->
-    <section id="roster-section" class="hud-section roster-grow">
-      <div class="section-head">
-        <span class="section-title">VESSEL ROSTER</span>
-        <span id="roster-count" class="muted small">0 calls</span>
-      </div>
-      <div id="ship-list" class="ship-list" role="listbox" aria-label="Vessel Roster"></div>
-      <!-- Hidden legacy table preserved for unmodified viewer.js -->
-      <table id="ships" class="hidden" aria-hidden="true">
-        <thead>
-          <tr><th>Ship</th><th>Status and moves</th><th>Late</th></tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-      <div id="legend" class="muted small hidden"></div>
+    <section class="l-sec">
+      <span class="label">Last coach decision</span>
+      <p id="coach-say" class="say"></p>
     </section>
   </aside>
 
-  <!-- 3. RIGHT FLOATING ASSET INSPECTOR DRAWER -->
-  <aside id="inspector-drawer" class="inspector-drawer hidden" aria-label="Asset Inspector">
-    <div class="inspector-header">
-      <div class="inspector-title-wrap">
-        <span id="inspector-kicker" class="inspector-kicker">VESSEL TELEMETRY</span>
-        <h2 id="inspector-title">Select a Vessel or STS Crane</h2>
-        <div id="inspector-subtitle" class="muted small">—</div>
-      </div>
-      <div class="inspector-actions">
-        <button type="button" id="inspector-prev" class="icon-btn" title="Previous Asset">‹</button>
-        <button type="button" id="inspector-next" class="icon-btn" title="Next Asset">›</button>
-        <button type="button" id="inspector-close" class="icon-btn" title="Close Inspector (Esc)">✕</button>
-      </div>
+  <!-- the playbook text: the only thing the loop changes -->
+  <aside id="playbook-sheet" class="sheet hidden" role="dialog" aria-modal="false" aria-labelledby="pb-title">
+    <div class="sheet-head">
+      <span id="pb-title" class="sec-title">Playbook</span>
+      <button type="button" id="pb-close" class="icon-btn" aria-label="Close playbook (Esc)">
+        <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M1 1l10 10M11 1L1 11" stroke="currentColor" stroke-width="1.5"/></svg>
+      </button>
     </div>
-
-    <!-- Vessel 4-Tab Bar -->
-    <nav id="vessel-tabs" class="inspector-tabs" role="tablist">
-      <button type="button" class="tab-btn on" data-tab="overview" role="tab">Overview</button>
-      <button type="button" class="tab-btn" data-tab="bays" role="tab">Bays &amp; Cargo</button>
-      <button type="button" class="tab-btn" data-tab="cranes" role="tab">Cranes &amp; Shifts</button>
-      <button type="button" class="tab-btn" data-tab="ais" role="tab">AIS / !AIVDM</button>
-    </nav>
-
-    <!-- Vessel Inspector Body -->
-    <div id="vessel-inspector-body" class="inspector-body">
-      <div id="tab-overview" class="tab-pane"></div>
-      <div id="tab-bays" class="tab-pane hidden"></div>
-      <div id="tab-cranes" class="tab-pane hidden"></div>
-      <div id="tab-ais" class="tab-pane hidden"></div>
+    <div id="pb-note" class="sub muted"></div>
+    <pre id="pb-text" class="pb-text"></pre>
+    <div class="sheet-chart">
+      <span class="label">Reward per episode</span>
+      <div id="evo-chart" class="chart"></div>
+      <div id="evo-legend" class="legend"></div>
     </div>
-
-    <!-- STS Crane Inspector Body -->
-    <div id="crane-inspector-body" class="inspector-body hidden"></div>
   </aside>
 
-  <!-- 4. BOTTOM COLLAPSIBLE 2D BERTH-TIME SCHEDULE GANTT DRAWER -->
-  <section id="gantt-drawer" class="gantt-drawer collapsed" aria-label="2D Berth-Time Schedule Gantt">
+  <!-- one small card for the ship clicked in the scene or the schedule -->
+  <div id="ship-card" class="ship-card hidden" role="dialog" aria-label="Ship"></div>
+
+  <div id="hint" class="hint" aria-hidden="true">Space play · 1 to 9 episode · G schedule · L learning · C camera · click a ship</div>
+
+  <!-- berth-time Gantt: hidden by default, G toggles it -->
+  <section id="gantt-drawer" class="gantt-drawer collapsed" aria-label="Berth schedule">
     <div class="gantt-header">
-      <div class="gantt-title-group">
-        <button type="button" id="gantt-toggle-btn" class="gantt-toggle-btn" title="Toggle Berth-Time Gantt Schedule (G)">
-          <span class="gantt-chevron">▲</span>
-          <strong>[G] Berth Schedule</strong>
-        </button>
-        <span id="gantt-meta" class="muted small">Click a ship block to inspect · Drag timeline to scrub hour t</span>
-      </div>
-      <div class="gantt-legend small">
-        <span><i class="g-sw" style="background:rgba(76,195,255,0.22)"></i>Day Shift</span>
-        <span><i class="g-sw" style="background:rgba(130,100,255,0.20)"></i>Night Shift</span>
-        <span><i class="g-sw" style="background:rgba(255,180,70,0.26)"></i>Hoot Shift</span>
-        <span><i class="g-sw" style="background:rgba(255,90,90,0.35)"></i>Fog / Closed</span>
-        <span><i class="g-sw" style="background:rgba(150,235,245,0.35)"></i>Shallow</span>
-        <span><i class="g-sw" style="background:#ff4b4b"></i>Late Tail</span>
-      </div>
+      <button type="button" id="gantt-toggle-btn" class="btn ghost" title="Close berth schedule (G)"><span class="gantt-chevron">▲</span> Berth schedule</button>
+      <span class="muted small">Click a ship to select it, drag to scrub</span>
     </div>
     <div class="gantt-body">
       <canvas id="gantt-canvas" width="1100" height="220"></canvas>
@@ -232,58 +82,81 @@
     </div>
   </section>
 
-  <!-- 5. TRANSPORT & CAMERA RAIL -->
-  <div id="cam-rail" class="cam-rail" aria-label="Camera Presets and Scene Layers">
-    <div class="rail-group cams">
-      <span class="rail-label">CAM</span>
-      <button type="button" data-cam="satellite">Satellite</button>
-      <button type="button" data-cam="overview" class="on">Overview</button>
-      <button type="button" data-cam="quayside">Quayside</button>
-      <button type="button" data-cam="overhead">Overhead</button>
-      <button type="button" data-cam="crane-cab">Crane Cab</button>
-      <button type="button" data-cam="bay-bridge">Bay Bridge</button>
-    </div>
-    <div class="rail-divider"></div>
-    <div class="rail-group layers">
-      <span class="rail-label">LAYERS</span>
-      <button type="button" class="layer-btn on" data-layer="ais" title="Toggle AIS Vessel Tracks (T)">AIS Tracks <kbd>T</kbd></button>
-      <button type="button" class="layer-btn on" data-layer="trucks" title="Toggle Yard Truck Trails (V)">Truck Trails <kbd>V</kbd></button>
-      <button type="button" class="layer-btn" data-layer="night" title="Force Night Illumination Mode (N)">Night <kbd>N</kbd></button>
-      <button type="button" class="layer-btn" data-layer="gantt" id="rail-gantt-btn" title="Toggle 2D Berth-Time Gantt Drawer (G)">Gantt <kbd>G</kbd></button>
-      <button type="button" class="layer-btn" data-layer="hud" title="Toggle Clean Viewport / Hide HUD (H)">Hide HUD <kbd>H</kbd></button>
-    </div>
-  </div>
-
-  <footer id="transport" aria-label="Simulation Transport Controls">
+  <footer id="transport" aria-label="Playback">
     <div id="controls" class="transport-inner">
-      <button type="button" id="play" class="play-btn" title="Play or Pause simulation (Space)">Play</button>
-
-      <div class="speeds" role="group" aria-label="Simulation Speed">
+      <button type="button" id="play" class="play-btn" title="Play or pause (Space)">Play</button>
+      <div class="speeds" role="group" aria-label="Playback speed">
         <button type="button" data-speed="1">1x</button>
         <button type="button" data-speed="4" class="on">4x</button>
         <button type="button" data-speed="16">16x</button>
         <button type="button" data-speed="64">64x</button>
-        <select id="speed" class="hidden" aria-label="Simulation speed">
-          <option value="1">1x</option>
-          <option value="4" selected>4x</option>
-          <option value="16">16x</option>
-          <option value="64">64x</option>
-        </select>
       </div>
-
       <div class="scrub-container">
-        <input id="scrub" type="range" min="0" max="168" step="0.01" value="0" aria-label="Simulation Hour Scrubber">
+        <input id="scrub" type="range" min="0" max="168" step="0.01" value="0" aria-label="Simulation hour">
         <div id="scrub-markers" class="scrub-markers" aria-hidden="true"></div>
       </div>
-
-      <div class="clock-cluster">
-        <div id="t-label" class="t-label">Mon 00:00 · H000</div>
-        <div id="clock" class="hidden">Mon 00:00, hour 0</div>
+      <div id="t-label" class="t-label num">Mon 00:00</div>
+      <div class="menu-wrap">
+        <button type="button" id="view-btn" class="icon-btn" aria-label="Options: scenario, camera and layers" aria-haspopup="true" aria-expanded="false" aria-controls="cam-rail">
+          <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><circle cx="3" cy="8" r="1.5"/><circle cx="8" cy="8" r="1.5"/><circle cx="13" cy="8" r="1.5"/></svg>
+        </button>
+        <div id="cam-rail" class="menu menu-up hidden" role="dialog" aria-label="Scenario, camera and layers">
+          <label class="menu-label" for="scenario-select">Terminal</label>
+          <select id="scenario-select">
+            <option value="oict-demo">OICT, berths 55 to 59</option>
+            <option value="trapac-demo">TraPac, berths 25 to 33</option>
+            <option value="everport-demo">Everport, berths 35 to 37</option>
+            <option value="matson-demo">Matson, berths 60 to 63</option>
+          </select>
+          <span class="menu-label">Policy</span>
+          <div id="plan-switcher" class="seg" role="group" aria-label="Plan policy">
+            <button type="button" class="plan-btn on" data-plan="optimal">Optimal</button>
+            <button type="button" class="plan-btn" data-plan="greedy">Greedy</button>
+            <button type="button" class="plan-btn" data-plan="naive">Naive</button>
+          </div>
+          <span class="menu-label">Replay file</span>
+          <label class="btn file-btn">Load replay JSON<input id="file-in" type="file" accept=".json,application/json"></label>
+          <button type="button" id="back-to-run" class="btn ghost">Back to the learning run</button>
+          <span class="menu-label">Camera</span>
+          <div class="menu-grid">
+            <button type="button" data-cam="satellite">Satellite</button>
+            <button type="button" data-cam="overview" class="on">Overview</button>
+            <button type="button" data-cam="quayside">Quayside</button>
+            <button type="button" data-cam="overhead">Overhead</button>
+            <button type="button" data-cam="crane-cab">Crane cab</button>
+            <button type="button" data-cam="bay-bridge">Bay Bridge</button>
+          </div>
+          <span class="menu-label">Layers</span>
+          <div class="menu-list">
+            <button type="button" class="layer-btn on" data-layer="ais">AIS tracks <kbd>T</kbd></button>
+            <button type="button" class="layer-btn on" data-layer="trucks">Truck trails <kbd>V</kbd></button>
+            <button type="button" class="layer-btn" data-layer="night">Night <kbd>N</kbd></button>
+            <button type="button" class="layer-btn" data-layer="gantt" id="rail-gantt-btn">Berth schedule <kbd>G</kbd></button>
+            <button type="button" class="layer-btn" data-layer="hud">Hide panels <kbd>H</kbd></button>
+          </div>
+        </div>
       </div>
     </div>
   </footer>
 
   <div id="error" class="error hidden"></div>
+
+  <!-- elements the replay engine still writes to; not part of the visible HUD -->
+  <div id="legacy" hidden>
+    <h1 id="title"></h1><div id="subtitle"></div><div id="grade"></div><div id="banner" class="hidden"></div>
+    <div id="terminal-meta"></div>
+    <select id="fixture"><option value="oict-demo">OICT demo</option></select>
+    <input id="file" type="file" accept=".json,application/json">
+    <div id="kpis"></div><canvas id="spark" width="240" height="40"></canvas>
+    <table id="ships"><tbody></tbody></table><div id="legend"></div>
+    <div id="clock"></div><select id="speed"><option value="4" selected>4x</option></select>
+    <div id="kpi-grid"></div><div id="crane-strip"></div><div id="vts-alerts"></div><div id="ship-list"></div>
+    <aside id="inspector-drawer" class="hidden">
+      <nav id="vessel-tabs"></nav><div id="vessel-inspector-body"></div><div id="crane-inspector-body"></div>
+      <span id="inspector-kicker"></span><h2 id="inspector-title"></h2><div id="inspector-subtitle"></div>
+      <div id="tab-overview"></div><div id="tab-bays"></div><div id="tab-cranes"></div><div id="tab-ais"></div>
+    </aside>
+  </div>
 
   <script src="vendor/three.min.js"></script>
   <script src="vendor/OrbitControls.js"></script>
@@ -296,6 +169,8 @@
   <script src="assets/port_life.js"></script>
   <script src="kpi.js"></script>
   <script src="control_panel.js"></script>
+  <script src="runs.js"></script>
+  <script src="learning.js"></script>
   <script src="viewer.js"></script>
 </body>
 </html>
