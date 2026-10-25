@@ -3,7 +3,10 @@
 A LangGraph program where a **Player** agent plays OaklandPortEnv episodes with tools (including a live AIS-shaped
 ship feed), and every N episodes a **Coach** reads the Player's full event logs and proposes a new versioned
 playbook that goes into the Player's system prompt. A code gate keeps a playbook only if it raises the mean reward on
-the fixed held-out eval pack. Each graded episode writes a replay JSON and a manifest row, so the dashboard shows the
+the fixed verification set. No model weights change; the playbook is the only state (in-context adaptation): the
+Player plays a task stream (`tasks/<kind>-train.jsonl`) and the gate scores on a verification set
+(`tasks/<kind>-eval.jsonl`). File and JSON field names keep the old words (`train_mean`, `eval_mean`, `eval.jsonl`,
+`eval/`) so other tools keep working. Each graded episode writes a replay JSON and a manifest row, so the dashboard shows the
 improvement curve.
 
 The ship calls in every task are GENERATED (not real records); so are the live-feed positions. The terminals,
@@ -21,18 +24,23 @@ cd oakland
 ../.venv/bin/python build_tasks.py --kind berth --split eval  --n 3 --time-limit 10 --out /tmp/oak-loop-eval.jsonl
 
 ../.venv/bin/python -m loop.run --run demo --episodes 6 --coach-every 3 --kind berth \
-    --train-pack /tmp/oak-loop-train.jsonl --eval-pack /tmp/oak-loop-eval.jsonl \
+    --tasks /tmp/oak-loop-train.jsonl --verify-pack /tmp/oak-loop-eval.jsonl \
     --player scripted --coach scripted --scripted-mistakes
 ```
 
-Flags: `--run NAME`, `--episodes 30`, `--coach-every 4`, `--kind berth|crane|both`, `--train-pack PATH` and
-`--eval-pack PATH` (repeatable; default `tasks/<kind>-<split>.jsonl`), `--player auto|gemini|scripted`,
+Flags: `--run NAME`, `--episodes 30`, `--coach-every 4`, `--kind berth|crane|both`, `--tasks PATH` (the task
+stream) and `--verify-pack PATH` (the verification set; both repeatable, defaults `tasks/<kind>-train.jsonl` and
+`tasks/<kind>-eval.jsonl`; `--train-pack` and `--eval-pack` still work as hidden aliases),
+`--tiers standard,busy,storm,extreme` (difficulty tiers kept in BOTH sets, filtered before the sanity gates; the run
+aborts naming the set when one becomes empty; Gemini already scores 1.0 on standard tasks, so the demo plays
+`--tiers storm,extreme`), `--select pareto|latest` (default pareto), `--prescreen on|off` (default on),
+`--workers 4` (episodes scored concurrently, 1 = sequential), `--player auto|gemini|scripted`,
 `--coach auto|gemini|scripted` (auto: Gemini when a key is set), `--live-feed on|off`, `--scripted-mistakes`,
 `--resume` (continue `runs/<run>` from its checkpoint; without it the run directory is started fresh), `--quiet`
 (hide the `[graph] node` event lines), `--runs-dir`.
 
 Output: one `[graph] <node>` line per node event, one line per episode (episode, task, reward, checks used, first
-feasible check, playbook version, tokens, cost), one line per coach round (eval and train means before and after,
+feasible check, playbook version, tokens, cost), one line per coach round (verification and episode means before and after,
 ACCEPT or REJECT with the reason, the one change), and a run summary with the cost per episode and per coach round.
 
 ## Files in runs/\<run\>/
@@ -43,8 +51,8 @@ ACCEPT or REJECT with the reason, the one change), and a run summary with the co
 | `episodes.json` | the dashboard manifest `[{episode, replay, reward, label}]`, rewritten atomically after each episode |
 | `replays/ep001.json` ... | the replay JSON of each episode (`oakland_core.replay`) |
 | `events/ep001.jsonl` ... | the event log of each episode (below) |
-| `eval.jsonl` | the baseline row for v0, then one candidate row per coach round: train_mean and eval_mean side by side, feasibility, gap, verdict, reason, comparable, per-task rewards |
-| `eval/v<k>/`, `eval/v<k>-train/` | event logs of the eval-pack and train-window episodes played for version k |
+| `eval.jsonl` | the baseline row for v0, then one candidate row per coach round: train_mean (episodes) and eval_mean (verification) side by side, feasibility, gap, verdict, reason, comparable, per-task rewards, parent_selected_by, accepted_version, merged_from, prescreened |
+| `eval/v<k>/`, `eval/v<k>-train/` | event logs of the verification and window episodes played for version k |
 | `playbooks/v<k>.md`, `v<k>_heuristic.py` | the playbook text of each version and the coach's optional heuristic |
 | `playbooks/tree.json`, `changelog.json` | the playbook tree and its changelog |
 | `state.sqlite` | the LangGraph SqliteSaver checkpoint (thread id = run name) |
@@ -65,8 +73,10 @@ coach, playbook store) live in `graph.Loop`, whose methods are the nodes.
 - **pick_task**: the next train task, cycling through the train pack in order.
 - **player**: one episode with the accepted playbook (`player.run_episode`).
 - **grade_and_log**: the episode row, the manifest, the printed line.
-- **maybe_coach**: every `--coach-every` episodes, the coach proposes a child of the latest accepted node.
-- **eval_candidate**: plays the whole eval pack and the window's train tasks with the candidate, same player.
+- **maybe_coach**: every `--coach-every` episodes, picks the parent (below) and asks the coach for a child of it,
+  or builds a merge candidate.
+- **eval_candidate**: plays the window's tasks with the candidate (the pre-screen), then the whole verification set,
+  same player.
 - **accept_or_reject**: the gate (below), the tree verdict, the eval row, the printed line.
 
 ## Player
@@ -122,24 +132,60 @@ by one rule per round.
   `heuristic(task, plan) -> plan` is saved as `playbooks/v<k>_heuristic.py` and offered to the player as
   `apply_heuristic`; it only stays in use if its version is accepted.
 
-## Eval protocol and the gate
+## Candidate pool (GEPA-style)
+
+Borrowed from GEPA (github.com/gepa-ai/gepa, Genetic-Pareto prompt evolution). The gate and the player are
+unchanged: the player always uses the latest ACCEPTED playbook, and every candidate is gated against that version's
+verification mean.
+
+- **Per-task scores**: every scored node keeps `eval_per_task` and `train_per_task` (`{task_id: reward}`).
+- **Pareto front** (`PlaybookStore.pareto_front()`): the versions, accepted or rejected, scored on the verification
+  set with the latest accepted node's player_version, that have the best reward on at least one verification task.
+  An accepted version wins a task on a tie; a rejected (or open) version only when it strictly beats every other
+  scored version there, so a rejected duplicate of an accepted playbook leaves the front. Each node's `front` and `wins` (tasks it is best on) are refreshed after every
+  scoring.
+- **Parent selection** (`--select pareto`, default): the coach's parent is sampled from the front weighted by `wins`,
+  with `random.Random("<run>:<round>")`, so runs are reproducible. `--select latest` uses the latest accepted node.
+  Each candidate row logs `parent_selected_by`.
+- **Pre-screen** (`--prescreen on`, default): the candidate first plays the coach window's tasks; if their mean falls
+  below the window's own mean by more than 0.005 it is rejected as `minibatch: episodes -x.xxx` without playing the
+  verification set (`eval_mean` null, `per_task` empty). This saves model cost: a bad candidate costs a window of
+  episodes, not the whole verification set.
+- **Merge**: after a rejected round, when the front has two members that win different task sets and that pair was
+  never merged (`merged_from` in the tree), and each has a `## Rules` bullet the other lacks, maybe_coach proposes a merge instead of asking the coach: the union of
+  their `## Rules` bullets (parent order, then the other's new ones), the first's checklist, at most 60 lines,
+  change `merge v<a>+v<b>`. It goes through the same pre-screen and gate.
+- **Ancestor lessons**: the coach gets `lessons`, one line `v<k> (<verdict>, <reason>): <change>` for the parent and
+  each ancestor up to the root, newest first, at most 8. GeminiCoach shows them under
+  "## Lessons from this playbook's ancestors"; ScriptedCoach ignores them.
+- **No duplicate proposals**: the coach gets `exclude`, the rules of the latest accepted playbook and of the parent
+  plus every rejected change. ScriptedCoach skips those findings; GeminiCoach lists them under "## Rules already in
+  force or rejected (do not propose these again)". When nothing is left and no merge qualifies, the round prints
+  `coach round N | nothing new to propose` and plays nothing (no verification cost).
+- **Parallel scoring**: `Loop.score()` plays its episodes with a `ThreadPoolExecutor` of `--workers` threads (each
+  episode has its own env and event log; rows stay in task order). A live Gemini episode takes about 2 minutes, so
+  with 4 workers a coach round costs about one episode of wall time plus the coach call.
+
+## Verification protocol and the gate
 
 Code decides, models propose; no model judgement enters the score, which is the kernel's reward v3.
 
 - **Sanity gates at startup**: every eval task's reference plan must score 1.0 and its naive plan below 0.5, or the
   run aborts naming the task.
-- **Baseline**: v0 is played once on the whole eval pack (one episode per task, the dataset's own rules and
+- **Baseline**: v0 is played once on the whole verification set (one episode per task, the dataset's own rules and
   situation, at most 10 checks, one submit).
-- **Candidate**: played on the whole eval pack and on the train tasks of the coach window, by the same player.
-- **Accept** when eval mean >= current eval mean + 0.005. Otherwise **reject**: "overfit" when the train mean rose
-  by the margin and the eval mean did not, "no eval gain" otherwise, "no change proposed" when the playbook is
-  unchanged. Train and eval means are reported side by side, never averaged.
+- **Candidate**: played on the tasks of the coach window (pre-screen) and on the whole verification set, by the
+  same player.
+- **Accept** when the verification mean >= the latest accepted version's verification mean + 0.005. Otherwise
+  **reject**: "minibatch" when the pre-screen dropped it, "overfit" when the episodes' mean rose by the margin and
+  the verification mean did not, "no verification gain" otherwise, "no change proposed" when the playbook is
+  unchanged. Episode and verification means are reported side by side, never averaged.
 - **Frozen player**: `player_version` is a hash over player.py, tools.py and the model id, written on every episode
   row and eval row. A candidate scored with a different player_version than its parent is rejected as
   "not comparable" (`comparable: false` in eval.jsonl).
 - **Tree** (`playbooks/tree.json`): nodes `{version, parent, created_at, diagnosis, change, verdict, train_mean,
-  eval_mean, feasibility_rate, mean_gap_pct, reason, mistakes, ...}`. The next coach round starts from the latest
-  accepted node; rejected nodes stay for the report.
+  eval_mean, feasibility_rate, mean_gap_pct, reason, mistakes, eval_per_task, train_per_task, front, wins,
+  merged_from, ...}`. The player uses the latest accepted node; rejected nodes stay in the pool and the report.
 
 ## Metrics
 
@@ -172,4 +218,6 @@ cd oakland && PYTHONDONTWRITEBYTECODE=1 ../.venv/bin/python -m pytest -q -p no:c
 
 Metrics parity on the fixture; a scripted 6-episode run with two coach rounds and every output file; the mistake
 mode teaching the no-movement rule; the event log shape; the steering hook; evidence validation; the playbook tree;
-the sanity gates; the Gemini guard and the `gemini-4-argon` model id (with a fake model class, nothing is called).
+the sanity gates; the Gemini guard and the `gemini-4-argon` model id (with a fake model class, nothing is called);
+the Pareto front with ties, reproducible weighted parent sampling, ancestor lessons, the pre-screen rejecting
+without playing the verification set, a merge candidate that is never repeated, parallel scoring in task order.
