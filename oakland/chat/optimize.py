@@ -25,12 +25,14 @@ from typing import Any
 
 from loop.coach import current_rules, load_episode_logs, validate_mistakes
 from loop.graph import ACCEPT_MARGIN, OAKLAND, Loop, LoopConfig, load_pack
-from loop.player import MODEL_ID, player_version
+from loop.player import player_version
 from loop.playbook import PlaybookStore, load_heuristic
+
+from .tools import _read_jsonl
 
 DEFAULT_VERIFY_PACK = OAKLAND / "tasks" / "berth-eval-demo.jsonl"
 WORKERS = 4
-MINUTES_PER_TASK_ROUND = 3.3   # one Gemini episode, measured on the berth packs
+DEFAULT_MINUTES = 8.0   # when the run has no baseline wall times
 
 
 def _mean(xs: list) -> float | None:
@@ -124,7 +126,6 @@ class Optimizer:
         eval.jsonl row, resolved from tasks/*.jsonl), else tasks/berth-eval-demo.jsonl."""
         if self.verify_pack:
             return load_pack(self.verify_pack, "both", what="verification pack")
-        from .tools import _read_jsonl
         evals = [e for e in _read_jsonl(self.run_dir / "eval.jsonl") if e.get("per_task")]
         ids = [t["task_id"] for t in evals[-1]["per_task"]] if evals else []
         if ids:
@@ -137,9 +138,10 @@ class Optimizer:
 
     # ------------------------------------------------------------ propose
 
-    def optimize(self, episodes: int = 3) -> dict:
+    def optimize(self, episodes: int = 3, verify: bool = True) -> dict:
         """One coach call on the last `episodes` episode logs against the accepted playbook in force, as the loop's
-        maybe_coach does (same rejected list, lessons and exclusions); writes the proposal with status proposed."""
+        maybe_coach does (same rejected list, lessons and exclusions); writes the proposal (status proposed) and,
+        with `verify`, starts its verification at once (status verifying)."""
         store = self.store()
         accepted = store.latest_accepted()
         paths = self._episode_paths(episodes)
@@ -168,17 +170,37 @@ class Optimizer:
                "verdict_reason": None if out.get("change") or out.get("heuristic_code") else "no change proposed",
                "coach_model": out.get("model"), "cost_usd": round(float(out.get("cost_usd") or 0), 6)}
         self._save(row)
-        return {"id": pid, "status": row["status"], "from_version": accepted, "diagnosis": row["diagnosis"],
-                "change": row["change"], "episodes": row["episodes"],
-                "mistakes": [{"what": m["what"], "evidence": len(m["evidence"])} for m in mistakes][:5],
-                "cost_usd": row["cost_usd"]}
+        out = {"id": pid, "status": row["status"], "from_version": accepted, "change": row["change"],
+               "diagnosis": row["diagnosis"], "episodes": row["episodes"],
+               "mistakes": [{"what": m["what"], "evidence": len(m["evidence"])} for m in mistakes][:5],
+               "baseline_eval_mean": None, "expected_minutes": None, "cost_usd": row["cost_usd"]}
+        if verify and row["status"] == "proposed":
+            v = self.verify(pid)
+            out.update(status=v["status"], baseline_eval_mean=v["baseline_eval_mean"],
+                       expected_minutes=v["expected_minutes"])
+        return out
 
     # ------------------------------------------------------------ verify
 
-    def expected_minutes(self, n_tasks: int) -> float:
-        if getattr(self.player, "model_id", None) != MODEL_ID:
-            return 0.0
-        return round(math.ceil(n_tasks / self.workers) * MINUTES_PER_TASK_ROUND, 1)
+    def _baseline_known(self, accepted: int, ids: list[str]) -> bool:
+        """The accepted version's per-task rewards on `ids` exist, from the same player: no rescoring needed."""
+        node = self.store().node(accepted)
+        prior = node.get("eval_per_task") or {}
+        return (node.get("player_version") == player_version(self.player.model_id)
+                and all(prior.get(i) is not None for i in ids))
+
+    def expected_minutes(self, accepted: int, n_tasks: int, rescore: bool = False) -> float:
+        """The accepted version's baseline eval wall time per episode (its eval/v<k>/ stop events) times the rounds
+        of `workers` episodes, doubled when the baseline is rescored; DEFAULT_MINUTES without wall times."""
+        walls = []
+        for p in (self.run_dir / "eval" / f"v{accepted}").glob("*.jsonl"):
+            stop = next((e for e in reversed(_read_jsonl(p)) if e.get("type") == "stop"), None)
+            if stop and stop.get("wall_s"):
+                walls.append(float(stop["wall_s"]))
+        if not walls:
+            return DEFAULT_MINUTES
+        rounds = math.ceil(n_tasks / self.workers) * (2 if rescore else 1)
+        return round(rounds * sum(walls) / len(walls) / 60, 1)
 
     def verify(self, pid: int, wait: bool = False) -> dict:
         """Start verifying proposal `pid` in a background thread (one per proposal); returns at once with
@@ -191,8 +213,13 @@ class Optimizer:
             busy = pid in self.threads and self.threads[pid].is_alive()
         if busy or row["status"] in ("accepted", "rejected"):
             return {"id": pid, "status": row["status"], "verdict_reason": row.get("verdict_reason"),
-                    "note": "already verifying" if busy else "already verified"}
+                    "baseline_eval_mean": row.get("baseline_eval_mean"), "expected_minutes": 0.0, "note": "already verifying" if busy else "already verified"}
         tasks = self.verify_tasks()
+        ids = [t.task_id for t in tasks]
+        rescore = not self._baseline_known(row["from_version"], ids)
+        if not rescore:
+            prior = self.store().node(row["from_version"])["eval_per_task"]
+            row["baseline_eval_mean"] = _mean([prior[i] for i in ids])
         row.update(status="verifying", verify_tasks=[t.task_id for t in tasks], verdict_reason=None)
         self._save(row)
         t = threading.Thread(target=self._verify, args=(pid, tasks), name=f"verify-p{pid}", daemon=True)
@@ -202,7 +229,8 @@ class Optimizer:
         if wait:
             t.join()
         return {"id": pid, "status": "verifying" if not wait else self.get(pid)["status"],
-                "tasks": len(tasks), "expected_minutes": self.expected_minutes(len(tasks))}
+                "tasks": len(tasks), "baseline_eval_mean": row["baseline_eval_mean"],
+                "expected_minutes": self.expected_minutes(row["from_version"], len(tasks), rescore)}
 
     def _verify(self, pid: int, tasks: list) -> None:
         row = self.get(pid)
@@ -224,11 +252,9 @@ class Optimizer:
         out = self.dir / f"p{row['id']}"
         s = loop.score(tasks, idx, version, out / "proposal")
         cost = s["cost_usd"]
-        node = store.node(accepted)
-        prior = node.get("eval_per_task") or {}
+        prior = store.node(accepted).get("eval_per_task") or {}
         ids = [t.task_id for t in tasks]
-        comparable = node.get("player_version") == player_version(self.player.model_id)
-        if comparable and all(prior.get(i) is not None for i in ids):
+        if self._baseline_known(accepted, ids):
             base, base_from = _mean([prior[i] for i in ids]), "run"
         else:   # other tasks or another player than the run's scores: score the accepted playbook here too
             b = loop.score(tasks, idx, accepted, out / f"v{accepted}")
@@ -253,9 +279,9 @@ class Optimizer:
         if row is None:
             return {"error": "no proposal yet" if pid is None else f"no proposal {pid}"}
         v = row.get("verification") or {}
-        return {"id": row["id"], "status": row["status"], "from_version": row["from_version"],
-                "change": row.get("change"), "verdict_reason": row.get("verdict_reason"),
-                "verification_mean": v.get("eval_mean"), "baseline_mean": row.get("baseline_eval_mean"),
+        return {"id": row["id"], "status": row["status"], "change": row.get("change"),
+                "baseline_eval_mean": row.get("baseline_eval_mean"), "eval_mean": v.get("eval_mean"),
+                "verdict_reason": row.get("verdict_reason"), "from_version": row["from_version"],
                 "tasks": len(row.get("verify_tasks") or []), "created": row["created"],
                 "verified": row.get("verified"), "cost_usd": row.get("cost_usd"),
                 "note": "advisory: an accepted proposal is not added to the running loop's playbook tree"}

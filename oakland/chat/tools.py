@@ -372,16 +372,16 @@ class RunTools:
 
     def optimize_playbook(self, episodes: int = 3) -> str:
         """Optimize my playbook now: the coach reads my last `episodes` episode logs and proposes one playbook change
-        with evidence (about 30 s). Returns the proposal id, diagnosis, change and mistakes. Then call
-        verify_proposal with the id."""
+        with evidence (about 30 s), and its verification on the held-out tasks starts at once in the background.
+        Returns the proposal id, status (verifying), change, diagnosis and expected minutes."""
         try:
             return _dump(self.optimizer.optimize(int(episodes)))
         except ValueError as e:
             return _dump({"error": str(e)})
 
     def verify_proposal(self, id: int) -> str:   # noqa: A002, the tool argument name the model sees
-        """Start verifying proposal `id` on the fixed verification tasks with the loop's gate, in the background.
-        Returns at once with the status (verifying) and the expected minutes; ask proposal_status later."""
+        """Re-run the verification of proposal `id` (optimize_playbook already starts it) on the fixed verification
+        tasks with the loop's gate, in the background. Returns at once; ask proposal_status later."""
         try:
             return _dump(self.optimizer.verify(int(id)))
         except ValueError as e:

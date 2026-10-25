@@ -6,6 +6,9 @@
                   -> {answer, steps, links, what_if, tokens_in, tokens_out, cost_usd} | {error}
     GET  /health  -> {ok, model, runs_dir}
     GET  /runs    -> [{run, episodes}]
+    GET  /proposal?run=live[&id=3] -> {id, status, change, baseline_eval_mean, eval_mean, verdict_reason} | 404
+                  (the latest chat proposal when no id); /chat also returns it as `proposal` after a turn that
+                  used optimize_playbook, verify_proposal or proposal_status
 
 `run` is a directory name under --runs-dir; a path like "../runs/live" is accepted and only its basename is used.
 The server is stateless: the conversation is the messages list the client sends. One agent is cached per run.
@@ -21,10 +24,11 @@ from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeout
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any, Callable
+from urllib.parse import parse_qs
 
 from loop.player import MODEL_ID
 
-from .agent import ChatAgent
+from .agent import PROPOSAL_KEYS, ChatAgent
 from .tools import RunTools
 
 TIMEOUT_S = 90
@@ -80,6 +84,18 @@ class Chat:
         except Exception as e:   # noqa: BLE001, any model or tool failure goes back as an error
             return 500, {"error": f"{type(e).__name__}: {e}"}
 
+    def proposal(self, run: str, pid: str | None) -> tuple[int, dict]:
+        """The latest (or given) chat proposal of a run: {id, status, change, baseline_eval_mean, eval_mean,
+        verdict_reason}, or 404."""
+        try:
+            agent = self.agent(run)
+            got = agent.tools.optimizer.status(None if pid in (None, "") else int(pid))
+        except (ValueError, TypeError) as e:
+            return 404, {"error": str(e)}
+        if "error" in got:
+            return 404, got
+        return 200, {k: got.get(k) for k in PROPOSAL_KEYS}
+
 
 def make_handler(chat: Chat) -> type[BaseHTTPRequestHandler]:
     class Handler(BaseHTTPRequestHandler):
@@ -108,6 +124,9 @@ def make_handler(chat: Chat) -> type[BaseHTTPRequestHandler]:
                 self._send(200, {"ok": True, "model": MODEL_ID, "runs_dir": str(chat.runs_dir)})
             elif path == "/runs":
                 self._send(200, chat.runs())
+            elif path == "/proposal":
+                q = parse_qs(self.path.split("?", 1)[1] if "?" in self.path else "")
+                self._send(*chat.proposal(q.get("run", ["live"])[0], q.get("id", [None])[0]))
             else:
                 self._send(404, {"error": f"no route GET {path}"})
 

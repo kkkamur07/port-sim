@@ -28,9 +28,12 @@ SYSTEM_PROMPT = (
     "Always call at least one tool before answering. Ship calls are generated, not real records. For a what-if "
     "question call what_if; for 'right now' call run_status and player_log on the latest episode; for 'are you "
     "improving' call improvement; for the coach call run_status then coach_round.\n\n"
-    "For 'optimize my playbook' call optimize_playbook, then verify_proposal with its id, then answer in first "
-    "person with the diagnosis and the proposed rule, say that verification is running and to ask 'did it work?' "
-    "in about the expected minutes. For 'did it work?' call proposal_status.")
+    "For 'optimize my playbook' call optimize_playbook once and answer in exactly two sentences: \"Okay, I optimized "
+    "this: <the rule in plain words, under 20 words>.\" and \"I am checking it on the held-out tasks now; the result "
+    "will appear here.\" No diagnosis essay, no ids, no minutes unless asked. For 'did it work?' or 'result?' call "
+    "proposal_status and answer in one sentence with the before and after numbers and the verdict word.")
+PROPOSAL_TOOLS = ("optimize_playbook", "verify_proposal", "proposal_status")
+PROPOSAL_KEYS = ("id", "status", "change", "baseline_eval_mean", "eval_mean", "verdict_reason")
 
 
 def _text(content: Any) -> str:
@@ -176,7 +179,17 @@ class ChatAgent:
         answer = re.sub(r"\s*[\u2014\u2013]\s*", ", ", answer)   # no dashes as punctuation in the demo
         answer = cap_sentences(answer)
         links = _links(steps, episode)
-        return {"answer": answer,
+        extra: dict[str, Any] = {}
+        touched = [st for st in steps if st["tool"] in PROPOSAL_TOOLS]
+        if touched:
+            try:
+                pid = json.loads(touched[-1]["result"]).get("id")
+            except (json.JSONDecodeError, AttributeError):
+                pid = None
+            got = self.tools.optimizer.status(pid)
+            if "error" not in got:
+                extra["proposal"] = {k: got.get(k) for k in PROPOSAL_KEYS}
+        return {**extra, "answer": answer,
                 "steps": [{k: s[k] for k in ("tool", "args", "result_preview")} for s in steps],
                 "links": links, "what_if": what_if, "tokens_in": tin, "tokens_out": tout,
                 "cost_usd": round(estimate_cost(tin, tout), 6) if self.model_id == MODEL_ID else 0.0}
