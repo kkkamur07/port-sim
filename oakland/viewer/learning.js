@@ -91,14 +91,14 @@
     const last = evo.lineage[evo.lineage.length - 1] || { value: null, version: 0 };
     const score = last.value;
     $("head-score").textContent = score == null ? "n/a" : f2(score);
-    $("head-version").textContent = "playbook v" + (last.version != null ? last.version : 0);
+    $("head-version").textContent = "v" + (last.version != null ? last.version : 0);
     const d = $("head-delta");
     if (score != null && evo.baseline != null && last.version !== 0 && last.version != null) {
       const delta = score - evo.baseline;
-      d.innerHTML = "<b>" + (delta >= 0 ? "▲ +" : "▼ ") + delta.toFixed(2) + "</b> since v0 (" + f2(evo.baseline) + ")";
+      d.innerHTML = "<b>" + (delta >= 0 ? "▲ +" : "▼ ") + delta.toFixed(2) + "</b> vs v0";
       d.className = "delta " + (delta >= 0 ? "up" : "down");
     } else {
-      d.textContent = evo.baseline != null ? "starting playbook, no change accepted yet" : "waiting for the v0 verification";
+      d.textContent = evo.baseline != null ? "v0, no change accepted yet" : "waiting for v0";
       d.className = "delta";
     }
   }
@@ -214,7 +214,7 @@
   function renderFront(fresh) {
     const el = $("front");
     const nodes = frontNodes();
-    const W = 320, H = 124, padL = 4, padR = 44, padT = 14, padB = 14;
+    const W = 320, H = 60, padL = 4, padR = 36, padT = 12, padB = 6;
     if (!nodes.length) {
       el.innerHTML = '<svg viewBox="0 0 ' + W + " 60" + '" role="img" aria-label="Evolution front"><text class="wait" x="0" y="30">waiting for the v0 verification</text></svg>';
       return;
@@ -232,7 +232,7 @@
     const best = nodes.reduce((b, n) => (n.cls === "accepted" && n.eval_mean > b.eval_mean ? n : b), base);
     const o = ['<svg viewBox="0 0 ' + W + " " + H + '" role="group" aria-label="Evolution front: playbook versions by coach round, height is the verification score">'];
     const by = pos[base.version][1];
-    o.push('<line class="base" x1="0" x2="' + (W - padR + 8) + '" y1="' + by.toFixed(1) + '" y2="' + by.toFixed(1) + '"/>');
+    if (nodes.length > 1) o.push('<line class="base" x1="0" x2="' + (W - padR + 8) + '" y1="' + by.toFixed(1) + '" y2="' + by.toFixed(1) + '"/>');
     o.push('<text class="ax" x="' + (W - padR + 12) + '" y="' + (by + 3).toFixed(1) + '">' + f2(base.eval_mean) + "</text>");
     if (best !== base) {
       const yy = pos[best.version][1];
@@ -256,12 +256,12 @@
       const tip = "v" + n.version + " · " + (n.version === 0 ? "start" : n.cls) + " · " + f2(n.eval_mean) + (n.change ? " · " + R().uiText(n.change).slice(0, 80) : "");
       const anim = fresh && n.version === newest ? " front-fresh" : "";
       o.push('<g class="node' + anim + '" tabindex="0" data-tip="' + esc(tip) + '" data-x="' + cx.toFixed(1) + '" data-y="' + cy.toFixed(1) + '" aria-label="' + esc(tip) + '">');
-      if (n.front) o.push('<circle class="halo" cx="' + cx.toFixed(1) + '" cy="' + cy.toFixed(1) + '" r="10"/>');
-      o.push('<circle class="n ' + n.cls + '" cx="' + cx.toFixed(1) + '" cy="' + cy.toFixed(1) + '" r="4.5"/>');
-      o.push('<text class="vlab" x="' + cx.toFixed(1) + '" y="' + (cy + (n.cls === "accepted" ? -10 : 16)).toFixed(1) + '" text-anchor="middle">v' + n.version + "</text>");
+      if (n.front) o.push('<circle class="halo" cx="' + cx.toFixed(1) + '" cy="' + cy.toFixed(1) + '" r="8"/>');
+      o.push('<circle class="n ' + n.cls + '" cx="' + cx.toFixed(1) + '" cy="' + cy.toFixed(1) + '" r="3.5"/>');
+      if (n.cls === "accepted") o.push('<text class="vlab" x="' + cx.toFixed(1) + '" y="' + (cy - 8).toFixed(1) + '" text-anchor="middle">v' + n.version + "</text>");
       o.push("</g>");
     }
-    if (nodes.length === 1) o.push('<text class="wait" x="4" y="' + (by + 28).toFixed(1) + '">waiting for the first coach round</text>');
+    if (nodes.length === 1) o.push('<text class="wait" x="20" y="' + (by + 4).toFixed(1) + '">waiting for the first coach round</text>');
     o.push("</svg>");
     el.innerHTML = o.join("");
     const tipEl = $("front-tip");
@@ -300,6 +300,7 @@
     else if (r.cls === "overfit") txt = "Round " + r.round + ": tried to " + esc(what) + ". Overfit, better on my episodes only. Kept v" + esc(r.parent) + ".";
     else txt = "Round " + r.round + ": tried to " + esc(what) + ". Rejected, no gain.";
     el.innerHTML = txt;
+    el.title = el.textContent;
   }
 
   // ---------- playbook sheet ----------
@@ -386,8 +387,8 @@
   // ---------- replay of an episode ----------
   function showEpisode(epNum, userPicked) {
     const e = S.episodes.find((x) => x.episode === epNum);
-    if (!e || !S.api) return;
-    fetch(S.base + "/" + e.replay, { cache: "no-store" })
+    if (!e || !S.api) return Promise.resolve(false);
+    return fetch(S.base + "/" + e.replay, { cache: "no-store" })
       .then((r) => { if (!r.ok) throw new Error(r.status + " " + r.statusText); return r.json(); })
       .then((rep) => {
         S.shownEpisode = epNum;
@@ -397,6 +398,7 @@
         if (S.live) S.api.play(true);
         renderChart();
         S.lastHourKey = "";
+        return true;
       })
       .catch((err) => toast("Could not load " + e.replay + ": " + err.message));
   }
@@ -447,7 +449,8 @@
     const K = window.OakKPI;
     const k = K.at(rep, t);
     const H = K.horizon(rep);
-    $("port-hour").textContent = "hour " + Math.floor(t);
+    const ph = $("port-hour");
+    if (ph) ph.textContent = "hour " + Math.floor(t);
     $("k-along").textContent = String(k.ships_alongside);
     $("k-cranes").textContent = k.cranes_working + "/" + k.cranes_pool;
     $("k-late").textContent = String(Math.round(k.late_ship_hours));
@@ -485,6 +488,7 @@
 
     // cranes in use per hour against the pool, fog bands, playhead
     const SW = 320, SH = 40;
+    if (!$("cranes-spark")) return;
     if (sparkCache.rep !== rep) {
       const ser = K.series(rep);
       const maxC = Math.max(1, Math.max.apply(null, ser.pool.concat(ser.cranes)));
@@ -617,8 +621,9 @@
     });
     $("pb-close").addEventListener("click", closePlaybook);
     window.addEventListener("keydown", (e) => {
-      const tag = (e.target && e.target.tagName) || "";
-      if (["INPUT", "TEXTAREA", "SELECT"].includes(tag) || e.metaKey || e.ctrlKey || e.altKey) return;
+      const src = (e.composedPath && e.composedPath()[0]) || e.target;
+      const tag = (src && src.tagName) || "";
+      if (["INPUT", "TEXTAREA", "SELECT", "DEEP-CHAT"].includes(tag) || (src && src.isContentEditable) || (e.target && e.target.tagName === "DEEP-CHAT") || e.metaKey || e.ctrlKey || e.altKey) return;
       if (e.key === "Escape") {
         if (!closePlaybook()) hideShipCard();
       } else if (/^[1-9]$/.test(e.key)) {
@@ -643,5 +648,27 @@
     });
   }
 
-  window.OakLearning = { start, onHour, showEpisode, showShipCard, hideShipCard, _state: S };
+    // for chat.js: which run and episode are on screen, and jumping to a ship of an episode
+  function runName() { return S.base.split("/").filter(Boolean).pop() || S.base; }
+  function currentEpisode() { return S.shownReplay && S.api && S.api.getReplay() === S.shownReplay ? S.shownEpisode : null; }
+  function goTo(link) {
+    const ep = link && link.episode != null ? Number(link.episode) : S.shownEpisode;
+    const ready = ep === S.shownEpisode && S.api.getReplay() === S.shownReplay ? Promise.resolve(true) : showEpisode(ep, true);
+    return Promise.resolve(ready).then(() => {
+      const rep = S.api.getReplay();
+      if (link.hour != null) S.api.seek(Number(link.hour));
+      if (link.ship_id != null && rep) {
+        const idx = (rep.ships || []).findIndex((x) => x.id === link.ship_id);
+        if (idx >= 0) S.api.selectShip(idx);
+      }
+    });
+  }
+  function shipName(link) {
+    if (link.ship_id == null) return null;
+    const rep = link.episode === S.shownEpisode ? S.shownReplay : null;
+    const s = rep && (rep.ships || []).find((x) => x.id === link.ship_id);
+    return s ? s.name : "ship " + link.ship_id;
+  }
+
+  window.OakLearning = { start, onHour, showEpisode, showShipCard, hideShipCard, runName, currentEpisode, goTo, shipName, toast, _state: S };
 })();

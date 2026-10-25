@@ -31,35 +31,33 @@
 
   <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
 
-  <!-- the one panel: score, evolution front, last coach decision -->
-  <aside id="learning" aria-label="Learning">
-    <div class="l-head">
-      <span class="label">Learning</span>
-      <button type="button" id="playbook-btn" class="btn">Playbook</button>
-    </div>
-    <section class="l-sec">
-      <span class="label">Verification score <span id="head-version" class="accent"></span></span>
-      <div id="head-score" class="num big">0.00</div>
-      <div id="head-delta" class="delta"></div>
-    </section>
-    <section class="l-sec">
-      <span class="label">Evolution front</span>
+  <!-- the one panel is the chat: a condensed status strip, the port now, then the operator -->
+  <aside id="learning" aria-label="Operator">
+    <section class="status">
+      <div class="status-top">
+        <span class="score num"><span class="label-inline">Verification</span> <b id="head-score">0.00</b> <span id="head-delta" class="delta"></span></span>
+        <button type="button" id="playbook-btn" class="btn">Playbook <span id="head-version" class="muted"></span></button>
+      </div>
       <div id="front" class="front"></div>
       <div id="front-tip" class="front-tip hidden" role="tooltip"></div>
+      <p id="coach-say" class="say one-line"></p>
     </section>
-    <section class="l-sec">
-      <span class="label">Last coach decision</span>
-      <p id="coach-say" class="say"></p>
-    </section>
-    <section class="l-sec l-port" aria-label="Port now">
-      <span class="label">Port now <span id="port-hour" class="accent"></span></span>
+    <section class="l-port" aria-label="Port now">
       <div id="quay" class="quay" tabindex="0" role="group" aria-label="Quay at the current hour. Left and right arrows move one hour."></div>
-      <div id="cranes-spark" class="cspark"></div>
       <div class="tiles">
         <div class="tile"><span class="t-n">Alongside</span><span id="k-along" class="num">0</span></div>
         <div class="tile"><span class="t-n">Cranes</span><span id="k-cranes" class="num">0/0</span></div>
         <div class="tile"><span class="t-n">Late ship-h</span><span id="k-late" class="num">0</span></div>
         <div class="tile"><span class="t-n">Cost / opt</span><span id="k-cost" class="num">0</span></div>
+      </div>
+    </section>
+    <section class="chat" aria-label="Ask the operator">
+      <div id="chat-host" class="chat-host"></div>
+      <div id="chips" class="chips" role="group" aria-label="Quick questions">
+        <button type="button" class="chip" data-q="How is the port doing?">How is the port doing?</button>
+        <button type="button" class="chip" data-q="Are you improving?">Are you improving?</button>
+        <button type="button" class="chip" data-q="What changed last?">What changed last?</button>
+        <button type="button" class="chip accent" data-q="Optimize my playbook now">Optimize my playbook</button>
       </div>
     </section>
   </aside>
@@ -187,6 +185,8 @@
   <script src="control_panel.js"></script>
   <script src="runs.js"></script>
   <script src="learning.js"></script>
+  <script type="module" src="https://unpkg.com/deep-chat@2.5.0/dist/deepChat.js"></script>
+  <script src="chat.js"></script>
   <script src="viewer.js"></script>
 </body>
 </html>

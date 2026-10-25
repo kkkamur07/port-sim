@@ -295,7 +295,7 @@ body.hud-hidden #transport { right: 0; }
 .ship-card .late { color: var(--bad); }
 .ship-card .ok { color: var(--ok); }
 
-.hint { position: fixed; left: 16px; bottom: calc(var(--bottom) + 12px); z-index: 20; font-size: 11px; color: var(--faint); pointer-events: none; }
+.hint { position: fixed; left: 16px; bottom: calc(var(--bottom) + 12px); z-index: 20; font-size: 11px; color: var(--muted); pointer-events: none; padding: 4px 8px; background: var(--glass); border-radius: 2px; }
 body.learning-hidden #learning, body.learning-hidden .sheet { display: none; }
 body.learning-hidden #transport, body.learning-hidden .gantt-drawer { right: 0; }
 body.learning-hidden .gantt-drawer { right: 16px; }
@@ -372,3 +372,42 @@ body.learning-hidden .toast { left: 50vw; }
 .tile { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .t-n { font: 500 11px/1 var(--sans); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tile .num { font: 500 16px/1 var(--mono); white-space: nowrap; }
+
+/* chat-first panel: status strip (<=150 px), port now (~90 px), then the operator chat fills the rest */
+#learning { overflow: hidden; padding: 0 20px; }
+.status { padding: 16px 0 12px; border-bottom: 1px solid var(--line); flex: none; position: relative; }
+.status-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.score { font: 400 12px/1 var(--mono); color: var(--muted); white-space: nowrap; }
+.score b { font: 500 22px/1 var(--mono); color: var(--text); margin: 0 4px; letter-spacing: -0.01em; }
+.label-inline { font: 500 11px/1 var(--sans); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.score .delta { display: inline; margin: 0; font: 400 12px/1 var(--mono); color: var(--muted); }
+.score .delta b { font: 500 12px/1 var(--mono); color: var(--accent); margin: 0; }
+.status .btn { height: 28px; padding: 0 10px; }
+.status .front { margin-top: 12px; }
+.status .front-tip { top: 40px; }
+.one-line { margin: 8px 0 0; font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.l-port { padding: 12px 0; border-bottom: 1px solid var(--line); flex: none; }
+.l-port .quay { margin-top: 0; }
+.l-port .tiles { margin-top: 8px; }
+.l-port .tile .num { font-size: 14px; }
+.chat { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 8px 0 12px; }
+.chat-host { flex: 1; min-height: 0; position: relative; }
+.chat-host deep-chat { display: block; height: 100%; }
+.chips { display: flex; flex-wrap: wrap; gap: 4px; padding-top: 8px; }
+.chip { height: 26px; padding: 0 8px; background: transparent; border: 1px solid var(--line-strong); border-radius: 2px; color: var(--text); font: 500 11px/1 var(--sans); }
+.chip:hover { border-color: var(--text); }
+.chip.accent { border-color: var(--accent); color: var(--accent); }
+/* offline fallback chat */
+.fb-list { position: absolute; inset: 0 0 48px 0; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; font-size: 13px; }
+.fb-intro { color: var(--muted); }
+.fb-user { align-self: flex-end; border: 1px solid var(--accent); border-radius: 4px; padding: 6px 10px; }
+.fb-ai { border-left: 2px solid var(--line-strong); padding: 4px 0 4px 10px; }
+.fb-err { color: var(--bad); }
+.fb-form { position: absolute; left: 0; right: 0; bottom: 0; display: flex; gap: 4px; }
+.fb-form input { flex: 1; height: 36px; padding: 0 10px; background: transparent; border: 1px solid var(--line-strong); border-radius: 4px; color: var(--text); font: 13px var(--sans); }
+.oak-steps { color: var(--muted); font: 11px var(--mono); margin-top: 6px; }
+.oak-links { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+.oak-link { font: 500 11px var(--mono); color: var(--text); background: transparent; border: 1px solid var(--line-strong); border-radius: 2px; padding: 3px 6px; }
+.oak-whatif { margin-top: 8px; padding: 8px 10px; border: 1px solid var(--line-strong); border-radius: 4px; }
+.oak-wi1 { font: 500 12px var(--mono); }
+.oak-wi2 { font: 11px var(--mono); color: var(--muted); margin-top: 4px; }
