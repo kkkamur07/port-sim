@@ -17,7 +17,7 @@
   <header id="topbar">
     <div class="wordmark">
       <span class="wm-name">Port of Oakland</span>
-      <span class="wm-sub">Berth control</span>
+      <span class="wm-sub">Digital twin</span>
     </div>
     <div id="now" class="now" aria-live="polite">Loading run</div>
     <div class="top-right">
@@ -31,35 +31,49 @@
 
   <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
 
-  <!-- the one panel is the chat: a condensed status strip, the port now, then the operator -->
-  <aside id="learning" aria-label="Operator">
-    <section class="score-block" aria-label="Verification score">
-      <span class="label">Verification</span>
-      <b id="head-score" class="num">0.00</b>
-      <p id="head-delta" class="delta"></p>
-    </section>
-    <section class="front-block" aria-label="Evolution front">
-      <div id="front" class="front"></div>
-      <div id="front-tip" class="front-tip hidden" role="tooltip"></div>
-    </section>
-    <section class="l-port" aria-label="Port now">
-      <div id="quay" class="quay" tabindex="0" role="group" aria-label="Quay at the current hour. Left and right arrows move one hour."></div>
-      <div class="tiles">
-        <div class="tile"><span class="t-n">Alongside</span><span id="k-along" class="num">0</span></div>
-        <div class="tile"><span class="t-n">Cranes / pool</span><span id="k-cranes" class="num">0/0</span></div>
-        <div class="tile"><span class="t-n">Late ship-h</span><span id="k-late" class="num">0</span></div>
-        <div class="tile"><span class="t-n">Cost / opt</span><span id="k-cost" class="num">0</span></div>
-      </div>
-    </section>
-    <section class="chat" aria-label="Ask the operator">
-      <div id="chat-host" class="chat-host"></div>
-      <div id="chips" class="chips" role="group" aria-label="Quick questions">
-        <button type="button" class="chip" data-q="How is the port doing?">How is the port doing?</button>
-        <button type="button" class="chip" data-q="Are you improving?">Are you improving?</button>
-        <button type="button" class="chip" data-q="What changed last?">What changed last?</button>
-        <button type="button" class="chip accent" data-q="Optimize my playbook now">Optimize my playbook</button>
-      </div>
-    </section>
+  <!-- the panel: two tabs, Operator (port now and the chat) and Learning (verification, front, optimize) -->
+  <aside id="learning" aria-label="Operator and results">
+    <div class="ptabs" role="tablist" aria-label="Panel">
+      <button type="button" role="tab" id="tab-op" class="ptab" aria-controls="pane-op" aria-selected="true">Operator</button>
+      <button type="button" role="tab" id="tab-learn" class="ptab" aria-controls="pane-learn" aria-selected="false" tabindex="-1">Results</button>
+    </div>
+    <div id="pane-op" class="pane" role="tabpanel" aria-labelledby="tab-op">
+      <section class="l-port" aria-label="Port now">
+        <span id="port-hour" class="label">Port now</span>
+        <div id="quay" class="quay" tabindex="0" role="group" aria-label="Quay at the current hour. Left and right arrows move one hour."></div>
+        <div class="tiles">
+          <div class="tile"><span class="t-n">Ships alongside</span><span id="k-along" class="num">0</span></div>
+          <div class="tile"><span class="t-n" id="k-cranes-n">Cranes working</span><span id="k-cranes" class="num">0</span></div>
+          <div class="tile"><span class="t-n">Hours late so far</span><span id="k-late" class="num">0</span></div>
+          <div class="tile wide"><span class="t-n">Plan cost</span><span id="k-cost" class="num">0</span></div>
+        </div>
+        <p id="k-say" class="k-say"></p>
+      </section>
+      <section class="chat" aria-label="Ask the operator">
+        <button type="button" id="chat-clear" class="chat-clear">Clear</button>
+        <div id="chat-host" class="chat-host"></div>
+        <div id="act-row" class="act-row" role="group" aria-label="Actions on the selected ship"></div>
+        <div id="chips" class="chips" role="group" aria-label="Quick questions">
+          <button type="button" class="chip" data-q="How is the port doing?">How is the port doing?</button>
+          <button type="button" class="chip" data-q="Why is a ship late?">Why is a ship late?</button>
+          <button type="button" class="chip" data-q="What changed last?">What changed last?</button>
+          <button type="button" class="chip" data-q="Which ship is the most late?">Which ship is the most late?</button>
+        </div>
+      </section>
+    </div>
+    <div id="pane-learn" class="pane" role="tabpanel" aria-labelledby="tab-learn" hidden>
+      <section class="opt-block" aria-label="Optimize">
+        <button type="button" id="opt-btn" class="opt-btn">Optimize my playbook</button>
+        <div id="opt-wait" class="opt-wait hidden"><span id="opt-wait-text"></span><i class="hair" aria-hidden="true"></i></div>
+        <div id="prop-list" class="prop-list" aria-live="polite"></div>
+      </section>
+      <section class="front-block" aria-label="Playbook versions">
+        <span class="label">Playbook versions</span>
+        <div id="front" class="front"></div>
+        <div id="front-tip" class="front-tip hidden" role="tooltip"></div>
+        <p id="front-pick" class="front-pick muted"></p>
+      </section>
+    </div>
   </aside>
 
   <!-- the playbook text: the only thing the loop changes -->
@@ -71,18 +85,17 @@
       </button>
     </div>
     <div id="pb-note" class="sub muted"></div>
-    <pre id="pb-text" class="pb-text"></pre>
     <div class="sheet-chart">
-      <span class="label">Reward per episode</span>
-      <div id="evo-chart" class="chart"></div>
-      <div id="evo-legend" class="legend"></div>
+      <span class="label">Playbook versions</span>
+      <div id="pb-front" class="front pb-front"></div>
     </div>
+    <pre id="pb-text" class="pb-text"></pre>
   </aside>
 
   <!-- one small card for the ship clicked in the scene or the schedule -->
   <div id="ship-card" class="ship-card hidden" role="dialog" aria-label="Ship"></div>
 
-  <div id="hint" class="hint" aria-hidden="true">Space play · 1 to 9 episode · G schedule · L learning · C camera · click a ship</div>
+  <div id="hint" class="hint" aria-hidden="true">Space play · G schedule · L learning · C camera · click a ship</div>
 
   <!-- berth-time Gantt: hidden by default, G toggles it -->
   <section id="gantt-drawer" class="gantt-drawer collapsed" aria-label="Berth schedule">

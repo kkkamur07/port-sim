@@ -7,24 +7,34 @@ reads a replay JSON (see `docs/replay_schema.md`) and never recomputes rules: ev
 
 ## The learning HUD
 
-The screen is the 3D port, a top bar, one panel and the playback bar. The top bar centre names the terminal and the
-weather of the task on screen ("OICT · storm"); a pill says LIVE (following a run) or REPLAY, and the sun/moon button
-switches between the light theme (default) and dark (remembered in localStorage). The panel holds four blocks, top to
-bottom: the verification score of the accepted playbook ("up 0.07 since the start"), the evolution front (playbook
-versions by coach round, height = verification score, the accepted lineage in the accent, rejected as outlines; hover
-or focus a node for its change), Port now (the quay strip at the current hour, ships alongside as blocks, waiting
-ships as hollow dots, click a block to select the ship; then Alongside, Cranes / pool, Late ship-hours, Cost /
-optimum) and the chat with the operator, which fills the rest. The playbook (P, or Playbook in the "..." menu) shows
-the playbook in force with the rules added since v0 highlighted, and the reward per episode chart. Nothing is
-trained: only that text changes.
+The screen is the 3D port, a top bar ("Port of Oakland", "Digital twin"), one panel and the playback bar. The top bar
+centre names the terminal and the weather of the task on screen ("Matson · storm"), or "Proposed plan, cost 812 vs
+best 784" while a plan from the chat is shown; a pill says LIVE or REPLAY, and the sun/moon button switches the theme
+(remembered in localStorage). The panel has two tabs (remembered in localStorage, Operator by default):
+
+- Operator: Port now and the chat. Port now (at most 130 px) shows "Port now · Mon 12:00, hour 12", the quay strip
+  (the terminal name on the left, ships alongside as named blocks, or "No ship alongside at this hour"), then Ships
+  alongside (of all calls), Cranes working (of the hour's pool), Hours late so far, Plan cost and the best possible
+  cost, and one sentence ("Quay idle this hour, next arrival Tue 03:00" or "2 ships working, LAHAINA SUN 52 h late").
+  The crane pool is the replay's `crane_pool_by_hour` (the task's `crane_pool`, the `hoot_pool` in hoot hours, less
+  outages). Below the chat input: actions on the selected ship ("Why is NAME late?" when late, "Route NAME earlier",
+  "What if NAME berths elsewhere?") and four quick questions.
+- Results: "Optimize my playbook", the result cards (before, after, Accepted or Rejected, the rule; while verifying
+  one muted line "Checking on 4 held-out tasks, about N min" and a hairline) and the playbook versions curve
+  (accepted lineage in the accent, rejected proposals hollow under their parent). Clicking a version opens the
+  playbook sheet: the same curve with that version ringed, then its text.
 
 The chat is the Deep Chat web component (`deep-chat@2.5.0` from unpkg, a minimal list and input if it does not load)
-posting to the operator API (`oakland/chat`, POST `http://127.0.0.1:8771/chat`) with the history, the run name and the
-episode on screen. Answers show the tools used in one muted line, link chips that load an episode, select the ship and
-scrub to the hour, and a card for a what-if regrade. "Optimize my playbook" returns a proposal; the page polls
-`GET /proposal?run=&id=` every 10 s and adds one result card (before, after, Accepted or Rejected, the rule).
-`?chat=<url>` points at another endpoint, `?chatrun=<name>` names the run the server reads (the bundled run-demo maps
-to real-berth-gepa). Esc in the chat returns focus to the scene.
+posting to the operator API (`oakland/chat`, POST `http://127.0.0.1:8771/chat`) with the history, the run name, the
+episode, the hour and the selected ship (`ship_id`) on screen. Nothing is persisted: each load starts with one intro
+line, and Clear empties the thread. Answers show the tools used in one muted line, then chips: "Show in 3D" for each
+episode named (loads it, at the hour if one is given), one per ship named (by the API links or by name in the answer
+text, matched against that episode's replay; loads the episode first, then selects the ship at its hour), and "Show
+plan in 3D" when the answer carries `plan` (with "Back to the run" under the input). "show me episode N" loads N even
+without a tool link. "Optimize my playbook" returns a proposal; the page polls `GET /proposal?run=&id=` every 10 s and
+adds the result card in the Results tab and the chat; the latest proposal of the run is shown on load.
+`?chat=<url>` points at another endpoint, `?chatrun=<name>` names the run the server reads (the bundled run-demo
+maps to real-berth-gepa). Esc in the chat returns focus to the scene.
 
 - `?run=<path>` loads a loop run directory (`episodes.json` or `episodes.jsonl`, `eval.jsonl`, `playbooks/`,
   `replays/`), relative to this page, plays the newest episode and polls every 5 s; a new episode or coach round
@@ -33,7 +43,7 @@ to real-berth-gepa). Esc in the chat returns focus to the scene.
 - `?replay=<url>` or `?scenario=<key>` still load a single replay; the panel then still shows the run.
 - `runs.js` mirrors `oakland/dashboard/runs.js` on branch oak/demo (the pure readers of a run directory);
   `learning.js` draws the panel.
-- Keys: Space play or pause, 1 to 9 episode N, G berth schedule, L Learning panel, C next camera, P playbook,
+- Keys: Space play or pause, G berth schedule, L Learning panel, C next camera, P playbook,
   T AIS tracks, V truck trails, N night, H hide panels, Esc closes the sheet or the ship card. Click a ship (in the
   scene or the schedule) for one small card; click the water to dismiss it.
 - The "..." button at the bottom right holds the terminal and policy scenarios, loading a replay JSON, cameras and layers.
