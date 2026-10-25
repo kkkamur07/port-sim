@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Oakland Port Operations</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="top">
+    <div class="brand">
+      <h1>Oakland port operations</h1>
+      <div class="muted small" id="subtitle">Loading replays...</div>
+    </div>
+    <div class="controls">
+      <label class="small muted" for="episode">Episode</label>
+      <select id="episode" aria-label="Episode"></select>
+      <label class="file">Load JSON<input type="file" id="file" accept=".json,application/json" multiple></label>
+    </div>
+  </header>
+
+  <main>
+    <div id="message" class="message hidden"></div>
+
+    <section id="run-panels" class="hidden" aria-label="Self-improvement">
+      <section class="panel">
+        <div class="panel-head">
+          <h2>Self-improvement</h2>
+          <span class="muted small">mean verification reward per coach round (higher is better); hover or tap a point</span>
+        </div>
+        <canvas id="c-evo" class="chart"></canvas>
+        <p class="caption muted small">Nothing is trained: only the playbook changes between episodes (in-context adaptation from feedback).</p>
+        <div class="sub-head"><h3>Episode reward</h3><span class="muted small">per episode, with the coach rounds marked</span></div>
+        <canvas id="c-epi" class="chart"></canvas>
+      </section>
+
+      <section class="grid2 gap">
+        <div class="panel">
+          <div class="panel-head"><h2>Coach rounds</h2><span class="muted small" id="coach-sub">newest first</span></div>
+          <ol id="coach" class="coach"></ol>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><h2 id="pb-title">Playbook</h2><span class="muted small" id="pb-sub"></span></div>
+          <div id="playbook" class="playbook"></div>
+        </div>
+      </section>
+    </section>
+
+    <section class="tiles" id="tiles" aria-label="Key figures"></section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <h2>Improvement over episodes</h2>
+        <span class="muted small">reward per episode (higher is better) and cost gap to the optimal plan (lower is better)</span>
+      </div>
+      <div class="grid2">
+        <div><canvas id="c-reward" class="chart"></canvas></div>
+        <div><canvas id="c-gap" class="chart"></canvas></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <h2>Berth plan</h2>
+        <span class="muted small" id="gantt-sub"></span>
+      </div>
+      <canvas id="c-gantt" class="chart"></canvas>
+    </section>
+
+    <section class="grid2 gap">
+      <div class="panel">
+        <div class="panel-head"><h2>Quay occupancy</h2><span class="muted small">sections alongside / open sections</span></div>
+        <canvas id="c-occ" class="chart"></canvas>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><h2>Cranes working vs pool</h2><span class="muted small">per hour</span></div>
+        <canvas id="c-cranes" class="chart"></canvas>
+      </div>
+    </section>
+
+    <section class="grid2 gap">
+      <div class="panel">
+        <div class="panel-head"><h2>Ships waiting and alongside</h2><span class="muted small">per hour</span></div>
+        <canvas id="c-queue" class="chart"></canvas>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><h2>Crane-hours by shift</h2><span class="muted small">day 08-17, night 18-03, hoot 03-08</span></div>
+        <canvas id="c-shifts" class="chart"></canvas>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head"><h2>Ships</h2><span class="muted small" id="ships-sub"></span></div>
+      <div class="table-wrap">
+        <table id="ships">
+          <thead>
+            <tr>
+              <th>Ship</th><th>Line</th><th class="n">Arrival</th><th class="n">Berthed</th><th class="n">Wait h</th>
+              <th class="n">Departure</th><th class="n">Due</th><th class="n">Late h</th><th class="n">Crane-h (max)</th>
+              <th>Sections</th><th>Moved</th><th>Problems</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head"><h2>Events</h2><span class="muted small">notices, disruptions, no-move windows and blocks from the task</span></div>
+      <ul id="events" class="events"></ul>
+    </section>
+
+    <footer class="muted small">
+      Ship calls in the demo replays are GENERATED, not real records. Numbers are computed in the browser from the
+      replay JSON files (docs/replay_schema.md). Drop replay or manifest JSON files anywhere on the page to load them.
+    </footer>
+  </main>
+
+  <div id="tip" class="tip hidden"></div>
+  <div id="drop" class="drop hidden">Drop replay JSON files (one per episode) or an episodes.json manifest</div>
+
+  <script src="../viewer/fixtures/demo-fixtures.js"></script>
+  <script src="metrics.js"></script>
+  <script src="runs.js"></script>
+  <script src="charts.js"></script>
+  <script src="dashboard.js"></script>
+</body>
+</html>
