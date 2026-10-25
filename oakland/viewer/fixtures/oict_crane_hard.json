@@ -1,0 +1,2630 @@
+{
+ "task": {
+  "task_id": "oict_crane_hard",
+  "split": "demo",
+  "quay": "55-60",
+  "terminal": "OICT",
+  "first_section": 1,
+  "last_section": 50,
+  "section_m": 42.0,
+  "week": 1,
+  "week_start_utc": "2026-10-26T07:00:00Z",
+  "ships": [
+   {
+    "id": 0,
+    "name": "ONE DRACO",
+    "imo": "GEN9774652",
+    "length_m": 359.0,
+    "sections": 9,
+    "arrival": 151,
+    "handling": 12,
+    "planned_hour": 151,
+    "planned_section": 1,
+    "due": 16,
+    "from_port": "Tokyo",
+    "to_port": "Busan",
+    "beam_m": 47.2,
+    "draught_m": 14.4,
+    "workload": 910,
+    "min_cranes": 1,
+    "max_cranes": 6,
+    "std_cranes": 3,
+    "weight": 1,
+    "berth_deadline": null,
+    "deadline_penalty": 0,
+    "line": "ONE",
+    "service": "PS3"
+   },
+   {
+    "id": 1,
+    "name": "OOCL FRESNO",
+    "imo": "GEN9350036",
+    "length_m": 341.0,
+    "sections": 9,
+    "arrival": 11,
+    "handling": 11,
+    "planned_hour": 11,
+    "planned_section": 29,
+    "due": 22,
+    "from_port": "Hong Kong",
+    "to_port": "Yokohama",
+    "beam_m": 44.9,
+    "draught_m": 13.2,
+    "workload": 740,
+    "min_cranes": 1,
+    "max_cranes": 6,
+    "std_cranes": 3,
+    "weight": 1,
+    "berth_deadline": null,
+    "deadline_penalty": 0,
+    "line": "OOCL",
+    "service": "PCC1"
+   },
+   {
+    "id": 2,
+    "name": "CMA CGM SIRIUS",
+    "imo": "GEN9952356",
+    "length_m": 321.0,
+    "sections": 8,
+    "arrival": 16,
+    "handling": 12,
+    "planned_hour": 16,
+    "planned_section": 21,
+    "due": 28,
+    "from_port": "Xiamen",
+    "to_port": "Kaohsiung",
+    "beam_m": 42.2,
+    "draught_m": 13.3,
+    "workload": 790,
+    "min_cranes": 1,
+    "max_cranes": 5,
+    "std_cranes": 3,
+    "weight": 3,
+    "berth_deadline": null,
+    "deadline_penalty": 0,
+    "line": "CMA CGM",
+    "service": "PEX3"
+   },
+   {
+    "id": 3,
+    "name": "CMA CGM VEGA",
+    "imo": "GEN9992595",
+    "length_m": 339.0,
+    "sections": 9,
+    "arrival": 17,
+    "handling": 10,
+    "planned_hour": 17,
+    "planned_section": 8,
+    "due": 27,
+    "from_port": "Xiamen",
+    "to_port": "Kaohsiung",
+    "beam_m": 44.6,
+    "draught_m": 13.4,
+    "workload": 660,
+    "min_cranes": 1,
+    "max_cranes": 6,
+    "std_cranes": 3,
+    "weight": 1,
+    "berth_deadline": null,
+    "deadline_penalty": 0,
+    "line": "CMA CGM",
+    "service": "PEX3"
+   },
+   {
+    "id": 4,
+    "name": "EVER LIVELY",
+    "imo": "GEN9012926",
+    "length_m": 301.0,
+    "sections": 8,
+    "arrival": 152,
+    "handling": 9,
+    "planned_hour": 152,
+    "planned_section": 42,
+    "due": 41,
+    "from_port": "Kaohsiung",
+    "to_port": "Tokyo",
+    "beam_m": 39.6,
+    "draught_m": 12.5,
+    "workload": 670,
+    "min_cranes": 1,
+    "max_cranes": 5,
+    "std_cranes": 3,
+    "weight": 1,
+    "berth_deadline": null,
+    "deadline_penalty": 0,
+    "line": "Evergreen",
+    "service": "CPS"
+   },
+   {
+    "id": 5,
+    "name": "MAERSK KOLDING",
+    "imo": "GEN9616386",
+    "length_m": 329.0,
+    "sections": 8,
+    "arrival": 39,
+    "handling": 13,
+    "planned_hour": 39,
+    "planned_section": 38,
+    "due": 52,
+    "from_port": "Yantian",
+    "to_port": "Ningbo",
+    "beam_m": 43.3,
+    "draught_m": 13.2,
+    "workload": 870,
+    "min_cranes": 1,
+    "max_cranes": 5,
+    "std_cranes": 3,
+    "weight": 1,
+    "berth_deadline": null,
+    "deadline_penalty": 0,
+    "line": "Maersk",
+    "service": "TP6"
+   },
+   {
+    "id": 6,
+    "name": "MSC ARIELLA",
+    "imo": "GEN9040323",
+    "length_m": 376.0,
+    "sections": 9,
+    "arrival": 56,
+    "handling": 12,
+    "planned_hour": 56,
+    "planned_section": 8,
+    "due": 68,
+    "from_port": "Long Beach",
+    "to_port": "Shanghai",
+    "beam_m": 49.5,
+    "draught_m": 14.5,
+    "workload": 800,
+    "min_cranes": 1,
+    "max_cranes": 6,
+    "std_cranes": 3,
+    "weight": 1,
+    "berth_deadline": null,
+    "deadline_penalty": 0,
+    "line": "MSC",
+    "service": "PEARL"
+   },
+   {
+    "id": 7,
+    "name": "WAN HAI 373",
+    "imo": "GEN9687316",
+    "length_m": 223.0,
+    "sections": 6,
+    "arrival": 57,
+    "handling": 7,
+    "planned_hour": 57,
+    "planned_section": 30,
+    "due": 64,
+    "from_port": "Ho Chi Minh City",
+    "to_port": "Laem Chabang",
+    "beam_m": 29.3,
+    "draught_m": 10.2,
+    "workload": 350,
+    "min_cranes": 1,
+    "max_cranes": 4,
+    "std_cranes": 2,
+    "weight": 1,
+    "berth_deadline": null,
+    "deadline_penalty": 0,
+    "line": "Wan Hai",
+    "service": "AA7"
+   },
+   {
+    "id": 8,
+    "name": "MARIN EXPRESS",
+    "imo": "GEN9782026",
+    "length_m": 311.0,
+    "sections": 8,
+    "arrival": 68,
+    "handling": 8,
+    "planned_hour": 68,
+    "planned_section": 17,
+    "due": 76,
+    "from_port": "Seattle",
+    "to_port": "Qingdao",
+    "beam_m": 40.9,
+    "draught_m": 12.6,
+    "workload": 610,
+    "min_cranes": 1,
+    "max_cranes": 5,
+    "std_cranes": 3,
+    "weight": 1,
+    "berth_deadline": null,
+    "deadline_penalty": 0,
+    "line": "Hapag-Lloyd",
+    "service": "PN2"
+   },
+   {
+    "id": 9,
+    "name": "COSCO PEARL",
+    "imo": "GEN9124816",
+    "length_m": 327.0,
+    "sections": 8,
+    "arrival": 73,
+    "handling": 8,
+    "planned_hour": 73,
+    "planned_section": 25,
+    "due": 81,
+    "from_port": "Shanghai",
+    "to_port": "Xiamen",
+    "beam_m": 43.0,
+    "draught_m": 13.3,
+    "workload": 570,
+    "min_cranes": 1,
+    "max_cranes": 5,
+    "std_cranes": 3,
+    "weight": 1,
+    "berth_deadline": null,
+    "deadline_penalty": 0,
+    "line": "COSCO",
+    "service": "AAC"
+   },
+   {
+    "id": 10,
+    "name": "ONE AQUILA",
+    "imo": "GEN9381081",
+    "length_m": 355.0,
+    "sections": 9,
+    "arrival": 152,
+    "handling": 13,
+    "planned_hour": 153,
+    "planned_section": 19,
+    "due": 89,
+    "from_port": "Tokyo",
+    "to_port": "Busan",
+    "beam_m": 46.7,
+    "draught_m": 13.8,
+    "workload": 940,
+    "min_cranes": 1,
+    "max_cranes": 6,
+    "std_cranes": 3,
+    "weight": 1,
+    "berth_deadline": null,
+    "deadline_penalty": 0,
+    "line": "ONE",
+    "service": "PS3"
+   },
+   {
+    "id": 11,
+    "name": "ONE CYGNUS",
+    "imo": "GEN9382615",
+    "length_m": 347.0,
+    "sections": 9,
+    "arrival": 80,
+    "handling": 15,
+    "planned_hour": 85,
+    "planned_section": 33,
+    "due": 95,
+    "from_port": "Tokyo",
+    "to_port": "Busan",
+    "beam_m": 45.7,
+    "draught_m": 13.6,
+    "workload": 1030,
+    "min_cranes": 1,
+    "max_cranes": 6,
+    "std_cranes": 3,
+    "weight": 3,
+    "berth_deadline": null,
+    "deadline_penalty": 0,
+    "line": "ONE",
+    "service": "PS3"
+   },
+   {
+    "id": 12,
+    "name": "EVER LOYAL",
+    "imo": "GEN9014686",
+    "length_m": 303.0,
+    "sections": 8,
+    "arrival": 81,
+    "handling": 7,
+    "planned_hour": 86,
+    "planned_section": 42,
+    "due": 88,
+    "from_port": "Kaohsiung",
+    "to_port": "Tokyo",
+    "beam_m": 39.9,
+    "draught_m": 12.5,
+    "workload": 480,
+    "min_cranes": 1,
+    "max_cranes": 5,
+    "std_cranes": 3,
+    "weight": 1,
+    "berth_deadline": null,
+    "deadline_penalty": 0,
+    "line": "Evergreen",
+    "service": "CPS"
+   },
+   {
+    "id": 13,
+    "name": "EVER LEGEND",
+    "imo": "GEN9895095",
+    "length_m": 308.0,
+    "sections": 8,
+    "arrival": 88,
+    "handling": 9,
+    "planned_hour": 94,
+    "planned_section": 1,
+    "due": 97,
+    "from_port": "Kaohsiung",
+    "to_port": "Tokyo",
+    "beam_m": 40.5,
+    "draught_m": 12.7,
+    "workload": 570,
+    "min_cranes": 1,
+    "max_cranes": 5,
+    "std_cranes": 3,
+    "weight": 1,
+    "berth_deadline": null,
+    "deadline_penalty": 0,
+    "line": "Evergreen",
+    "service": "CPS"
+   },
+   {
+    "id": 14,
+    "name": "WAN HAI 371",
+    "imo": "GEN9065201",
+    "length_m": 197.0,
+    "sections": 5,
+    "arrival": 104,
+    "handling": 6,
+    "planned_hour": 104,
+    "planned_section": 19,
+    "due": 110,
+    "from_port": "Ho Chi Minh City",
+    "to_port": "Laem Chabang",
+    "beam_m": 25.9,
+    "draught_m": 9.8,
+    "workload": 300,
+    "min_cranes": 1,
+    "max_cranes": 3,
+    "std_cranes": 2,
+    "weight": 1,
+    "berth_deadline": 110,
+    "deadline_penalty": 40,
+    "line": "Wan Hai",
+    "service": "AA7"
+   },
+   {
+    "id": 15,
+    "name": "MAERSK ESBJERG",
+    "imo": "GEN9260212",
+    "length_m": 364.0,
+    "sections": 9,
+    "arrival": 112,
+    "handling": 10,
+    "planned_hour": 112,
+    "planned_section": 9,
+    "due": 122,
+    "from_port": "Yantian",
+    "to_port": "Ningbo",
+    "beam_m": 47.9,
+    "draught_m": 14.1,
+    "workload": 640,
+    "min_cranes": 1,
+    "max_cranes": 6,
+    "std_cranes": 3,
+    "weight": 1,
+    "berth_deadline": null,
+    "deadline_penalty": 0,
+    "line": "Maersk",
+    "service": "TP6"
+   },
+   {
+    "id": 16,
+    "name": "CMA CGM ALTAIR",
+    "imo": "GEN9622212",
+    "length_m": 331.0,
+    "sections": 8,
+    "arrival": 112,
+    "handling": 11,
+    "planned_hour": 112,
+    "planned_section": 24,
+    "due": 123,
+    "from_port": "Xiamen",
+    "to_port": "Kaohsiung",
+    "beam_m": 43.6,
+    "draught_m": 13.2,
+    "workload": 740,
+    "min_cranes": 1,
+    "max_cranes": 6,
+    "std_cranes": 3,
+    "weight": 1,
+    "berth_deadline": null,
+    "deadline_penalty": 0,
+    "line": "CMA CGM",
+    "service": "PEX3"
+   },
+   {
+    "id": 17,
+    "name": "MSC FIORELLA",
+    "imo": "GEN9586655",
+    "length_m": 386.0,
+    "sections": 10,
+    "arrival": 129,
+    "handling": 15,
+    "planned_hour": 137,
+    "planned_section": 32,
+    "due": 144,
+    "from_port": "Long Beach",
+    "to_port": "Shanghai",
+    "beam_m": 50.8,
+    "draught_m": 14.6,
+    "workload": 1080,
+    "min_cranes": 1,
+    "max_cranes": 6,
+    "std_cranes": 3,
+    "weight": 1,
+    "berth_deadline": null,
+    "deadline_penalty": 0,
+    "line": "MSC",
+    "service": "PEARL"
+   },
+   {
+    "id": 18,
+    "name": "OOCL MODESTO",
+    "imo": "GEN9786395",
+    "length_m": 351.0,
+    "sections": 9,
+    "arrival": 153,
+    "handling": 13,
+    "planned_hour": 192,
+    "planned_section": 28,
+    "due": 144,
+    "from_port": "Hong Kong",
+    "to_port": "Yokohama",
+    "beam_m": 46.2,
+    "draught_m": 13.9,
+    "workload": 860,
+    "min_cranes": 1,
+    "max_cranes": 6,
+    "std_cranes": 3,
+    "weight": 1,
+    "berth_deadline": null,
+    "deadline_penalty": 0,
+    "line": "OOCL",
+    "service": "PCC1"
+   },
+   {
+    "id": 19,
+    "name": "MSC CAMILLA",
+    "imo": "GEN9677661",
+    "length_m": 368.0,
+    "sections": 9,
+    "arrival": 151,
+    "handling": 15,
+    "planned_hour": 151,
+    "planned_section": 10,
+    "due": 149,
+    "from_port": "Long Beach",
+    "to_port": "Shanghai",
+    "beam_m": 48.4,
+    "draught_m": 14.6,
+    "workload": 1040,
+    "min_cranes": 1,
+    "max_cranes": 6,
+    "std_cranes": 3,
+    "weight": 1,
+    "berth_deadline": null,
+    "deadline_penalty": 0,
+    "line": "MSC",
+    "service": "PEARL"
+   },
+   {
+    "id": 20,
+    "name": "WAN HAI 371",
+    "imo": "GEN9643006",
+    "length_m": 197.0,
+    "sections": 5,
+    "arrival": 52,
+    "handling": 11,
+    "planned_hour": 52,
+    "planned_section": 1,
+    "due": 73,
+    "from_port": "Ho Chi Minh City",
+    "to_port": "Laem Chabang",
+    "beam_m": 25.9,
+    "draught_m": 9.8,
+    "workload": 490,
+    "min_cranes": 1,
+    "max_cranes": 3,
+    "std_cranes": 2,
+    "weight": 1,
+    "berth_deadline": null,
+    "deadline_penalty": 0,
+    "line": "Wan Hai",
+    "service": "AA7"
+   }
+  ],
+  "blocks": [
+   {
+    "first": 47,
+    "last": 50,
+    "start": 0,
+    "end": 168,
+    "kind": "shallow",
+    "label": "max draught 12.8 m",
+    "cranes": 0,
+    "max_draught_m": 12.8
+   },
+   {
+    "first": 7,
+    "last": 14,
+    "start": 0,
+    "end": 11,
+    "kind": "alongside",
+    "label": "MSC ORNELLA (MSC, generated call)",
+    "cranes": 3,
+    "max_draught_m": null
+   }
+  ],
+  "notices": [
+   "Generated calls (not real records) at OICT, berths 55-60, over 1 week(s). Hour 0 is Monday 00:00 Pacific.",
+   "Ship 10 ONE AQUILA was delayed by weather on the Pacific crossing: it now arrives at hour 152 (planned berthing hour 76). Its planned departure stays hour 89.",
+   "Ship 4 EVER LIVELY was delayed by weather on the Pacific crossing: it now arrives at hour 152 (planned berthing hour 32). Its planned departure stays hour 41.",
+   "Ship 0 ONE DRACO was delayed by weather on the Pacific crossing: it now arrives at hour 151 (planned berthing hour 4). Its planned departure stays hour 16.",
+   "Ship 19 MSC CAMILLA was delayed by weather on the Pacific crossing: it now arrives at hour 151 (planned berthing hour 134). Its planned departure stays hour 149.",
+   "Ship 18 OOCL MODESTO was delayed by weather on the Pacific crossing: it now arrives at hour 153 (planned berthing hour 131). Its planned departure stays hour 144.",
+   "2 of the terminal's 10 quay cranes are out of service from hour 71 to hour 113 (boom hoist repair): 8 cranes in day and night shifts, 4 in hoot shifts during that window.",
+   "Unscheduled call: ship 20 WAN HAI 371 (197 m, 5 sections, 490 moves) arrives at hour 52 and asks to sail by hour 73. It has no planned berth, so placing it anywhere costs no move penalty.",
+   "Emergency: reefer plant failure on ship 14 WAN HAI 371, which carries export agricultural cargo. It must be berthed by hour 110 or the terminal pays 40 per hour it berths later.",
+   "Priority cargo: ship 11 ONE CYGNUS carries time-critical cargo; each hour it leaves late counts three times.",
+   "Priority cargo: ship 2 CMA CGM SIRIUS carries time-critical cargo; each hour it leaves late counts three times.",
+   "Berths and berthing hours are fixed (see the ship table). Choose each ship's crane profile: cranes per day, night and hoot shift (hoot 0 hires no hoot gang).",
+   "Berths and berthing hours are fixed (see the ship table). Choose each ship's crane profile: cranes per day, night and hoot shift (hoot 0 hires no hoot gang)."
+  ],
+  "disruptions": [
+   {
+    "type": "late",
+    "ship": 10,
+    "hours": 76
+   },
+   {
+    "type": "late",
+    "ship": 4,
+    "hours": 120
+   },
+   {
+    "type": "late",
+    "ship": 0,
+    "hours": 147
+   },
+   {
+    "type": "late",
+    "ship": 19,
+    "hours": 17
+   },
+   {
+    "type": "late",
+    "ship": 18,
+    "hours": 22
+   },
+   {
+    "type": "crane_outage",
+    "start": 71,
+    "end": 113,
+    "cranes": 2,
+    "reason": "boom hoist repair"
+   },
+   {
+    "type": "extra",
+    "ship": 20
+   },
+   {
+    "type": "emergency",
+    "ship": 14,
+    "deadline": 110,
+    "penalty": 40
+   },
+   {
+    "type": "priority",
+    "ship": 11
+   },
+   {
+    "type": "priority",
+    "ship": 2
+   },
+   {
+    "type": "fog",
+    "start": 28,
+    "end": 34
+   }
+  ],
+  "difficulty": "busy",
+  "rules": {
+   "crane_pool": 10,
+   "crane_outages": [
+    {
+     "start": 71,
+     "end": 113,
+     "cranes": 2
+    }
+   ],
+   "max_moves_per_hour": 2,
+   "no_moves": [
+    {
+     "start": 28,
+     "end": 34,
+     "min_length": 0,
+     "label": "fog, bar closed"
+    }
+   ],
+   "reward": 3,
+   "gap_k": 100,
+   "moves_per_crane_hour": 26,
+   "shifts": {
+    "day": [
+     8,
+     17
+    ],
+    "night": [
+     18,
+     27
+    ],
+    "hoot": [
+     3,
+     8
+    ]
+   },
+   "meal_hours": [
+    17
+   ],
+   "hoot_pool": 6,
+   "hoot_gang_cost": 2,
+   "fixed_berths": true
+  },
+  "kind": "crane",
+  "weeks": 1
+ },
+ "plan": [
+  {
+   "ship": 0,
+   "cranes": {
+    "day": 2,
+    "night": 4,
+    "hoot": 1
+   }
+  },
+  {
+   "ship": 1,
+   "cranes": {
+    "day": 5,
+    "night": 6,
+    "hoot": 6
+   }
+  },
+  {
+   "ship": 2,
+   "cranes": {
+    "day": 4,
+    "night": 3,
+    "hoot": 5
+   }
+  },
+  {
+   "ship": 3,
+   "cranes": {
+    "day": 6,
+    "night": 3,
+    "hoot": 6
+   }
+  },
+  {
+   "ship": 4,
+   "cranes": {
+    "day": 3,
+    "night": 5,
+    "hoot": 5
+   }
+  },
+  {
+   "ship": 5,
+   "cranes": {
+    "day": 1,
+    "night": 5,
+    "hoot": 5
+   }
+  },
+  {
+   "ship": 6,
+   "cranes": {
+    "day": 3,
+    "night": 4,
+    "hoot": 6
+   }
+  },
+  {
+   "ship": 7,
+   "cranes": {
+    "day": 2,
+    "night": 4,
+    "hoot": 4
+   }
+  },
+  {
+   "ship": 8,
+   "cranes": {
+    "day": 5,
+    "night": 5,
+    "hoot": 5
+   }
+  },
+  {
+   "ship": 9,
+   "cranes": {
+    "day": 4,
+    "night": 5,
+    "hoot": 0
+   }
+  },
+  {
+   "ship": 10,
+   "cranes": {
+    "day": 1,
+    "night": 6,
+    "hoot": 6
+   }
+  },
+  {
+   "ship": 11,
+   "cranes": {
+    "day": 5,
+    "night": 4,
+    "hoot": 6
+   }
+  },
+  {
+   "ship": 12,
+   "cranes": {
+    "day": 3,
+    "night": 4,
+    "hoot": 5
+   }
+  },
+  {
+   "ship": 13,
+   "cranes": {
+    "day": 5,
+    "night": 4,
+    "hoot": 2
+   }
+  },
+  {
+   "ship": 14,
+   "cranes": {
+    "day": 3,
+    "night": 3,
+    "hoot": 3
+   }
+  },
+  {
+   "ship": 15,
+   "cranes": {
+    "day": 1,
+    "night": 3,
+    "hoot": 6
+   }
+  },
+  {
+   "ship": 16,
+   "cranes": {
+    "day": 1,
+    "night": 4,
+    "hoot": 6
+   }
+  },
+  {
+   "ship": 17,
+   "cranes": {
+    "day": 6,
+    "night": 6,
+    "hoot": 6
+   }
+  },
+  {
+   "ship": 18,
+   "cranes": {
+    "day": 6,
+    "night": 6,
+    "hoot": 6
+   }
+  },
+  {
+   "ship": 19,
+   "cranes": {
+    "day": 4,
+    "night": 6,
+    "hoot": 4
+   }
+  },
+  {
+   "ship": 20,
+   "cranes": {
+    "day": 2,
+    "night": 1,
+    "hoot": 0
+   }
+  }
+ ],
+ "grade": {
+  "reward": 1.0,
+  "feasible": true,
+  "cost": 3746,
+  "optimal_cost": 3746,
+  "violations": []
+ },
+ "horizon_h": 168,
+ "ships": [
+  {
+   "id": 0,
+   "name": "ONE DRACO",
+   "line": "ONE",
+   "length_m": 359.0,
+   "sections": 9,
+   "first_section": 1,
+   "arrival": 151,
+   "berth_hour": 151,
+   "departure": 166,
+   "due": 16,
+   "late_h": 150,
+   "cranes_by_hour": [
+    [
+     151,
+     1
+    ],
+    [
+     152,
+     2
+    ],
+    [
+     153,
+     2
+    ],
+    [
+     154,
+     2
+    ],
+    [
+     155,
+     2
+    ],
+    [
+     156,
+     2
+    ],
+    [
+     157,
+     2
+    ],
+    [
+     158,
+     2
+    ],
+    [
+     159,
+     2
+    ],
+    [
+     160,
+     2
+    ],
+    [
+     162,
+     4
+    ],
+    [
+     163,
+     4
+    ],
+    [
+     164,
+     4
+    ],
+    [
+     165,
+     4
+    ]
+   ],
+   "problems": []
+  },
+  {
+   "id": 1,
+   "name": "OOCL FRESNO",
+   "line": "OOCL",
+   "length_m": 341.0,
+   "sections": 9,
+   "first_section": 29,
+   "arrival": 11,
+   "berth_hour": 11,
+   "departure": 17,
+   "due": 22,
+   "late_h": 0,
+   "cranes_by_hour": [
+    [
+     11,
+     5
+    ],
+    [
+     12,
+     5
+    ],
+    [
+     13,
+     5
+    ],
+    [
+     14,
+     5
+    ],
+    [
+     15,
+     5
+    ],
+    [
+     16,
+     5
+    ]
+   ],
+   "problems": []
+  },
+  {
+   "id": 2,
+   "name": "CMA CGM SIRIUS",
+   "line": "CMA CGM",
+   "length_m": 321.0,
+   "sections": 8,
+   "first_section": 21,
+   "arrival": 16,
+   "berth_hour": 16,
+   "departure": 27,
+   "due": 28,
+   "late_h": 0,
+   "cranes_by_hour": [
+    [
+     16,
+     4
+    ],
+    [
+     18,
+     3
+    ],
+    [
+     19,
+     3
+    ],
+    [
+     20,
+     3
+    ],
+    [
+     21,
+     3
+    ],
+    [
+     22,
+     3
+    ],
+    [
+     23,
+     3
+    ],
+    [
+     24,
+     3
+    ],
+    [
+     25,
+     3
+    ],
+    [
+     26,
+     3
+    ]
+   ],
+   "problems": []
+  },
+  {
+   "id": 3,
+   "name": "CMA CGM VEGA",
+   "line": "CMA CGM",
+   "length_m": 339.0,
+   "sections": 9,
+   "first_section": 8,
+   "arrival": 17,
+   "berth_hour": 17,
+   "departure": 27,
+   "due": 27,
+   "late_h": 0,
+   "cranes_by_hour": [
+    [
+     18,
+     3
+    ],
+    [
+     19,
+     3
+    ],
+    [
+     20,
+     3
+    ],
+    [
+     21,
+     3
+    ],
+    [
+     22,
+     3
+    ],
+    [
+     23,
+     3
+    ],
+    [
+     24,
+     3
+    ],
+    [
+     25,
+     3
+    ],
+    [
+     26,
+     3
+    ]
+   ],
+   "problems": []
+  },
+  {
+   "id": 4,
+   "name": "EVER LIVELY",
+   "line": "Evergreen",
+   "length_m": 301.0,
+   "sections": 8,
+   "first_section": 42,
+   "arrival": 152,
+   "berth_hour": 152,
+   "departure": 161,
+   "due": 41,
+   "late_h": 120,
+   "cranes_by_hour": [
+    [
+     152,
+     3
+    ],
+    [
+     153,
+     3
+    ],
+    [
+     154,
+     3
+    ],
+    [
+     155,
+     3
+    ],
+    [
+     156,
+     3
+    ],
+    [
+     157,
+     3
+    ],
+    [
+     158,
+     3
+    ],
+    [
+     159,
+     3
+    ],
+    [
+     160,
+     3
+    ]
+   ],
+   "problems": []
+  },
+  {
+   "id": 5,
+   "name": "MAERSK KOLDING",
+   "line": "Maersk",
+   "length_m": 329.0,
+   "sections": 8,
+   "first_section": 38,
+   "arrival": 39,
+   "berth_hour": 39,
+   "departure": 49,
+   "due": 52,
+   "late_h": 0,
+   "cranes_by_hour": [
+    [
+     39,
+     1
+    ],
+    [
+     40,
+     1
+    ],
+    [
+     42,
+     5
+    ],
+    [
+     43,
+     5
+    ],
+    [
+     44,
+     5
+    ],
+    [
+     45,
+     5
+    ],
+    [
+     46,
+     5
+    ],
+    [
+     47,
+     5
+    ],
+    [
+     48,
+     5
+    ]
+   ],
+   "problems": []
+  },
+  {
+   "id": 6,
+   "name": "MSC ARIELLA",
+   "line": "MSC",
+   "length_m": 376.0,
+   "sections": 9,
+   "first_section": 8,
+   "arrival": 56,
+   "berth_hour": 56,
+   "departure": 67,
+   "due": 68,
+   "late_h": 0,
+   "cranes_by_hour": [
+    [
+     56,
+     3
+    ],
+    [
+     57,
+     3
+    ],
+    [
+     58,
+     3
+    ],
+    [
+     59,
+     3
+    ],
+    [
+     60,
+     3
+    ],
+    [
+     61,
+     3
+    ],
+    [
+     62,
+     3
+    ],
+    [
+     63,
+     3
+    ],
+    [
+     64,
+     3
+    ],
+    [
+     66,
+     4
+    ]
+   ],
+   "problems": []
+  },
+  {
+   "id": 7,
+   "name": "WAN HAI 373",
+   "line": "Wan Hai",
+   "length_m": 223.0,
+   "sections": 6,
+   "first_section": 30,
+   "arrival": 57,
+   "berth_hour": 57,
+   "departure": 64,
+   "due": 64,
+   "late_h": 0,
+   "cranes_by_hour": [
+    [
+     57,
+     2
+    ],
+    [
+     58,
+     2
+    ],
+    [
+     59,
+     2
+    ],
+    [
+     60,
+     2
+    ],
+    [
+     61,
+     2
+    ],
+    [
+     62,
+     2
+    ],
+    [
+     63,
+     2
+    ]
+   ],
+   "problems": []
+  },
+  {
+   "id": 8,
+   "name": "MARIN EXPRESS",
+   "line": "Hapag-Lloyd",
+   "length_m": 311.0,
+   "sections": 8,
+   "first_section": 17,
+   "arrival": 68,
+   "berth_hour": 68,
+   "departure": 73,
+   "due": 76,
+   "late_h": 0,
+   "cranes_by_hour": [
+    [
+     68,
+     5
+    ],
+    [
+     69,
+     5
+    ],
+    [
+     70,
+     5
+    ],
+    [
+     71,
+     5
+    ],
+    [
+     72,
+     5
+    ]
+   ],
+   "problems": []
+  },
+  {
+   "id": 9,
+   "name": "COSCO PEARL",
+   "line": "COSCO",
+   "length_m": 327.0,
+   "sections": 8,
+   "first_section": 25,
+   "arrival": 73,
+   "berth_hour": 73,
+   "departure": 83,
+   "due": 81,
+   "late_h": 2,
+   "cranes_by_hour": [
+    [
+     73,
+     5
+    ],
+    [
+     74,
+     5
+    ],
+    [
+     80,
+     4
+    ],
+    [
+     81,
+     4
+    ],
+    [
+     82,
+     4
+    ]
+   ],
+   "problems": []
+  },
+  {
+   "id": 10,
+   "name": "ONE AQUILA",
+   "line": "ONE",
+   "length_m": 355.0,
+   "sections": 9,
+   "first_section": 19,
+   "arrival": 152,
+   "berth_hour": 153,
+   "departure": 167,
+   "due": 89,
+   "late_h": 78,
+   "cranes_by_hour": [
+    [
+     153,
+     1
+    ],
+    [
+     154,
+     1
+    ],
+    [
+     155,
+     1
+    ],
+    [
+     156,
+     1
+    ],
+    [
+     157,
+     1
+    ],
+    [
+     158,
+     1
+    ],
+    [
+     159,
+     1
+    ],
+    [
+     160,
+     1
+    ],
+    [
+     162,
+     6
+    ],
+    [
+     163,
+     6
+    ],
+    [
+     164,
+     6
+    ],
+    [
+     165,
+     6
+    ],
+    [
+     166,
+     6
+    ]
+   ],
+   "problems": []
+  },
+  {
+   "id": 11,
+   "name": "ONE CYGNUS",
+   "line": "ONE",
+   "length_m": 347.0,
+   "sections": 9,
+   "first_section": 33,
+   "arrival": 80,
+   "berth_hour": 85,
+   "departure": 95,
+   "due": 95,
+   "late_h": 0,
+   "cranes_by_hour": [
+    [
+     85,
+     5
+    ],
+    [
+     86,
+     5
+    ],
+    [
+     87,
+     5
+    ],
+    [
+     88,
+     5
+    ],
+    [
+     90,
+     4
+    ],
+    [
+     91,
+     4
+    ],
+    [
+     92,
+     4
+    ],
+    [
+     93,
+     4
+    ],
+    [
+     94,
+     4
+    ]
+   ],
+   "problems": []
+  },
+  {
+   "id": 12,
+   "name": "EVER LOYAL",
+   "line": "Evergreen",
+   "length_m": 303.0,
+   "sections": 8,
+   "first_section": 42,
+   "arrival": 81,
+   "berth_hour": 86,
+   "departure": 93,
+   "due": 88,
+   "late_h": 5,
+   "cranes_by_hour": [
+    [
+     86,
+     3
+    ],
+    [
+     87,
+     3
+    ],
+    [
+     88,
+     3
+    ],
+    [
+     90,
+     4
+    ],
+    [
+     91,
+     4
+    ],
+    [
+     92,
+     4
+    ]
+   ],
+   "problems": []
+  },
+  {
+   "id": 13,
+   "name": "EVER LEGEND",
+   "line": "Evergreen",
+   "length_m": 308.0,
+   "sections": 8,
+   "first_section": 1,
+   "arrival": 88,
+   "berth_hour": 94,
+   "departure": 100,
+   "due": 97,
+   "late_h": 3,
+   "cranes_by_hour": [
+    [
+     94,
+     4
+    ],
+    [
+     95,
+     4
+    ],
+    [
+     96,
+     4
+    ],
+    [
+     97,
+     4
+    ],
+    [
+     98,
+     4
+    ],
+    [
+     99,
+     2
+    ]
+   ],
+   "problems": []
+  },
+  {
+   "id": 14,
+   "name": "WAN HAI 371",
+   "line": "Wan Hai",
+   "length_m": 197.0,
+   "sections": 5,
+   "first_section": 19,
+   "arrival": 104,
+   "berth_hour": 104,
+   "departure": 108,
+   "due": 110,
+   "late_h": 0,
+   "cranes_by_hour": [
+    [
+     104,
+     3
+    ],
+    [
+     105,
+     3
+    ],
+    [
+     106,
+     3
+    ],
+    [
+     107,
+     3
+    ]
+   ],
+   "problems": []
+  },
+  {
+   "id": 15,
+   "name": "MAERSK ESBJERG",
+   "line": "Maersk",
+   "length_m": 364.0,
+   "sections": 9,
+   "first_section": 9,
+   "arrival": 112,
+   "berth_hour": 112,
+   "departure": 122,
+   "due": 122,
+   "late_h": 0,
+   "cranes_by_hour": [
+    [
+     112,
+     1
+    ],
+    [
+     114,
+     3
+    ],
+    [
+     115,
+     3
+    ],
+    [
+     116,
+     3
+    ],
+    [
+     117,
+     3
+    ],
+    [
+     118,
+     3
+    ],
+    [
+     119,
+     3
+    ],
+    [
+     120,
+     3
+    ],
+    [
+     121,
+     3
+    ]
+   ],
+   "problems": []
+  },
+  {
+   "id": 16,
+   "name": "CMA CGM ALTAIR",
+   "line": "CMA CGM",
+   "length_m": 331.0,
+   "sections": 8,
+   "first_section": 24,
+   "arrival": 112,
+   "berth_hour": 112,
+   "departure": 121,
+   "due": 123,
+   "late_h": 0,
+   "cranes_by_hour": [
+    [
+     112,
+     1
+    ],
+    [
+     114,
+     4
+    ],
+    [
+     115,
+     4
+    ],
+    [
+     116,
+     4
+    ],
+    [
+     117,
+     4
+    ],
+    [
+     118,
+     4
+    ],
+    [
+     119,
+     4
+    ],
+    [
+     120,
+     4
+    ]
+   ],
+   "problems": []
+  },
+  {
+   "id": 17,
+   "name": "MSC FIORELLA",
+   "line": "MSC",
+   "length_m": 386.0,
+   "sections": 10,
+   "first_section": 32,
+   "arrival": 129,
+   "berth_hour": 137,
+   "departure": 145,
+   "due": 144,
+   "late_h": 1,
+   "cranes_by_hour": [
+    [
+     138,
+     6
+    ],
+    [
+     139,
+     6
+    ],
+    [
+     140,
+     6
+    ],
+    [
+     141,
+     6
+    ],
+    [
+     142,
+     6
+    ],
+    [
+     143,
+     6
+    ],
+    [
+     144,
+     6
+    ]
+   ],
+   "problems": []
+  },
+  {
+   "id": 18,
+   "name": "OOCL MODESTO",
+   "line": "OOCL",
+   "length_m": 351.0,
+   "sections": 9,
+   "first_section": 28,
+   "arrival": 153,
+   "berth_hour": 192,
+   "departure": 198,
+   "due": 144,
+   "late_h": 54,
+   "cranes_by_hour": [
+    [
+     192,
+     6
+    ],
+    [
+     193,
+     6
+    ],
+    [
+     194,
+     6
+    ],
+    [
+     195,
+     6
+    ],
+    [
+     196,
+     6
+    ],
+    [
+     197,
+     6
+    ]
+   ],
+   "problems": []
+  },
+  {
+   "id": 19,
+   "name": "MSC CAMILLA",
+   "line": "MSC",
+   "length_m": 368.0,
+   "sections": 9,
+   "first_section": 10,
+   "arrival": 151,
+   "berth_hour": 151,
+   "departure": 161,
+   "due": 149,
+   "late_h": 12,
+   "cranes_by_hour": [
+    [
+     151,
+     4
+    ],
+    [
+     152,
+     4
+    ],
+    [
+     153,
+     4
+    ],
+    [
+     154,
+     4
+    ],
+    [
+     155,
+     4
+    ],
+    [
+     156,
+     4
+    ],
+    [
+     157,
+     4
+    ],
+    [
+     158,
+     4
+    ],
+    [
+     159,
+     4
+    ],
+    [
+     160,
+     4
+    ]
+   ],
+   "problems": []
+  },
+  {
+   "id": 20,
+   "name": "WAN HAI 371",
+   "line": "Wan Hai",
+   "length_m": 197.0,
+   "sections": 5,
+   "first_section": 1,
+   "arrival": 52,
+   "berth_hour": 52,
+   "departure": 67,
+   "due": 73,
+   "late_h": 0,
+   "cranes_by_hour": [
+    [
+     56,
+     2
+    ],
+    [
+     57,
+     2
+    ],
+    [
+     58,
+     2
+    ],
+    [
+     59,
+     2
+    ],
+    [
+     60,
+     2
+    ],
+    [
+     61,
+     2
+    ],
+    [
+     62,
+     2
+    ],
+    [
+     63,
+     2
+    ],
+    [
+     64,
+     2
+    ],
+    [
+     66,
+     1
+    ]
+   ],
+   "problems": []
+  }
+ ],
+ "blocks": [
+  {
+   "first": 47,
+   "last": 50,
+   "start": 0,
+   "end": 168,
+   "kind": "shallow",
+   "label": "max draught 12.8 m",
+   "max_draught_m": 12.8
+  },
+  {
+   "first": 7,
+   "last": 14,
+   "start": 0,
+   "end": 11,
+   "kind": "alongside",
+   "label": "MSC ORNELLA (MSC, generated call)",
+   "cranes": 3,
+   "cranes_by_hour": [
+    [
+     0,
+     3
+    ],
+    [
+     1,
+     3
+    ],
+    [
+     2,
+     3
+    ],
+    [
+     3,
+     3
+    ],
+    [
+     4,
+     3
+    ],
+    [
+     5,
+     3
+    ],
+    [
+     6,
+     3
+    ],
+    [
+     7,
+     3
+    ],
+    [
+     8,
+     3
+    ],
+    [
+     9,
+     3
+    ],
+    [
+     10,
+     3
+    ]
+   ]
+  }
+ ],
+ "no_moves": [
+  {
+   "start": 28,
+   "end": 34,
+   "label": "fog, bar closed"
+  }
+ ],
+ "crane_pool_by_hour": [
+  [
+   0,
+   10
+  ],
+  [
+   1,
+   10
+  ],
+  [
+   2,
+   10
+  ],
+  [
+   3,
+   6
+  ],
+  [
+   4,
+   6
+  ],
+  [
+   5,
+   6
+  ],
+  [
+   6,
+   6
+  ],
+  [
+   7,
+   6
+  ],
+  [
+   8,
+   10
+  ],
+  [
+   9,
+   10
+  ],
+  [
+   10,
+   10
+  ],
+  [
+   11,
+   10
+  ],
+  [
+   12,
+   10
+  ],
+  [
+   13,
+   10
+  ],
+  [
+   14,
+   10
+  ],
+  [
+   15,
+   10
+  ],
+  [
+   16,
+   10
+  ],
+  [
+   17,
+   10
+  ],
+  [
+   18,
+   10
+  ],
+  [
+   19,
+   10
+  ],
+  [
+   20,
+   10
+  ],
+  [
+   21,
+   10
+  ],
+  [
+   22,
+   10
+  ],
+  [
+   23,
+   10
+  ],
+  [
+   24,
+   10
+  ],
+  [
+   25,
+   10
+  ],
+  [
+   26,
+   10
+  ],
+  [
+   27,
+   6
+  ],
+  [
+   28,
+   6
+  ],
+  [
+   29,
+   6
+  ],
+  [
+   30,
+   6
+  ],
+  [
+   31,
+   6
+  ],
+  [
+   32,
+   10
+  ],
+  [
+   33,
+   10
+  ],
+  [
+   34,
+   10
+  ],
+  [
+   35,
+   10
+  ],
+  [
+   36,
+   10
+  ],
+  [
+   37,
+   10
+  ],
+  [
+   38,
+   10
+  ],
+  [
+   39,
+   10
+  ],
+  [
+   40,
+   10
+  ],
+  [
+   41,
+   10
+  ],
+  [
+   42,
+   10
+  ],
+  [
+   43,
+   10
+  ],
+  [
+   44,
+   10
+  ],
+  [
+   45,
+   10
+  ],
+  [
+   46,
+   10
+  ],
+  [
+   47,
+   10
+  ],
+  [
+   48,
+   10
+  ],
+  [
+   49,
+   10
+  ],
+  [
+   50,
+   10
+  ],
+  [
+   51,
+   6
+  ],
+  [
+   52,
+   6
+  ],
+  [
+   53,
+   6
+  ],
+  [
+   54,
+   6
+  ],
+  [
+   55,
+   6
+  ],
+  [
+   56,
+   10
+  ],
+  [
+   57,
+   10
+  ],
+  [
+   58,
+   10
+  ],
+  [
+   59,
+   10
+  ],
+  [
+   60,
+   10
+  ],
+  [
+   61,
+   10
+  ],
+  [
+   62,
+   10
+  ],
+  [
+   63,
+   10
+  ],
+  [
+   64,
+   10
+  ],
+  [
+   65,
+   10
+  ],
+  [
+   66,
+   10
+  ],
+  [
+   67,
+   10
+  ],
+  [
+   68,
+   10
+  ],
+  [
+   69,
+   10
+  ],
+  [
+   70,
+   10
+  ],
+  [
+   71,
+   8
+  ],
+  [
+   72,
+   8
+  ],
+  [
+   73,
+   8
+  ],
+  [
+   74,
+   8
+  ],
+  [
+   75,
+   6
+  ],
+  [
+   76,
+   6
+  ],
+  [
+   77,
+   6
+  ],
+  [
+   78,
+   6
+  ],
+  [
+   79,
+   6
+  ],
+  [
+   80,
+   8
+  ],
+  [
+   81,
+   8
+  ],
+  [
+   82,
+   8
+  ],
+  [
+   83,
+   8
+  ],
+  [
+   84,
+   8
+  ],
+  [
+   85,
+   8
+  ],
+  [
+   86,
+   8
+  ],
+  [
+   87,
+   8
+  ],
+  [
+   88,
+   8
+  ],
+  [
+   89,
+   8
+  ],
+  [
+   90,
+   8
+  ],
+  [
+   91,
+   8
+  ],
+  [
+   92,
+   8
+  ],
+  [
+   93,
+   8
+  ],
+  [
+   94,
+   8
+  ],
+  [
+   95,
+   8
+  ],
+  [
+   96,
+   8
+  ],
+  [
+   97,
+   8
+  ],
+  [
+   98,
+   8
+  ],
+  [
+   99,
+   6
+  ],
+  [
+   100,
+   6
+  ],
+  [
+   101,
+   6
+  ],
+  [
+   102,
+   6
+  ],
+  [
+   103,
+   6
+  ],
+  [
+   104,
+   8
+  ],
+  [
+   105,
+   8
+  ],
+  [
+   106,
+   8
+  ],
+  [
+   107,
+   8
+  ],
+  [
+   108,
+   8
+  ],
+  [
+   109,
+   8
+  ],
+  [
+   110,
+   8
+  ],
+  [
+   111,
+   8
+  ],
+  [
+   112,
+   8
+  ],
+  [
+   113,
+   10
+  ],
+  [
+   114,
+   10
+  ],
+  [
+   115,
+   10
+  ],
+  [
+   116,
+   10
+  ],
+  [
+   117,
+   10
+  ],
+  [
+   118,
+   10
+  ],
+  [
+   119,
+   10
+  ],
+  [
+   120,
+   10
+  ],
+  [
+   121,
+   10
+  ],
+  [
+   122,
+   10
+  ],
+  [
+   123,
+   6
+  ],
+  [
+   124,
+   6
+  ],
+  [
+   125,
+   6
+  ],
+  [
+   126,
+   6
+  ],
+  [
+   127,
+   6
+  ],
+  [
+   128,
+   10
+  ],
+  [
+   129,
+   10
+  ],
+  [
+   130,
+   10
+  ],
+  [
+   131,
+   10
+  ],
+  [
+   132,
+   10
+  ],
+  [
+   133,
+   10
+  ],
+  [
+   134,
+   10
+  ],
+  [
+   135,
+   10
+  ],
+  [
+   136,
+   10
+  ],
+  [
+   137,
+   10
+  ],
+  [
+   138,
+   10
+  ],
+  [
+   139,
+   10
+  ],
+  [
+   140,
+   10
+  ],
+  [
+   141,
+   10
+  ],
+  [
+   142,
+   10
+  ],
+  [
+   143,
+   10
+  ],
+  [
+   144,
+   10
+  ],
+  [
+   145,
+   10
+  ],
+  [
+   146,
+   10
+  ],
+  [
+   147,
+   6
+  ],
+  [
+   148,
+   6
+  ],
+  [
+   149,
+   6
+  ],
+  [
+   150,
+   6
+  ],
+  [
+   151,
+   6
+  ],
+  [
+   152,
+   10
+  ],
+  [
+   153,
+   10
+  ],
+  [
+   154,
+   10
+  ],
+  [
+   155,
+   10
+  ],
+  [
+   156,
+   10
+  ],
+  [
+   157,
+   10
+  ],
+  [
+   158,
+   10
+  ],
+  [
+   159,
+   10
+  ],
+  [
+   160,
+   10
+  ],
+  [
+   161,
+   10
+  ],
+  [
+   162,
+   10
+  ],
+  [
+   163,
+   10
+  ],
+  [
+   164,
+   10
+  ],
+  [
+   165,
+   10
+  ],
+  [
+   166,
+   10
+  ],
+  [
+   167,
+   10
+  ]
+ ]
+}

@@ -231,19 +231,32 @@
     if (stacks.instanceColor) stacks.instanceColor.needsUpdate = true;
     group.add(stacks);
 
-    // reefer racks: steel frames with walkways over the reefer blocks
+    // reefer racks: steel frames with walkways over the reefer blocks + blue status LEDs
     const steel = new THREE.MeshLambertMaterial({ color: 0x7c848c });
+    const reeferLedMat = new THREE.MeshBasicMaterial({ color: 0x00b8ff });
     const RR = new Parts();
+    const RLED = new Parts();
     for (const b of lay.blocks) if (b.reefer) {
       for (let bay = 0; bay <= BAYS; bay++) {
         const x = b.x - BLOCK_L / 2 + bayL * bay;
         RR.box(0.4, 9, 0.4, x, 4.5, b.z - BLOCK_W / 2);
         RR.box(0.4, 9, 0.4, x, 4.5, b.z + BLOCK_W / 2);
         RR.box(0.3, 0.3, BLOCK_W, x, 8.8, b.z);
+        if (bay < BAYS) {
+          const bx = x + bayL * 0.5;
+          for (let tier = 0; tier < 3; tier++) {
+            const ly = 2.1 + tier * 2.6;
+            RLED.box(0.45, 0.22, 0.22, bx, ly, b.z - BLOCK_W / 2 - 0.15);
+            RLED.box(0.45, 0.22, 0.22, bx, ly, b.z + BLOCK_W / 2 + 0.15);
+          }
+        }
       }
       for (const z of [b.z - BLOCK_W / 2, b.z, b.z + BLOCK_W / 2]) RR.box(BLOCK_L, 0.3, 1.0, b.x, 8.6, z);
+      RLED.box(BLOCK_L - 1.2, 0.18, 0.18, b.x, 8.95, b.z - BLOCK_W / 2 - 0.12);
+      RLED.box(BLOCK_L - 1.2, 0.18, 0.18, b.x, 8.95, b.z + BLOCK_W / 2 + 0.12);
     }
     if (RR.geos.length) group.add(RR.mesh(steel));
+    if (RLED.geos.length) group.add(RLED.mesh(reeferLedMat));
 
     // RTGs: one per block, straddling it, instanced (white frame, red trolley)
     const rtgFrame = new Parts();
@@ -295,7 +308,7 @@
       glows.push(sp);
     }
 
-    // yard tractors: chassis, cab, optional 40 ft box; all instanced
+    // yard tractors: chassis, cab, optional 40 ft box, plus headlights & red taillights
     const nt = Math.max(1, lay.tractors.length);
     const TP = new Parts();
     TP.box(14, 0.6, 2.4, -1.5, 1.1, 0);                               // chassis
@@ -323,7 +336,91 @@
     });
     group.add(trucks, truckBoxes);
 
-    // back road, warehouses, gate canopy with booths
+    // truck & tractor headlights + red taillights (illuminate when nightFactor > 0.2)
+    const headlightMat = new THREE.MeshBasicMaterial({ color: 0xfff6d6, transparent: true, opacity: 0.0 });
+    const headlightBeamMat = new THREE.MeshBasicMaterial({
+      color: 0xfff0b8,
+      transparent: true,
+      opacity: 0.0,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    });
+    const taillightMat = new THREE.MeshBasicMaterial({ color: 0xff1e1e, transparent: true, opacity: 0.0 });
+
+    const trHeadParts = new Parts();
+    trHeadParts.box(0.22, 0.28, 0.42, 6.92, 1.65, -0.82);
+    trHeadParts.box(0.22, 0.28, 0.42, 6.92, 1.65, 0.82);
+    const trBeamParts = new Parts();
+    trBeamParts.box(6.5, 0.08, 2.8, 10.6, 0.14, 0);
+    const trTailParts = new Parts();
+    trTailParts.box(0.22, 0.26, 0.45, -8.52, 1.15, -0.88);
+    trTailParts.box(0.22, 0.26, 0.45, -8.52, 1.15, 0.88);
+
+    const tractorHeadlights = new THREE.InstancedMesh(trHeadParts.geometry(), headlightMat, nt);
+    const tractorBeams = new THREE.InstancedMesh(trBeamParts.geometry(), headlightBeamMat, nt);
+    const tractorTaillights = new THREE.InstancedMesh(trTailParts.geometry(), taillightMat, nt);
+    tractorHeadlights.visible = tractorBeams.visible = tractorTaillights.visible = false;
+    group.add(tractorHeadlights, tractorBeams, tractorTaillights);
+
+    const tkHeadParts = new Parts();
+    tkHeadParts.box(0.22, 0.30, 0.44, 8.92, 1.55, -0.85);
+    tkHeadParts.box(0.22, 0.30, 0.44, 8.92, 1.55, 0.85);
+    const tkBeamParts = new Parts();
+    tkBeamParts.box(7.5, 0.08, 3.0, 12.9, 0.14, 0);
+    const tkTailParts = new Parts();
+    tkTailParts.box(0.22, 0.26, 0.46, -7.12, 1.22, -0.88);
+    tkTailParts.box(0.22, 0.26, 0.46, -7.12, 1.22, 0.88);
+
+    const truckHeadlights = new THREE.InstancedMesh(tkHeadParts.geometry(), headlightMat, ntr);
+    const truckBeams = new THREE.InstancedMesh(tkBeamParts.geometry(), headlightBeamMat, ntr);
+    const truckTaillights = new THREE.InstancedMesh(tkTailParts.geometry(), taillightMat, ntr);
+    truckHeadlights.visible = truckBeams.visible = truckTaillights.visible = false;
+    group.add(truckHeadlights, truckBeams, truckTaillights);
+
+    // Portwise-style glowing fading comet trails behind moving yard tractors and drayage gate trucks
+    let trailsEnabled = true;
+    const TRAIL_SEGS = 12;
+    const totalVehicles = lay.tractors.length + lay.trucks.length;
+    const vertsPerVeh = (TRAIL_SEGS + 1) * 2;
+    const idxPerVeh = TRAIL_SEGS * 6;
+    const trailPositions = new Float32Array(totalVehicles * vertsPerVeh * 3);
+    const trailColors = new Float32Array(totalVehicles * vertsPerVeh * 3);
+    const trailIndices = new Uint32Array(totalVehicles * idxPerVeh);
+    for (let vIdx = 0; vIdx < totalVehicles; vIdx++) {
+      const baseV = vIdx * vertsPerVeh;
+      const baseI = vIdx * idxPerVeh;
+      for (let s = 0; s < TRAIL_SEGS; s++) {
+        const i0 = baseV + s * 2;
+        const idx = baseI + s * 6;
+        trailIndices[idx] = i0;
+        trailIndices[idx + 1] = i0 + 1;
+        trailIndices[idx + 2] = i0 + 2;
+        trailIndices[idx + 3] = i0 + 1;
+        trailIndices[idx + 4] = i0 + 3;
+        trailIndices[idx + 5] = i0 + 2;
+      }
+    }
+    const trailGeo = new THREE.BufferGeometry();
+    const posAttr = new THREE.BufferAttribute(trailPositions, 3);
+    posAttr.setUsage(THREE.DynamicDrawUsage);
+    const colAttr = new THREE.BufferAttribute(trailColors, 3);
+    colAttr.setUsage(THREE.DynamicDrawUsage);
+    trailGeo.setAttribute("position", posAttr);
+    trailGeo.setAttribute("color", colAttr);
+    trailGeo.setIndex(new THREE.BufferAttribute(trailIndices, 1));
+    const trailMat = new THREE.MeshBasicMaterial({
+      vertexColors: true,
+      transparent: true,
+      opacity: 0.85,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+    });
+    const trailMesh = new THREE.Mesh(trailGeo, trailMat);
+    trailMesh.frustumCulled = false;
+    group.add(trailMesh);
+
+    // back road, warehouses, gate canopy with booths + OCR gate lane status portals
     const roadMat = new THREE.MeshLambertMaterial({ color: 0x3f4247 });
     const road = new THREE.Mesh(new THREE.BoxGeometry(lay.L, 0.1, 16), roadMat);
     road.position.set(0, 0.06, lay.roadZ);
@@ -338,21 +435,143 @@
     }
     const g = lay.gate;
     const CP = new Parts();
+    const OCR_FRAME = new Parts();
+    const OCR_GREEN = new Parts();
+    const OCR_RED = new Parts();
+    const ocrZ = g.z - g.d / 2 - 4.2;
     CP.box(g.w, 1.2, g.d, g.x, g.h, g.z);
     for (let i = 0; i <= g.lanes; i++) {
       const x = g.x - g.w / 2 + g.w * i / g.lanes;
       CP.box(0.5, g.h, 0.5, x, g.h / 2, g.z - g.d / 2 + 1);
       CP.box(0.5, g.h, 0.5, x, g.h / 2, g.z + g.d / 2 - 1);
-      if (i < g.lanes) WP.box(1.8, 2.6, 2.4, x + 0.8, 1.3, g.z);       // booth
+      // OCR portal legs
+      OCR_FRAME.box(0.38, g.h - 0.6, 0.38, x, (g.h - 0.6) / 2, ocrZ);
+      if (i < g.lanes) {
+        WP.box(1.8, 2.6, 2.4, x + 0.8, 1.3, g.z);       // booth
+        const laneW = g.w / g.lanes;
+        const lx = x + laneW / 2;
+        // OCR portal overhead crossbeam + camera pods
+        OCR_FRAME.box(laneW, 0.55, 0.65, lx, g.h - 0.6, ocrZ);
+        OCR_FRAME.box(0.45, 0.45, 0.8, lx - laneW * 0.25, g.h - 1.0, ocrZ);
+        OCR_FRAME.box(0.45, 0.45, 0.8, lx + laneW * 0.25, g.h - 1.0, ocrZ);
+        // Lane status LED bars on OCR portal & main canopy (open green / closed red lanes)
+        const isClosedLane = (i === g.lanes - 2);
+        const targetLED = isClosedLane ? OCR_RED : OCR_GREEN;
+        targetLED.box(laneW * 0.68, 0.24, 0.18, lx, g.h - 0.58, ocrZ - 0.36);
+        targetLED.box(laneW * 0.68, 0.24, 0.18, lx, g.h - 0.58, ocrZ + 0.36);
+        targetLED.box(laneW * 0.62, 0.26, 0.2, lx, g.h - 0.2, g.z - g.d / 2 - 0.12);
+        targetLED.box(laneW * 0.62, 0.26, 0.2, lx, g.h - 0.2, g.z + g.d / 2 + 0.12);
+      }
     }
     group.add(WP.mesh(wallMat), RP.mesh(roofMat), CP.mesh(new THREE.MeshLambertMaterial({ color: 0xe8eaec })));
+    if (OCR_FRAME.geos.length) group.add(OCR_FRAME.mesh(new THREE.MeshLambertMaterial({ color: 0x2c3540 })));
+    if (OCR_GREEN.geos.length) group.add(OCR_GREEN.mesh(new THREE.MeshBasicMaterial({ color: 0x00e676 })));
+    if (OCR_RED.geos.length) group.add(OCR_RED.mesh(new THREE.MeshBasicMaterial({ color: 0xff2d2d })));
     const gateBand = new THREE.Mesh(new THREE.BoxGeometry(g.w + 0.2, 0.5, g.d + 0.2), new THREE.MeshLambertMaterial({ color: 0x1f4f7a }));
     gateBand.position.set(g.x, g.h - 0.2, g.z);
     group.add(gateBand);
 
     // ---------- motion ----------
     let t = 0;
+    let lastTimeArg = null;
+    let manualLightsOn = false;
+    let currentNightFactor = 0;
     const lens = lay.tractors.map((tr) => pathLength(lay, tr.lane));
+
+    function syncNightLighting(nf) {
+      const activeNight = manualLightsOn ? Math.max(nf, 1.0) : nf;
+      const showTruckLights = activeNight > 0.2;
+      tractorHeadlights.visible = tractorBeams.visible = tractorTaillights.visible = showTruckLights;
+      truckHeadlights.visible = truckBeams.visible = truckTaillights.visible = showTruckLights;
+      if (showTruckLights) {
+        const strength = Math.min(1, (activeNight - 0.2) / 0.5);
+        headlightMat.opacity = 0.65 + 0.35 * strength;
+        headlightBeamMat.opacity = 0.12 + 0.22 * strength;
+        taillightMat.opacity = 0.7 + 0.3 * strength;
+      }
+      const mastOn = manualLightsOn || activeNight > 0.35;
+      headMat.emissive.setHex(mastOn ? 0xffe8c0 : 0x000000);
+      for (const sp of glows) sp.visible = mastOn;
+    }
+
+    function updateCometTrails() {
+      if (!trailsEnabled) return;
+      const nightBoost = currentNightFactor > 0.2 ? 1.25 : 0.9;
+      let vIdx = 0;
+
+      // 1. Yard tractors comet trails
+      for (let i = 0; i < lay.tractors.length; i++, vIdx++) {
+        const tr = lay.tractors[i];
+        const pathLen = lens[i] || 1;
+        const uHead = tr.u + t * tr.speed / pathLen;
+        const trailLenM = 28;
+        const baseV = vIdx * vertsPerVeh;
+        for (let s = 0; s <= TRAIL_SEGS; s++) {
+          const frac = s / TRAIL_SEGS;
+          const distBack = 5.5 + frac * trailLenM;
+          const pt = loopPath(lay, tr.lane, uHead - distBack / pathLen);
+          const nx = -Math.sin(pt.heading);
+          const nz = Math.cos(pt.heading);
+          const halfW = 1.15 * (1 - frac * 0.72);
+          const y = 0.32 + (1 - frac) * 0.25;
+          const vi = (baseV + s * 2) * 3;
+          trailPositions[vi] = pt.x + nx * halfW;
+          trailPositions[vi + 1] = y;
+          trailPositions[vi + 2] = pt.z + nz * halfW;
+          trailPositions[vi + 3] = pt.x - nx * halfW;
+          trailPositions[vi + 4] = y;
+          trailPositions[vi + 5] = pt.z - nz * halfW;
+
+          const fade = Math.pow(1 - frac, 1.85) * nightBoost;
+          // Portwise cyan-amber warm comet gradient for yard tractors
+          const rC = Math.min(1, (0.22 + 0.78 * (1 - frac)) * fade);
+          const gC = Math.min(1, (0.78 * (1 - frac * 0.35)) * fade);
+          const bC = Math.min(1, (0.95 * (1 - frac * 0.15)) * fade);
+          trailColors[vi] = trailColors[vi + 3] = rC;
+          trailColors[vi + 1] = trailColors[vi + 4] = gC;
+          trailColors[vi + 2] = trailColors[vi + 5] = bC;
+        }
+      }
+
+      // 2. Drayage gate / road trucks comet trails
+      const span = lay.L + 40;
+      for (let i = 0; i < lay.trucks.length; i++, vIdx++) {
+        const tk = lay.trucks[i];
+        const dHead = (((tk.u * span + tk.dir * t * tk.speed) % span) + span) % span;
+        const z = lay.roadZ + (tk.dir > 0 ? -3.5 : 3.5);
+        const trailLenM = 34;
+        const baseV = vIdx * vertsPerVeh;
+        // Clamp trail so wraparound across span doesn't stretch across the map
+        for (let s = 0; s <= TRAIL_SEGS; s++) {
+          const frac = s / TRAIL_SEGS;
+          const distBack = 6.2 + frac * trailLenM;
+          const dSample = Math.max(0, Math.min(span, dHead - tk.dir * distBack));
+          const x = -span / 2 + dSample;
+          const halfW = 1.2 * (1 - frac * 0.72);
+          const y = 0.35 + (1 - frac) * 0.25;
+          const vi = (baseV + s * 2) * 3;
+          trailPositions[vi] = x;
+          trailPositions[vi + 1] = y;
+          trailPositions[vi + 2] = z - halfW;
+          trailPositions[vi + 3] = x;
+          trailPositions[vi + 4] = y;
+          trailPositions[vi + 5] = z + halfW;
+
+          const fade = Math.pow(1 - frac, 1.85) * nightBoost;
+          // Warm amber-orange comet trail for drayage trucks
+          const rC = Math.min(1, 1.0 * fade);
+          const gC = Math.min(1, (0.58 * (1 - frac * 0.4)) * fade);
+          const bC = Math.min(1, (0.18 * (1 - frac * 0.7)) * fade);
+          trailColors[vi] = trailColors[vi + 3] = rC;
+          trailColors[vi + 1] = trailColors[vi + 4] = gC;
+          trailColors[vi + 2] = trailColors[vi + 5] = bC;
+        }
+      }
+
+      posAttr.needsUpdate = true;
+      colAttr.needsUpdate = true;
+    }
+
     function place() {
       lay.blocks.forEach((b, i) => {
         const x = b.x + Math.sin(t * b.rtgSpeed + b.rtgPhase) * (BLOCK_L / 2 - 6);
@@ -369,6 +588,9 @@
         v.set(p.x, 0, p.z);
         m4.compose(v, q, sc.set(1, 1, 1));
         chassis.setMatrixAt(i, m4);
+        tractorHeadlights.setMatrixAt(i, m4);
+        tractorBeams.setMatrixAt(i, m4);
+        tractorTaillights.setMatrixAt(i, m4);
         const off = new THREE.Vector3(5.6, 2.7, 0).applyQuaternion(q);
         m4.compose(v.clone().add(off), q, sc);
         cabs.setMatrixAt(i, m4);
@@ -377,6 +599,7 @@
         loads.setMatrixAt(i, m4);
       });
       chassis.instanceMatrix.needsUpdate = cabs.instanceMatrix.needsUpdate = loads.instanceMatrix.needsUpdate = true;
+      tractorHeadlights.instanceMatrix.needsUpdate = tractorBeams.instanceMatrix.needsUpdate = tractorTaillights.instanceMatrix.needsUpdate = true;
       lay.trucks.forEach((tk, i) => {
         const span = lay.L + 40;
         const d = (((tk.u * span + tk.dir * t * tk.speed) % span) + span) % span;
@@ -385,21 +608,45 @@
         v.set(x, 0, z);
         m4.compose(v, q, sc.set(1, 1, 1));
         trucks.setMatrixAt(i, m4);
+        truckHeadlights.setMatrixAt(i, m4);
+        truckBeams.setMatrixAt(i, m4);
+        truckTaillights.setMatrixAt(i, m4);
         const off = new THREE.Vector3(-0.6, 1.45 + BOX_40[1] / 2, 0).applyQuaternion(q);
         m4.compose(v.clone().add(off), q, sc);
         truckBoxes.setMatrixAt(i, m4);
       });
       trucks.instanceMatrix.needsUpdate = truckBoxes.instanceMatrix.needsUpdate = true;
+      truckHeadlights.instanceMatrix.needsUpdate = truckBeams.instanceMatrix.needsUpdate = truckTaillights.instanceMatrix.needsUpdate = true;
+      updateCometTrails();
     }
     place();
 
     return {
       group,
       layout: lay,
-      update(dt) { t += Math.max(0, dt || 0); place(); },
+      update(dtOrTime, nightFactor) {
+        if (typeof dtOrTime === "number" && Number.isFinite(dtOrTime)) {
+          if (dtOrTime > 1.5 && lastTimeArg !== null && dtOrTime >= lastTimeArg && (dtOrTime - lastTimeArg) < 5) {
+            t += dtOrTime - lastTimeArg;
+          } else if (dtOrTime <= 1.5) {
+            t += Math.max(0, dtOrTime);
+          }
+          lastTimeArg = dtOrTime;
+        }
+        if (typeof nightFactor === "number" && Number.isFinite(nightFactor)) {
+          currentNightFactor = Math.max(0, Math.min(1, nightFactor));
+        }
+        syncNightLighting(currentNightFactor);
+        place();
+      },
       setLights(on) {
-        headMat.emissive.setHex(on ? 0xffe8c0 : 0x000000);
-        for (const sp of glows) sp.visible = !!on;
+        manualLightsOn = !!on;
+        syncNightLighting(currentNightFactor);
+      },
+      setTrails(enabled) {
+        trailsEnabled = enabled !== false;
+        trailMesh.visible = trailsEnabled;
+        if (trailsEnabled) updateCometTrails();
       },
     };
   }
