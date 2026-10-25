@@ -282,7 +282,10 @@ body.hud-hidden #transport { right: 0; }
 .sheet-head { display: flex; justify-content: space-between; align-items: center; }
 .sheet .icon-btn { color: var(--text); }
 .pb-text { flex: 1; overflow: auto; margin: 0; font: 12px/1.6 var(--mono); white-space: pre-wrap; color: var(--muted); }
-.pb-text .add { display: block; color: var(--text); background: var(--accent-soft); border-left: 2px solid var(--accent); padding-left: 8px; margin-left: -10px; }
+.pb-text .add { display: block; color: var(--text); background: var(--accent-soft); border-left: 3px solid var(--accent); padding-left: 8px; margin-left: -11px; }
+.pb-text .del { display: block; color: var(--muted); text-decoration: line-through; opacity: 0.7; }
+.pb-v0 { align-self: flex-start; padding: 0; background: transparent; border: 0; color: var(--muted); font: 400 11px/1 var(--mono); text-decoration: underline; cursor: pointer; }
+.pb-v0:hover { color: var(--text); }
 .pb-text .add::after { content: "  new"; color: var(--accent); font-size: 10px; letter-spacing: 0.08em; }
 
 /* ship card */
@@ -395,9 +398,12 @@ body.learning-hidden .toast { left: 50vw; }
 .quay .ship.late { fill: var(--line-strong); stroke: var(--text); stroke-dasharray: 2 2; }
 .chat-host { flex: 1; min-height: 0; position: relative; }
 .chat-host deep-chat { display: block; height: 100%; }
-.chips { display: flex; flex-wrap: wrap; gap: 4px; padding-top: 8px; }
-.chip { height: 28px; padding: 0 10px; background: transparent; border: 1px solid var(--line-strong); border-radius: 6px; color: var(--text); font: 400 13px/1 var(--sans); }
-.chip:hover { border-color: var(--accent); }
+/* at most three quick questions, one row that never wraps: full labels, the row slides sideways when they
+   do not all fit, with a fade at the right edge */
+.chips { display: flex; flex-wrap: nowrap; gap: 6px; padding-top: 8px; overflow-x: auto; scrollbar-width: none; -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent); }
+.chips::-webkit-scrollbar { display: none; }
+.chips .chip { flex: none; height: 24px; padding: 0 8px; background: transparent; border: 1px solid var(--line); border-radius: 6px; color: var(--muted); font: 400 12px/22px var(--sans); white-space: nowrap; cursor: pointer; }
+.chips .chip:hover { color: var(--text); border-color: var(--line-strong); }
 /* offline fallback chat */
 .fb-list { position: absolute; inset: 0 0 48px 0; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; font-size: 13px; }
 .fb-intro { color: var(--muted); }
@@ -488,10 +494,23 @@ body.learning-hidden .toast { left: 50vw; }
 .chart .rbar { fill: var(--line-strong); }
 .chart .tick { fill: var(--muted); font: 9px var(--mono); }
 .chart .grid { stroke: var(--line); stroke-width: 1; }
-.act-row { display: flex; flex-wrap: wrap; gap: 4px; padding-top: 8px; }
-.act-row:empty { display: none; }
-.chip.act { border-color: var(--text); }
 .oak-skel { height: 8px; width: 220px; border-radius: 4px; background: var(--line); margin-top: 6px; }
 .oak-skel.short { width: 140px; }
 .chat-clear { position: absolute; top: 8px; right: 0; z-index: 2; padding: 2px 0; background: transparent; border: 0; color: var(--muted); font: 400 12px/1 var(--sans); cursor: pointer; }
 .chat-clear:hover { color: var(--text); }
+/* port now, the berth planner's view: title, quay to scale with free sections and exceptions, five worded rows,
+   one sentence; at most 150 px and nothing coloured */
+#pane-op > .l-port { padding: 10px 0; max-height: 150px; }
+.l-port .quay { margin-top: 6px; height: auto; }
+.l-port .quay svg { height: auto; }
+.quay .sgrid { stroke: var(--line); stroke-width: 0.5; }
+.quay .ship.late { stroke: var(--text); stroke-dasharray: 2 2; }
+.quay .sname { fill: var(--text); font: 500 9px var(--mono); }
+.quay .ssub { fill: var(--muted); font: 400 7.5px var(--mono); pointer-events: none; }
+.quay .exc rect { fill: none; stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 2; }
+.quay .exc text { fill: var(--muted); font: 400 8px var(--sans); }
+.l-port .prows { margin: 6px 0 0; }
+.l-port .prows > div { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.l-port .prows dt { font: 400 11px/14px var(--sans); color: var(--muted); }
+.l-port .prows dd { margin: 0; font: 400 11px/14px var(--mono); color: var(--text); text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.l-port .k-say { margin-top: 6px; }

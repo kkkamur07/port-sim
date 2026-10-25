@@ -108,6 +108,11 @@
     }).sort((a, b) => a.version - b.version);
   }
 
+  // the sheet and the Results tab name versions, never the games they were played in
+  function noEp(text) {
+    return String(text || "").replace(/\s*\(?\b(in|on|from|during)?\s*(the\s+)?episodes?\s+\d+(\s*(,|and|to|-)\s*\d+)*\)?,?/gi, "").replace(/^\s+/, "");
+  }
+
   // the front in the Results tab, or (into, hl) a copy in the playbook sheet with version hl ringed
   function renderFront(fresh, into, hl) {
     const el = into || $("front");
@@ -148,7 +153,7 @@
     const newest = nodes[nodes.length - 1].version;
     for (const n of nodes) {
       const [cx, cy] = pos[n.version];
-      const tip = "v" + n.version + " · " + (n.version === 0 ? "start" : n.hang ? (n.verdict === "open" ? "checking" : "rejected before verification") : n.cls) + "" + (n.change ? " · " + R().uiText(n.change).slice(0, 80) : "");
+      const tip = "v" + n.version + (n.eval_mean != null ? " · " + n.eval_mean.toFixed(3) : "") + " · " + (n.version === 0 ? "start" : n.hang ? (n.verdict === "open" ? "checking" : "rejected before verification") : n.cls) + (n.change ? " · " + noEp(R().uiText(n.change)).slice(0, 80) : "");
       const anim = fresh && n.version === newest ? " front-fresh" : "";
       o.push('<g class="node' + anim + '" tabindex="0" role="button" data-v="' + n.version + '" data-tip="' + esc(tip) + '" data-x="' + cx.toFixed(1) + '" data-y="' + cy.toFixed(1) + '" aria-label="' + esc(tip) + '">');
       if (n.front) o.push('<circle class="halo" cx="' + cx.toFixed(1) + '" cy="' + cy.toFixed(1) + '" r="8"/>');
@@ -187,7 +192,7 @@
     if (!n) return;
     const el = $("front-pick");
     if (el) el.dataset.v = n.version;
-    if (el) el.textContent = "v" + n.version + " · " + (n.version === 0 ? "start" : n.cls) + " · " + (n.change ? R().uiText(n.change).split("\n")[0] : "the starting playbook");
+    if (el) el.textContent = "v" + n.version + " · " + (n.version === 0 ? "start" : n.cls) + " · " + (n.change ? noEp(R().uiText(n.change)).split("\n")[0] : "the starting playbook");
     openPlaybook(n.version);
   }
 
@@ -199,9 +204,9 @@
     el.innerHTML = nodes.sort((a, b) => b.version - a.version).slice(0, 6).map((n) => {
       const word = n.verdict === "open" ? "checking" : n.verdict || "open";
       const m = /^(\w+): episodes ([-+]?\d*\.?\d+)/.exec(String(n.reason || ""));
-      const why = m ? "training " + m[1] + (Number(m[2]) < 0 ? " down " : " up ") + Math.abs(Number(m[2])).toFixed(3) : n.reason;
+      const why = m ? "games " + m[1] + (Number(m[2]) < 0 ? " down " : " up ") + Math.abs(Number(m[2])).toFixed(3) : n.reason;
       const txt = "v" + n.version + " " + word + (why ? ", " + why : "") + (n.eval_mean != null ? ", verification " + f2(n.eval_mean) : "");
-      return '<li title="' + esc(n.change ? R().uiText(n.change) : txt) + '">' + esc(txt) + "</li>";
+      return '<li title="' + esc(n.change ? noEp(R().uiText(n.change)) : txt) + '">' + esc(txt) + "</li>";
     }).join("");
   }
 
@@ -216,12 +221,12 @@
     const el = $("coach-say");
     if (!el) return;
     const r = rounds[0];
-    if (!r) { el.textContent = "No coach round yet. I play with the starting playbook and the coach reads my logs after each window of episodes."; return; }
+    if (!r) { el.textContent = "No coach round yet. I play with the starting playbook and the coach reads my logs after each window of games."; return; }
     const nums = '<span class="num">' + f2(r.evalBefore) + " → " + f2(r.evalAfter) + "</span>";
     const what = clause(r.change);
     let txt;
     if (r.cls === "accepted") txt = "Round " + r.round + ": I now " + esc(what) + ". Accepted, " + nums + ".";
-    else if (r.cls === "overfit") txt = "Round " + r.round + ": tried to " + esc(what) + ". Overfit, better on my episodes only. Kept v" + esc(r.parent) + ".";
+    else if (r.cls === "overfit") txt = "Round " + r.round + ": tried to " + esc(what) + ". Overfit, better on the games I played only. Kept v" + esc(r.parent) + ".";
     else txt = "Round " + r.round + ": tried to " + esc(what) + ". Rejected, no gain.";
     el.innerHTML = txt;
     el.title = el.textContent;
@@ -231,29 +236,79 @@
   function inForce() {
     return R().currentPlaybook(S.evalRows, null).version || 0;
   }
-  function openPlaybook(pick) {
-    const v = typeof pick === "number" ? pick : inForce();
-    const sheet = $("playbook-sheet");
-    $("pb-title").textContent = "Playbook v" + v;
-    $("pb-note").textContent = v ? "Highlighted lines were added since v0. The model is unchanged; only this text is." : "The starting playbook. The model is unchanged; only this text changes.";
-    $("pb-text").textContent = "Loading";
-    setTab("learn");
-    renderFront(false, $("pb-front"), v);
-    sheet.classList.remove("hidden");
-    $("pb-close").focus();
-    Promise.all([fetchText(S.base + "/playbooks/v0.md"), fetchText(S.base + "/playbooks/v" + v + ".md")]).then(([t0, tv]) => {
-      if (tv == null) { $("pb-text").textContent = "playbooks/v" + v + ".md not found in this run."; return; }
-      const lines = R().playbookDiff(v ? t0 : null, tv);
-      $("pb-text").innerHTML = lines.map((l) => (l.added && /^\s*[-*\d]/.test(l.text) && /rule/i.test(sectionOf(lines, l)) ? '<span class="add">' + esc(l.text) + "</span>" : esc(l.text) + "\n")).join("");
+  // the newest playbook: the latest Optimize proposal when there is one (proposals.jsonl is rewritten in place as
+  // it verifies, the same row GET /proposal serves), else the newest version in tree.json; a number opens that version
+  const f3 = (v) => (typeof v === "number" && isFinite(v) ? v.toFixed(3) : "n/a");
+  function newestPlaybook() {
+    return fetchText(S.base + "/proposals/proposals.jsonl").then((txt) => {
+      const rows = txt ? R().parseJSONL(txt).filter((r) => r && r.id != null) : [];
+      const p = rows[rows.length - 1];
+      if (!p) return treePlaybook(null);
+      const ver = (p.verification || {}).eval_mean;
+      const verdict = p.status === "accepted" ? "accepted" : p.status === "rejected"
+        ? "rejected: verification " + f3(ver) + " against " + f3(p.baseline_eval_mean) : "checking on the verification tasks";
+      return fetchText(S.base + "/proposals/p" + p.id + ".md").then((md) => ({
+        v: p.version != null ? p.version : null, base: p.from_version || 0, hl: null, text: md != null ? md : p.playbook_md || null,
+        title: "Playbook " + (p.version != null ? "v" + p.version : "proposal " + p.id) + (p.status === "accepted" ? " (accepted)" : " (proposed)"), verdict: verdict,
+      }));
     });
   }
-  // the heading a line sits under: only rule bullets count as what the coach added
-  function sectionOf(lines, line) {
-    let h = "";
-    for (const l of lines) { if (/^#+\s/.test(l.text)) h = l.text; if (l === line) break; }
-    return h;
+  function treePlaybook(pick) {
+    const nodes = (S.tree && Array.isArray(S.tree.nodes) ? S.tree.nodes : []).filter((n) => n && num(n.version) !== null);
+    const n = pick != null ? nodes.find((x) => x.version === pick) : nodes.sort((a, b) => b.version - a.version)[0];
+    const v = n ? n.version : pick != null ? pick : inForce();
+    if (!v) return fetchText(S.base + "/playbooks/v0.md").then((md) => ({ v: 0, base: null, hl: 0, text: md, title: "Playbook v0 (start)", verdict: "the starting playbook" }));
+    const parent = n && n.parent != null ? nodes.find((x) => x.version === n.parent) : null;
+    const word = !n ? "" : n.verdict === "open" ? "checking" : n.verdict || "open";
+    const verdict = !n ? "" : n.verdict === "accepted" ? "accepted" : n.eval_mean != null
+      ? word + ": verification " + f3(n.eval_mean) + " against " + f3(parent ? parent.eval_mean : null) : word + " before verification";
+    return fetchText(S.base + "/playbooks/v" + v + ".md").then((md) => ({
+      v: v, base: n && n.parent != null ? n.parent : 0, hl: v, text: md, title: "Playbook v" + v + (word ? " (" + word + ")" : ""), verdict: verdict,
+    }));
   }
-    function closePlaybook() {
+  // lines of cur against prev: kept, added, or removed (line LCS), in reading order
+  function lineDiff(prev, cur) {
+    const a = String(prev || "").replace(/\r/g, "").split("\n"), b = String(cur || "").replace(/\r/g, "").split("\n");
+    const L = [];
+    for (let i = 0; i <= a.length; i++) L.push(new Array(b.length + 1).fill(0));
+    // the title line names the version; it is not a change
+    const key = (l) => l.replace(/^#\s*Playbook v\d+\s*$/i, "# Playbook");
+    const ka = a.map(key), kb = b.map(key);
+    for (let i = a.length - 1; i >= 0; i--) for (let j = b.length - 1; j >= 0; j--) L[i][j] = ka[i] === kb[j] ? L[i + 1][j + 1] + 1 : Math.max(L[i + 1][j], L[i][j + 1]);
+    const out = [];
+    let i = 0, j = 0;
+    while (i < a.length || j < b.length) {
+      if (i < a.length && j < b.length && ka[i] === kb[j]) { out.push({ text: b[j], op: "same" }); i++; j++; }
+      else if (i < a.length && (j >= b.length || L[i + 1][j] >= L[i][j + 1])) out.push({ text: a[i++], op: "del" });
+      else out.push({ text: b[j++], op: "add" });
+    }
+    return out;
+  }
+  function openPlaybook(pick) {
+    const sheet = $("playbook-sheet");
+    $("pb-title").textContent = "Playbook";
+    $("pb-note").textContent = "";
+    $("pb-text").textContent = "Loading";
+    setTab("learn");
+    sheet.classList.remove("hidden");
+    $("pb-close").focus();
+    const req = (S.pbReq = (S.pbReq || 0) + 1);
+    (typeof pick === "number" ? treePlaybook(pick) : newestPlaybook()).then((pb) => {
+      if (req !== S.pbReq) return;
+      $("pb-title").textContent = pb.title;
+      $("pb-note").textContent = pb.verdict;
+      $("pb-v0").hidden = pb.v === 0;
+      renderFront(false, $("pb-front"), pb.hl);
+      if (pb.text == null) { $("pb-text").textContent = "This playbook's text is not in this run."; return; }
+      if (pb.base == null) { $("pb-text").textContent = pb.text; return; }
+      return fetchText(S.base + "/playbooks/v" + pb.base + ".md").then((t0) => {
+        if (req !== S.pbReq) return;
+        $("pb-text").innerHTML = lineDiff(t0, pb.text).map((l) => (l.op === "add" && l.text.trim() ? '<span class="add">' + esc(l.text) + "</span>"
+          : l.op === "del" && l.text.trim() ? '<span class="del">' + esc(l.text) + "</span>" : l.op === "del" ? "" : esc(l.text) + "\n")).join("");
+      });
+    });
+  }
+  function closePlaybook() {
     const sheet = $("playbook-sheet");
     if (sheet.classList.contains("hidden")) return false;
     sheet.classList.add("hidden");
@@ -368,51 +423,89 @@
     portTimer = setTimeout(() => { portLast = Date.now(); renderPort(); }, 100);
   }
 
+  // what a berth planner reads every hour: the quay, the anchorage, the next arrival, the crane budget, the exceptions
+  const secTxt = (a, n) => (n > 1 ? a + "-" + (a + n - 1) : String(a));
+  const oneWord = (label, fallback) => {
+    const m = /storm|fog|wind|swell|repair|maintenance|strike|outage|closed/i.exec(String(label || ""));
+    return m ? m[0].toLowerCase() : fallback;
+  };
+  // the exceptions in force at hour t, all from the replay: bar or fog windows, closed sections, crane outages
+  function exceptionsAt(rep, t) {
+    const out = [];
+    for (const w of rep.no_moves || []) {
+      const a = w.start != null ? w.start : w[0], b = w.end != null ? w.end : w[1];
+      if (t >= a && t < b) out.push({ kind: "bar", word: oneWord(w.label, "closed"), label: w.label || "no movements", end: b });
+    }
+    for (const bl of rep.blocks || []) {
+      if (bl.kind === "closed" && t >= bl.start && t < bl.end) out.push({ kind: "closed", word: oneWord(bl.label, "closed"), label: bl.label || "closed", first: bl.first, last: bl.last, end: bl.end });
+    }
+    for (const o of ((rep.task || {}).rules || {}).crane_outages || []) {
+      if (t >= o.start && t < o.end) out.push({ kind: "outage", word: "outage", label: (o.cranes || 1) + " crane" + (o.cranes === 1 ? "" : "s") + " out", cranes: o.cranes || 1, end: o.end });
+    }
+    return out;
+  }
+  // ships waiting at anchor at hour t, longest first
+  function anchoredAt(rep, t) {
+    return (rep.ships || []).filter((s) => t >= s.arrival && t < s.berth_hour).sort((a, b) => a.arrival - b.arrival);
+  }
+
   function renderPort() {
     const rep = S.portRep, t = S.portT;
     if (!rep || !window.OakKPI) return;
     const K = window.OakKPI;
     const k = K.at(rep, t);
     const H = K.horizon(rep);
-    const ph = $("port-hour");
-    if (ph) ph.textContent = "Port now · " + hourTxt(Math.floor(t)) + ", hour " + Math.floor(t);
     const task = rep.task || {};
-    const g = rep.grade || {};
-    $("k-along").textContent = k.ships_alongside + " of " + (rep.ships || []).length;
+    const ships = rep.ships || [];
+    const ph = $("port-hour");
+    if (ph) ph.textContent = "Port now · " + (task.terminal || "Terminal") + " · " + hourTxt(Math.floor(t)) + " · hour " + Math.floor(t);
+    const anch = anchoredAt(rep, t);
+    const next = ships.filter((s) => s.arrival > t).sort((a, b) => a.arrival - b.arrival)[0];
+    $("k-along").textContent = k.ships_alongside + " of " + ships.length + " ships";
+    $("k-anchor").textContent = anch.length ? anch.length + " (longest " + Math.floor(t - anch[0].arrival) + " h)" : "0";
+    $("k-next").textContent = next ? next.name + " in " + Math.ceil(next.arrival - t) + " h" : "none";
     // pool of this hour from the replay's crane_pool_by_hour (hoot shifts and outages included)
     $("k-cranes").textContent = k.cranes_working + " of " + k.cranes_pool;
-    $("k-late").textContent = String(Math.round(k.late_ship_hours));
-    const cost = g.cost != null ? g.cost : k.final_cost;
-    const best = g.optimal_cost != null ? g.optimal_cost : k.optimal_cost;
-    const fmt = (v) => (typeof v === "number" ? v.toLocaleString("en-US") : "n/a");
-    $("k-cost").textContent = fmt(cost) + (best != null ? ", best possible " + fmt(best) : ", best possible unknown");
-    $("k-say").textContent = portSentence(rep, t);
+    $("k-late").textContent = Math.round(k.late_ship_hours) + " ship-hours";
+    const exc = exceptionsAt(rep, t);
+    $("k-say").textContent = portSentence(rep, t, exc, anch);
 
-    // quay strip: the terminal name on the left, ships alongside as named blocks, nothing else
-    const W = 320, Q = 30, L0 = 84, barY = 4, barH = 22;
+    // quay strip to scale over the terminal's sections: a hairline per free section, ships as named blocks,
+    // exceptions as a thin dashed band above the quay
+    const W = 320, Q = 40, laneY = 1, laneH = 10, barY = 14, barH = 25;
     const nSec = Math.max(1, k.sections || 1);
-    const BW = W - L0;
-    const sx = (sec) => L0 + ((sec - 1) / nSec) * BW;
-    const along = (rep.ships || []).map((s, idx) => [s, idx]).filter(([s]) => t >= s.berth_hour && t < s.departure);
-    const o = [];
-    if (!along.length) o.push('<span class="none">No ship alongside at this hour</span>');
-    else {
-      o.push('<svg viewBox="0 0 ' + W + " " + Q + '" aria-hidden="false">');
-      o.push('<text class="term" x="0" y="' + (barY + barH / 2 + 4) + '">' + esc((task.terminal || "Terminal") + " quay") + "</text>");
-      o.push('<rect class="bar" x="' + L0 + '.5" y="' + barY + '" width="' + (BW - 1) + '" height="' + barH + '"/>');
-      for (const [s, idx] of along) {
-        const secs = s.sections || 1;
-        const x0 = sx(s.first_section) + 1, w = Math.max(3, (secs / nSec) * BW - 2);
-        const late = s.due != null && t > s.due;
-        const sel = S.selectedShip === idx;
-        o.push('<rect class="ship' + (late ? " late" : "") + (sel ? " sel" : "") + '" data-idx="' + idx + '" x="' + x0.toFixed(1) + '" y="' + (barY + 2) + '" width="' + w.toFixed(1) + '" height="' + (barH - 4) + '"><title>' + esc(s.name) + (late ? ", past its due hour" : "") + "</title></rect>");
-        const full = String(s.name || ""), short = full.split(" ").pop();
-        const fit = (txt) => txt.length * 5.5 + 6 < w;
-        const nm = fit(full) ? full : fit(short) ? short : short.slice(0, Math.max(0, Math.floor((w - 6) / 5.5)));
-        if (nm) o.push('<text class="sname" x="' + (x0 + w / 2).toFixed(1) + '" y="' + (barY + barH / 2 + 3) + '" text-anchor="middle">' + esc(nm) + "</text>");
-      }
-      o.push("</svg>");
+    const sx = (sec) => ((sec - 1) / nSec) * W;
+    const o = ['<svg viewBox="0 0 ' + W + " " + Q + '" aria-hidden="false">'];
+    for (let i = 1; i < nSec; i++) o.push('<line class="sgrid" x1="' + sx(i + 1).toFixed(1) + '" x2="' + sx(i + 1).toFixed(1) + '" y1="' + (barY + 4) + '" y2="' + (barY + barH - 4) + '"/>');
+    o.push('<rect class="bar" x="0.5" y="' + barY + '.5" width="' + (W - 1) + '" height="' + (barH - 1) + '"/>');
+    for (const e of exc) {
+      const x0 = e.kind === "closed" ? sx(e.first) : 0, x1 = e.kind === "closed" ? sx(e.last + 1) : W;
+      o.push('<g class="exc"><rect x="' + (x0 + 0.5).toFixed(1) + '" y="' + (laneY + 0.5) + '" width="' + Math.max(2, x1 - x0 - 1).toFixed(1) + '" height="' + laneH + '"/>' +
+        '<text x="' + (x0 + 4).toFixed(1) + '" y="' + (laneY + laneH - 1.5) + '">' + esc(e.word) + "</text><title>" + esc(e.label + " until " + hourTxt(e.end)) + "</title></g>");
     }
+    // calls already alongside when the plan starts sit on the quay too (blocks of kind alongside)
+    const along = ships.map((s, idx) => [s, idx]).filter(([s]) => t >= s.berth_hour && t < s.departure)
+      .map(([s, idx]) => ({ idx: idx, name: s.name, first: s.first_section, secs: s.sections || 1, cranes: K.shipCranesAt(s, Math.floor(t)), until: s.departure, late: s.due != null && t > s.due }));
+    for (const bl of rep.blocks || []) {
+      if (bl.kind === "alongside" && t >= bl.start && t < bl.end) {
+        const c = (bl.cranes_by_hour || []).find((p) => p[0] === Math.floor(t));
+        along.push({ idx: null, name: String(bl.label || "").replace(/\s*\(.*$/, ""), first: bl.first, secs: bl.last - bl.first + 1, cranes: c ? c[1] : 0, until: bl.end, late: false });
+      }
+    }
+    for (const a of along) {
+      const x0 = sx(a.first) + 1, w = Math.max(3, (a.secs / nSec) * W - 2);
+      const sel = a.idx != null && S.selectedShip === a.idx;
+      o.push('<rect class="ship' + (a.late ? " late" : "") + (sel ? " sel" : "") + '"' + (a.idx != null ? ' data-idx="' + a.idx + '"' : "") + ' x="' + x0.toFixed(1) + '" y="' + (barY + 2) + '" width="' + w.toFixed(1) + '" height="' + (barH - 4) + '"><title>' +
+        esc(a.name + ", until " + hourTxt(a.until) + (a.late ? ", past its due hour" : "")) + "</title></rect>");
+      const full = String(a.name || ""), short = full.split(" ").pop();
+      const fit = (txt, cw) => txt.length * cw + 6 < w;
+      const nm = fit(full, 5.4) ? full : fit(short, 5.4) ? short : short.slice(0, Math.max(0, Math.floor((w - 6) / 5.4)));
+      const sub = "sec " + secTxt(a.first, a.secs) + " · " + a.cranes + " cr";
+      const cx = (x0 + w / 2).toFixed(1);
+      if (nm) o.push('<text class="sname" x="' + cx + '" y="' + (barY + 11) + '" text-anchor="middle">' + esc(nm) + "</text>");
+      if (fit(sub, 4.6)) o.push('<text class="ssub" x="' + cx + '" y="' + (barY + 19.5) + '" text-anchor="middle">' + esc(sub) + "</text>");
+    }
+    o.push("</svg>");
     const quay = $("quay");
     quay.innerHTML = o.join("");
     quay.querySelectorAll(".ship").forEach((r) => r.addEventListener("click", (e) => {
@@ -443,17 +536,33 @@
       '<text class="ax" x="0" y="' + (SH + 11) + '">cranes in use</text><text class="ax" x="' + SW + '" y="' + (SH + 11) + '" text-anchor="end">pool, dashed · ' + Math.round(H / 24) + " days</text></svg>";
   }
 
-  // one short sentence from the state at hour t
-  function portSentence(rep, t) {
+  // one short sentence from the state at hour t, the exception first when there is one
+  function portSentence(rep, t, exc, anch) {
     const ships = rep.ships || [];
-    const along = ships.filter((s) => t >= s.berth_hour && t < s.departure);
-    const lateNow = ships.filter((s) => s.late_h > 0 && s.due != null && t > s.due && t < s.departure).sort((a, b) => b.late_h - a.late_h);
-    const lateTxt = lateNow.length ? lateNow[0].name + " " + lateNow[0].late_h + " h late" : "";
-    if (!along.length) {
-      const next = ships.filter((s) => s.arrival > t).sort((a, b) => a.arrival - b.arrival)[0];
-      return "Quay idle this hour" + (next ? ", next arrival " + hourTxt(next.arrival) : "") + (lateTxt ? ", " + lateTxt : "");
+    const plural = (n, w) => n + " " + w + (n === 1 ? "" : "s");
+    const bar = exc.find((e) => e.kind === "bar");
+    if (bar) {
+      const what = /bar/i.test(bar.label) ? "Bar closed for " + bar.word : "No movements for " + bar.word;
+      return what + " until hour " + bar.end + (anch.length ? ", " + plural(anch.length, "ship") + " holding" : "");
     }
-    return along.length + " ship" + (along.length === 1 ? "" : "s") + " working" + (lateTxt ? ", " + lateTxt : ", all on time");
+    const lateNow = ships.filter((s) => s.late_h > 0 && s.due != null && t > s.due && t < s.departure)
+      .map((s) => ({ s: s, h: Math.floor(t - s.due) })).sort((a, b) => b.h - a.h);
+    if (lateNow.length) {
+      const { s, h } = lateNow[0];
+      const where = "sections " + secTxt(s.first_section, s.sections || 1);
+      return s.name + " " + h + " h late, " + (t < s.berth_hour ? "waiting for " + where : "working at " + where);
+    }
+    const cl = exc.find((e) => e.kind === "closed");
+    if (cl) return "Sections " + secTxt(cl.first, cl.last - cl.first + 1) + " closed for " + cl.word + " until hour " + cl.end;
+    const out = exc.find((e) => e.kind === "outage");
+    if (out) return plural(out.cranes, "crane") + " out until hour " + out.end;
+    if (anch.length) return plural(anch.length, "ship") + " waiting at anchor, longest " + Math.floor(t - anch[0].arrival) + " h";
+    const along = ships.filter((s) => t >= s.berth_hour && t < s.departure).length;
+    if (!along) {
+      const next = ships.filter((s) => s.arrival > t).sort((a, b) => a.arrival - b.arrival)[0];
+      return "Quay idle" + (next ? ", next arrival " + next.name + " " + hourTxt(next.arrival) : "");
+    }
+    return plural(along, "ship") + " working, all on time";
   }
 
   function crossfade(el) {
@@ -569,6 +678,7 @@
       if (S.api && S.api.seek) S.api.seek(Math.round(S.api.getT()) + (e.key === "ArrowRight" ? 1 : -1));
     });
     $("pb-close").addEventListener("click", closePlaybook);
+    $("pb-v0").addEventListener("click", () => openPlaybook(0));
     window.addEventListener("keydown", (e) => {
       const src = (e.composedPath && e.composedPath()[0]) || e.target;
       const tag = (src && src.tagName) || "";
@@ -591,30 +701,40 @@
       }
       apply(run, !ownReplay);
       if (S.live) setTimeout(poll, POLL_MS);
+      // deep link for reviews and screenshots: &ep=9&hour=40&ship=3 (ship id) and &sheet=1 (the playbook sheet)
+      const n = (k) => (params.get(k) != null && params.get(k) !== "" ? Number(params.get(k)) : null);
+      if (run.ok && (n("ep") != null || n("hour") != null || n("ship") != null)) {
+        // after the newest episode has loaded, so its load does not reset the hour afterwards
+        let tries = 0;
+        const go = () => (S.shownEpisode != null && S.api.getReplay() === S.shownReplay) || ++tries > 50
+          ? goTo({ episode: n("ep"), hour: n("hour"), ship_id: n("ship") }) : setTimeout(go, 100);
+        go();
+      }
+      if (params.has("sheet")) openPlaybook();
     });
   }
 
-  // ---------- actions on what is on screen: the selected ship, or back from a proposed plan ----------
+  // ---------- the chip row under the chat: three questions, about the selected ship when there is one ----------
+  const STANDING = ["How is the port doing?", "Which ship is the most late?", "What changed last?"];
   function renderActs() {
-    const row = $("act-row");
+    const row = $("chips");
     if (!row) return;
-    const chips = [];
     const rep = S.api && S.api.getReplay();
     const s = S.selectedShip != null && rep && rep.ships ? rep.ships[S.selectedShip] : null;
-    if (S.planRep && rep === S.planRep) chips.push(["Back to the run", "back"]);
+    const short = (nm) => (nm.length > 18 ? nm.slice(0, 17).trimEnd() + "…" : nm);
+    let chips;
+    if (S.planRep && rep === S.planRep) chips = [["Back to the run", null, "back"], [STANDING[0], STANDING[0]], [STANDING[2], STANDING[2]]];
     else if (s) {
-      const ep = "";
-      const nm = s.name;
-      if (s.late_h > 0) chips.push(["Why is " + nm + " late?", "Why is " + nm + " late" + ep + "?"]);
-      chips.push(["Route " + nm + " earlier", "Route " + nm + " earlier" + ep + "."]);
-      chips.push(["What if " + nm + " berths elsewhere?", "What if " + nm + " berths elsewhere" + ep + "?"]);
-    }
-    row.innerHTML = chips.map((c, i) => '<button type="button" class="chip act" data-i="' + i + '">' + esc(c[0]) + "</button>").join("");
-    row.querySelectorAll(".act").forEach((b) => b.addEventListener("click", () => {
-      const q = chips[Number(b.dataset.i)][1];
-      if (q === "back") { const ep = S.planBackEp; S.planRep = null; if (ep != null) showEpisode(ep, true); renderActs(); }
-      else if (window.OakChat) window.OakChat.send(q);
-    }));
+      const nm = String(s.name || "ship " + s.id);
+      chips = [
+        s.late_h > 0 ? ["Why is " + short(nm) + " late?", "Why is " + nm + " late?"] : ["Tell me about " + short(nm), "Tell me about " + nm + "."],
+        ["Route " + short(nm) + " earlier", "Route " + nm + " earlier."],
+        [STANDING[0], STANDING[0]],
+      ];
+    } else chips = STANDING.map((q) => [q, q]);
+    row.innerHTML = chips.map((c) => '<button type="button" class="chip"' + (c[2] ? ' data-act="' + c[2] + '"' : ' data-q="' + esc(c[1]) + '"') + ' title="' + esc(c[1] || c[0]) + '">' + esc(c[0]) + "</button>").join("");
+    const back = row.querySelector('[data-act="back"]');
+    if (back) back.addEventListener("click", () => { const ep = S.planBackEp; S.planRep = null; if (ep != null) showEpisode(ep, true); renderActs(); });
   }
 
   // a plan the operator made (make_plan, route_ship): its replay in the scene, the cost in the top bar
