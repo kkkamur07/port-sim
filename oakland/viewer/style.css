@@ -42,11 +42,12 @@ button.on { background: var(--accent); color: #04121c; border-color: var(--accen
 #topbar {
   position: fixed; top: 12px; left: 12px; right: 12px;
   display: flex; align-items: center; gap: 16px;
-  padding: 10px 14px;
+  padding: 7px 14px;
   background: var(--panel); border: 1px solid var(--panel-border); border-radius: 10px;
   backdrop-filter: blur(6px);
 }
-#topbar h1 { margin: 0; font-size: 16px; font-weight: 600; }
+#topbar h1 { margin: 0; font-size: 15px; font-weight: 600; }
+#subtitle { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .title { flex: 1; min-width: 0; }
 .loaders { display: flex; gap: 8px; align-items: center; }
 
@@ -61,16 +62,31 @@ button.on { background: var(--accent); color: #04121c; border-color: var(--accen
 .chip.bad { border-color: var(--late); color: var(--late); }
 
 #side {
-  position: fixed; top: 84px; right: 12px; bottom: 76px; width: 400px;
+  position: fixed; top: 80px; right: 12px; width: 300px; max-height: calc(62vh);
   padding: 10px; overflow-y: auto;
   background: var(--panel); border: 1px solid var(--panel-border); border-radius: 10px;
 }
-.cams { display: flex; gap: 6px; margin-bottom: 10px; }
-.cams button { flex: 1; }
+.cams { display: flex; gap: 4px; margin: 10px 0 8px; }
+.cams button { flex: 1; padding: 4px 4px; font-size: 12px; }
+
+.kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+.kpi {
+  padding: 4px 6px; border-radius: 6px;
+  background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.06);
+}
+.kpi-name { color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: 0.03em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kpi-val { font-size: 15px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.kpi-sub { color: var(--muted); font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kpi.good .kpi-val { color: var(--ok); }
+.kpi.bad .kpi-val { color: var(--late); }
+.kpi.warn .kpi-val { color: #ffc35a; }
+#spark { display: block; width: 240px; height: 40px; margin: 8px auto 4px; }
+.spark-legend { display: flex; flex-wrap: wrap; gap: 4px 10px; justify-content: center; }
+.spark-legend .sw { display: inline-block; width: 10px; height: 3px; margin-right: 4px; vertical-align: middle; border-radius: 1px; }
 
 #ships { width: 100%; border-collapse: collapse; }
 #ships th {
-  text-align: left; color: var(--muted); font-weight: 500;
+  text-align: left; color: var(--muted); font-weight: 500; font-size: 11px;
   padding: 4px 4px; border-bottom: 1px solid var(--panel-border);
 }
 #ships td { padding: 5px 4px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); vertical-align: top; }
@@ -79,9 +95,14 @@ button.on { background: var(--accent); color: #04121c; border-color: var(--accen
 #ships .swatch {
   display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 6px;
 }
-#ships .name { font-weight: 600; }
-#ships .line { color: var(--muted); font-size: 11px; }
+#ships .name { font-weight: 600; font-size: 12px; }
+#ships .line { color: var(--muted); font-size: 10px; }
 #ships .late { color: var(--late); font-weight: 600; }
+#ships .lt { white-space: nowrap; font-size: 11px; }
+#ships .status { font-size: 12px; white-space: nowrap; }
+#ships .bar { height: 4px; margin: 3px 0 2px; border-radius: 2px; background: rgba(255, 255, 255, 0.1); overflow: hidden; }
+#ships .bar i { display: block; height: 100%; width: 0; background: var(--accent); }
+#ships .moves { color: var(--muted); font-size: 10px; white-space: nowrap; }
 #ships .status-alongside { color: var(--ok); }
 #ships .status-anchor { color: #ffc35a; }
 #ships .status-departed, #ships .status-sea { color: var(--muted); }
@@ -90,7 +111,7 @@ button.on { background: var(--accent); color: #04121c; border-color: var(--accen
 #controls {
   position: fixed; left: 12px; right: 12px; bottom: 12px;
   display: flex; align-items: center; gap: 12px;
-  padding: 10px 14px;
+  padding: 7px 14px;
   background: var(--panel); border: 1px solid var(--panel-border); border-radius: 10px;
 }
 #play { min-width: 64px; }
@@ -111,7 +132,7 @@ button.on { background: var(--accent); color: #04121c; border-color: var(--accen
 }
 
 @media (max-width: 900px) {
-  #side { width: auto; left: 12px; top: auto; height: 34%; }
+  #side { width: auto; left: 12px; top: auto; bottom: 64px; max-height: 34%; }
   #topbar { flex-wrap: wrap; }
   #controls { flex-wrap: wrap; }
   #clock { min-width: 0; }
