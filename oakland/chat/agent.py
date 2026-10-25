@@ -20,6 +20,7 @@ from .tools import RunTools
 
 TEMPERATURE = 0.3
 RECURSION_LIMIT = 25
+MAX_SENTENCES = 4
 SYSTEM_PROMPT = (
     "You are the Gemini Argon operator of the Port of Oakland berth plans in this demo. Speak in first person, "
     "plainly, two to four sentences, numbers from tools only, cite episode numbers and playbook versions. Nothing is "
@@ -57,6 +58,13 @@ def _links(steps: list[dict], episode: int | None) -> list[dict]:
                     pass
         if a.get("berth_hour") is not None:
             link["hour"] = int(a["berth_hour"])
+        elif s["tool"] == "ship":
+            try:
+                hour = json.loads(s["result"]).get("berth_hour")
+            except (json.JSONDecodeError, AttributeError):
+                hour = None
+            if hour is not None:
+                link["hour"] = int(hour)
         if link not in out:
             out.append(link)
     if not out and episode is not None:
@@ -64,16 +72,25 @@ def _links(steps: list[dict], episode: int | None) -> list[dict]:
     return out
 
 
-class FakeModel:
-    """A scripted chat model for tests: the first turn calls run_status, the next answers from its result."""
+def cap_sentences(text: str, n: int = MAX_SENTENCES) -> str:
+    """The first n sentences of text (split after . ! or ? followed by whitespace)."""
+    parts = re.split(r"(?<=[.!?])\s+", text.strip())
+    return " ".join(parts[:n])
 
-    def __new__(cls, answer: str | None = None):
+
+class FakeModel:
+    """A scripted chat model for tests: the first turn calls `tool` (default run_status) with `args`, the next
+    answers from its result."""
+
+    def __new__(cls, answer: str | None = None, tool: str = "run_status", args: dict | None = None):
         from langchain_core.language_models.chat_models import BaseChatModel
         from langchain_core.messages import AIMessage, ToolMessage
         from langchain_core.outputs import ChatGeneration, ChatResult
 
         class _Fake(BaseChatModel):
             answer: str | None = None
+            tool: str = "run_status"
+            args: dict = {}
 
             @property
             def _llm_type(self) -> str:
@@ -86,7 +103,7 @@ class FakeModel:
                 usage = {"input_tokens": 100, "output_tokens": 20, "total_tokens": 120}
                 tool_msgs = [m for m in messages if isinstance(m, ToolMessage)]
                 if not tool_msgs:
-                    msg = AIMessage(content="", tool_calls=[{"name": "run_status", "args": {}, "id": "call-1"}],
+                    msg = AIMessage(content="", tool_calls=[{"name": self.tool, "args": self.args, "id": "call-1"}],
                                     usage_metadata=usage)
                 else:
                     data = json.loads(tool_msgs[-1].content)
@@ -95,7 +112,7 @@ class FakeModel:
                         f"v{data.get('current_playbook_version')}."), usage_metadata=usage)
                 return ChatResult(generations=[ChatGeneration(message=msg)])
 
-        return _Fake(answer=answer)
+        return _Fake(answer=answer, tool=tool, args=args or {})
 
 
 class ChatAgent:
@@ -146,6 +163,7 @@ class ChatAgent:
         final = next((m for m in reversed(new) if isinstance(m, AIMessage) and _text(m.content).strip()), None)
         answer = _text(final.content).strip() if final is not None else "I could not produce an answer."
         answer = re.sub(r"\s*[\u2014\u2013]\s*", ", ", answer)   # no dashes as punctuation in the demo
+        answer = cap_sentences(answer)
         links = _links(steps, episode)
         return {"answer": answer,
                 "steps": [{k: s[k] for k in ("tool", "args", "result_preview")} for s in steps],
