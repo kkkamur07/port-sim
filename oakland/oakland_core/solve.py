@@ -8,8 +8,8 @@ depths and ILWU shifts are real. Both task kinds are handled:
 
 The CP-SAT models are time-indexed: one Bool per (ship, berthing hour, crane count) on berth tasks and one per
 (ship, crane profile) on crane tasks. Every option's finish hour, departure, cost and cranes in use per hour are
-computed up front by `run`, which reads only the rules in `task.rules` (shifts, meal hours, moves per crane-hour,
-no-movement windows), so the solver prices a plan exactly as the checker does. Options whose own cost already
+computed up front by `run`, which uses the checker's own work model (check.work) and the task's pool and
+no-movement windows, so the solver prices a plan exactly as the checker does. Options whose own cost already
 exceeds the best baseline plan cannot be in an optimum and are left out, which keeps the models small and exact.
 """
 
@@ -18,10 +18,9 @@ from __future__ import annotations
 import re
 import time
 
-from .check import evaluate
-from .model import Plan, Task, plan_from_list
+from .check import block_crane_hours, evaluate, work
+from .model import MOVE_PENALTY, Plan, Task, plan_from_list, plan_to_list
 
-MOVE_PENALTY = 5          # cost of moving a scheduled ship off its planned section (berth tasks)
 SHIFT_NAMES = ("day", "night", "hoot")
 _SEARCH_H = 24 * 7 * 4    # the furthest the baselines look past a ship's arrival for a free slot
 
@@ -30,61 +29,28 @@ _SEARCH_H = 24 * 7 * 4    # the furthest the baselines look past a ship's arriva
 
 def shift_of(task: Task, hour: int) -> str | None:
     """The ILWU shift of an hour ("day", "night", "hoot"), or None in a meal hour (no crane work)."""
-    hd = hour % 24
-    if hd in task.rules.get("meal_hours", [17]):
-        return None
-    for name, (a, b) in task.rules["shifts"].items():
-        if a <= hd < b or a <= hd + 24 < b:
-            return name
-    return None
+    sh = task.shift_of(hour)
+    return None if sh == "meal" else sh
 
 
 def pool_at(task: Task, hour: int) -> int:
-    """Cranes available in an hour: the hoot pool in hoot hours, the full pool otherwise, less any outage."""
-    pool = int(task.rules["hoot_pool"] if shift_of(task, hour) == "hoot" else task.rules["crane_pool"])
-    for o in task.rules.get("crane_outages", []):
-        if o["start"] <= hour < o["end"]:
-            pool -= int(o["cranes"])
-    return max(0, pool)
-
-
-def no_move_windows(task: Task, s) -> list[tuple[int, int]]:
-    """Merged [start, end) windows in which this ship may not berth or leave (fog, bar closures)."""
-    ws = sorted((w["start"], w["end"]) for w in task.rules.get("no_moves", []) if s.length_m >= w.get("min_length", 0))
-    out: list[list[int]] = []
-    for a, b in ws:
-        if out and a <= out[-1][1]:
-            out[-1][1] = max(out[-1][1], b)
-        else:
-            out.append([a, b])
-    return [(a, b) for a, b in out]
+    """Cranes available in an hour (the kernel's pool: outages, and the hoot pool in hoot hours)."""
+    return task.crane_pool_at(hour)
 
 
 def in_window(task: Task, s, hour: int) -> bool:
-    return any(a <= hour < b for a, b in no_move_windows(task, s))
+    return any(a <= hour < b for a, b in task.no_move_windows(s))
 
 
 def run(task: Task, s, h: int, counts: dict) -> tuple[int, int, list[tuple[int, int]]]:
     """(finish hour, departure hour, [(hour, cranes working)]) for ship `s` berthing at `h` with crane counts per
-    shift. Cranes work every hour but meal hours at the count of that hour's shift (a hoot count of 0 hires no hoot
-    gang: the ship waits); the ship finishes when its moves are done and leaves at the finish hour, or at the end of a
-    no-movement window the finish falls in."""
-    rate = int(task.rules.get("moves_per_crane_hour", 26))
+    shift, by the checker's own work model (check.work): cranes work every hour but meal hours at the count of that
+    hour's shift (a hoot count of 0 hires no hoot gang: the ship waits); the ship leaves at the finish hour, or at the
+    end of a no-movement window the finish falls in."""
     if max(counts.values()) <= 0:
         raise ValueError(f"ship {s.id}: a crane profile with no cranes never finishes")
-    done, t, use = 0, h, []
-    while done < s.moves:
-        sh = shift_of(task, t)
-        c = counts[sh] if sh else 0
-        if c > 0:
-            use.append((t, c))
-            done += c * rate
-        t += 1
-    dep = t
-    for a, b in no_move_windows(task, s):
-        if a <= t < b:
-            dep = b
-    return t, dep, use
+    finish, use = work(task, s, h, counts)
+    return finish, task.departure(s, finish), use
 
 
 def uniform(c: int) -> dict:
@@ -150,9 +116,8 @@ class Ledger:
         self.moves: dict[int, int] = {}
         for b in task.blocks:
             if b.kind == "alongside":
-                for t in range(b.start, b.end):
-                    if shift_of(task, t):
-                        self.use[t] = self.use.get(t, 0) + b.cranes
+                for t in block_crane_hours(task, b):
+                    self.use[t] = self.use.get(t, 0) + b.cranes
                 self.moves[b.end] = self.moves.get(b.end, 0) + 1
         self.cap = int(task.rules.get("max_moves_per_hour") or 10 ** 6)
 
@@ -301,9 +266,8 @@ def _fixed_load(task: Task) -> tuple[dict[int, int], dict[int, int]]:
     moves: dict[int, int] = {}
     for b in task.blocks:
         if b.kind == "alongside":
-            for t in range(b.start, b.end):
-                if shift_of(task, t):
-                    use[t] = use.get(t, 0) + b.cranes
+            for t in block_crane_hours(task, b):
+                use[t] = use.get(t, 0) + b.cranes
             moves[b.end] = moves.get(b.end, 0) + 1
     return use, moves
 
@@ -489,8 +453,7 @@ def _crane_option_clear(task: Task, s, dep: int) -> bool:
 
 def plan_to_rows(task: Task, plan: Plan) -> list[dict]:
     """A plan in the list form of the schema (through the kernel's plan_to_list)."""
-    from .model import plan_to_list
-    return plan_to_list(plan)
+    return plan_to_list(plan, kind=task.kind)
 
 
 def counts_of(task: Task, row: dict) -> dict:

@@ -14,8 +14,8 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 from matplotlib.patches import Rectangle  # noqa: E402
 
-from .model import Plan, Task, plan_to_list  # noqa: E402
-from .solve import berth_of, counts_of, pool_at, run  # noqa: E402
+from .model import Plan, Task  # noqa: E402
+from .solve import berth_of, counts_of, plan_to_rows, pool_at, run  # noqa: E402
 
 COLORS = ["#4C78A8", "#F58518", "#54A24B", "#B279A2", "#72B7B2", "#EECA3B", "#9D755D", "#FF9DA6", "#79706E", "#E45756"]
 
@@ -30,7 +30,7 @@ def _label(task: Task, s, counts: dict) -> str:
 
 def render(task: Task, plan: Plan, path) -> None:
     """Write the chart of `plan` on `task` to `path` (PNG)."""
-    rows = plan_to_list(plan)
+    rows = plan_to_rows(task, plan)
     placed = []
     for row in rows:
         s = task.ships[int(row["ship"])]
@@ -39,7 +39,7 @@ def render(task: Task, plan: Plan, path) -> None:
         _, dep, use = run(task, s, h, counts)
         placed.append((s, h, sec, dep, counts, use))
     horizon = max([dep for *_, dep, _, _ in placed] + [max(s.due, s.arrival + 1) for s in task.ships] + [24])
-    horizon = max(horizon, 168 * (2 if task.difficulty in ("storm", "extreme") else 1))
+    horizon = max(horizon, task.horizon_h)
     crane = task.kind == "crane"
     fig, axes = plt.subplots(2 if crane else 1, 1, figsize=(max(12, horizon / 14), 7 if crane else 5.5), sharex=True,
                              gridspec_kw={"height_ratios": [3, 1]} if crane else None, squeeze=False)
