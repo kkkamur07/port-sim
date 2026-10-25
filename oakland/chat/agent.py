@@ -27,7 +27,13 @@ SYSTEM_PROMPT = (
     "trained; only your playbook changes between episodes. If a tool returns no data, say so.\n\n"
     "Always call at least one tool before answering. Ship calls are generated, not real records. For a what-if "
     "question call what_if; for 'right now' call run_status and player_log on the latest episode; for 'are you "
-    "improving' call improvement; for the coach call run_status then coach_round.")
+    "improving' call improvement; for the coach call run_status then coach_round.\n\n"
+    "For 'optimize my playbook' call optimize_playbook once and answer in exactly two sentences: \"Okay, I optimized "
+    "this: <the rule in plain words, under 20 words>.\" and \"I am checking it on the held-out tasks now; the result "
+    "will appear here.\" No diagnosis essay, no ids, no minutes unless asked. For 'did it work?' or 'result?' call "
+    "proposal_status and answer in one sentence with the before and after numbers and the verdict word.")
+PROPOSAL_TOOLS = ("optimize_playbook", "verify_proposal", "proposal_status")
+PROPOSAL_KEYS = ("id", "status", "change", "baseline_eval_mean", "eval_mean", "verdict_reason")
 
 
 def _text(content: Any) -> str:
@@ -79,10 +85,12 @@ def cap_sentences(text: str, n: int = MAX_SENTENCES) -> str:
 
 
 class FakeModel:
-    """A scripted chat model for tests: the first turn calls `tool` (default run_status) with `args`, the next
-    answers from its result."""
+    """A scripted chat model for tests: the first turn calls `tool` (default run_status) with `args`, each entry of
+    `then` [(tool, args or a function of the previous tool result)] is one more call, and the last turn answers
+    from the last result."""
 
-    def __new__(cls, answer: str | None = None, tool: str = "run_status", args: dict | None = None):
+    def __new__(cls, answer: str | None = None, tool: str = "run_status", args: dict | None = None,
+                then: list | None = None):
         from langchain_core.language_models.chat_models import BaseChatModel
         from langchain_core.messages import AIMessage, ToolMessage
         from langchain_core.outputs import ChatGeneration, ChatResult
@@ -91,6 +99,7 @@ class FakeModel:
             answer: str | None = None
             tool: str = "run_status"
             args: dict = {}
+            then: list = []
 
             @property
             def _llm_type(self) -> str:
@@ -102,8 +111,13 @@ class FakeModel:
             def _generate(self, messages, stop=None, run_manager=None, **kwargs):   # noqa: ANN001
                 usage = {"input_tokens": 100, "output_tokens": 20, "total_tokens": 120}
                 tool_msgs = [m for m in messages if isinstance(m, ToolMessage)]
-                if not tool_msgs:
-                    msg = AIMessage(content="", tool_calls=[{"name": self.tool, "args": self.args, "id": "call-1"}],
+                calls = [(self.tool, self.args)] + list(self.then)
+                if len(tool_msgs) < len(calls):
+                    name, args = calls[len(tool_msgs)]
+                    if callable(args):
+                        args = args(json.loads(tool_msgs[-1].content))
+                    msg = AIMessage(content="", tool_calls=[{"name": name, "args": args,
+                                                             "id": f"call-{len(tool_msgs) + 1}"}],
                                     usage_metadata=usage)
                 else:
                     data = json.loads(tool_msgs[-1].content)
@@ -112,17 +126,17 @@ class FakeModel:
                         f"v{data.get('current_playbook_version')}."), usage_metadata=usage)
                 return ChatResult(generations=[ChatGeneration(message=msg)])
 
-        return _Fake(answer=answer, tool=tool, args=args or {})
+        return _Fake(answer=answer, tool=tool, args=args or {}, then=then or [])
 
 
 class ChatAgent:
     """One operator agent per run. Stateless: the conversation is the messages list the client sends."""
 
-    def __init__(self, run_dir: str | Path, model: Any = None):
+    def __init__(self, run_dir: str | Path, model: Any = None, optimizer: Any = None):
         from langgraph.prebuilt import create_react_agent
 
         self.run_dir = Path(run_dir)
-        self.tools = RunTools(self.run_dir)
+        self.tools = RunTools(self.run_dir, optimizer)
         self.model = model if model is not None else make_model(TEMPERATURE)
         self.model_id = MODEL_ID if model is None else getattr(model, "_llm_type", "fake")
         self.graph = create_react_agent(self.model, self.tools.langchain_tools(), prompt=SYSTEM_PROMPT)
@@ -165,7 +179,17 @@ class ChatAgent:
         answer = re.sub(r"\s*[\u2014\u2013]\s*", ", ", answer)   # no dashes as punctuation in the demo
         answer = cap_sentences(answer)
         links = _links(steps, episode)
-        return {"answer": answer,
+        extra: dict[str, Any] = {}
+        touched = [st for st in steps if st["tool"] in PROPOSAL_TOOLS]
+        if touched:
+            try:
+                pid = json.loads(touched[-1]["result"]).get("id")
+            except (json.JSONDecodeError, AttributeError):
+                pid = None
+            got = self.tools.optimizer.status(pid)
+            if "error" not in got:
+                extra["proposal"] = {k: got.get(k) for k in PROPOSAL_KEYS}
+        return {**extra, "answer": answer,
                 "steps": [{k: s[k] for k in ("tool", "args", "result_preview")} for s in steps],
                 "links": links, "what_if": what_if, "tokens_in": tin, "tokens_out": tout,
                 "cost_usd": round(estimate_cost(tin, tout), 6) if self.model_id == MODEL_ID else 0.0}
