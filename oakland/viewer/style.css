@@ -350,3 +350,25 @@ body.learning-hidden .toast { left: 50vw; }
 .sheet-chart { border-top: 1px solid var(--line); padding-top: 16px; }
 .sheet-chart .chart { margin-top: 12px; }
 .sheet .pb-text { min-height: 120px; }
+
+/* port now: quay strip, cranes sparkline, four tiles */
+.quay { margin-top: 16px; outline-offset: 4px; }
+.quay svg, .cspark svg { display: block; width: 100%; height: auto; overflow: visible; }
+.quay .bar { fill: none; stroke: var(--line-strong); stroke-width: 1; }
+.quay .tick { stroke: var(--line); stroke-width: 1; }
+.quay .ship { fill: var(--line); stroke: var(--line-strong); stroke-width: 1; cursor: pointer; }
+.quay .ship.late { fill: var(--warn-soft); stroke: var(--warn); }
+.quay .ship.sel { stroke: var(--accent); stroke-width: 2; }
+.quay .ship:hover { stroke: var(--text); }
+.quay .sname { fill: var(--text); font: 500 9px var(--mono); pointer-events: none; }
+.quay .wait { fill: none; stroke: var(--muted); stroke-width: 1.25; }
+.quay .ax, .cspark .ax { fill: var(--muted); font: 9px var(--mono); }
+.cspark { margin-top: 12px; }
+.cspark .use { fill: none; stroke: var(--text); stroke-width: 1.25; stroke-linejoin: round; }
+.cspark .pool { fill: none; stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 3; }
+.cspark .fog { fill: var(--line); }
+.cspark .head { stroke: var(--accent); stroke-width: 1.5; }
+.tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 16px; }
+.tile { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.t-n { font: 500 11px/1 var(--sans); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tile .num { font: 500 16px/1 var(--mono); white-space: nowrap; }

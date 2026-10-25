@@ -214,7 +214,7 @@
   function renderFront(fresh) {
     const el = $("front");
     const nodes = frontNodes();
-    const W = 320, H = 150, padL = 4, padR = 44, padT = 14, padB = 14;
+    const W = 320, H = 124, padL = 4, padR = 44, padT = 14, padB = 14;
     if (!nodes.length) {
       el.innerHTML = '<svg viewBox="0 0 ' + W + " 60" + '" role="img" aria-label="Evolution front"><text class="wait" x="0" y="30">waiting for the v0 verification</text></svg>';
       return;
@@ -343,6 +343,9 @@
   }
   function showShipCard(idx, rep, t) {
     const s = rep && rep.ships && rep.ships[idx];
+    S.selectedShip = s ? idx : null;
+    if (S.pointer) { lastPointer = S.pointer; S.pointer = null; }
+    renderPort();
     const card = $("ship-card");
     if (!s) { card.classList.add("hidden"); return; }
     let cranes = 0;
@@ -370,6 +373,7 @@
   }
   function hideShipCard() {
     $("ship-card").classList.add("hidden");
+    if (S.selectedShip != null) { S.selectedShip = null; renderPort(); }
   }
 
   function renderAll(fresh) {
@@ -400,6 +404,7 @@
   // ---------- top bar and KPIs, driven by the replay clock ----------
   function onHour(rep, t) {
     if (!rep) return;
+    schedulePort(rep, t);
     const mine = rep === S.shownReplay && S.shownEpisode != null;
     const key = (mine ? "e" + S.shownEpisode : "x" + ((rep.task || {}).task_id || "")) + "|" + S.episodes.length;
     if (key === S.lastHourKey) return;
@@ -424,6 +429,79 @@
       nowEl.innerHTML = html;
       crossfade(nowEl);
     }
+  }
+
+  // ---------- port now: what is happening at the quay this hour ----------
+  let portTimer = null, portLast = 0, sparkCache = { rep: null, html: "", H: 0 };
+  function schedulePort(rep, t) {
+    S.portRep = rep; S.portT = t;
+    const now = Date.now();
+    if (now - portLast >= 100) { portLast = now; renderPort(); return; }
+    clearTimeout(portTimer);
+    portTimer = setTimeout(() => { portLast = Date.now(); renderPort(); }, 100);
+  }
+
+  function renderPort() {
+    const rep = S.portRep, t = S.portT;
+    if (!rep || !window.OakKPI) return;
+    const K = window.OakKPI;
+    const k = K.at(rep, t);
+    const H = K.horizon(rep);
+    $("port-hour").textContent = "hour " + Math.floor(t);
+    $("k-along").textContent = String(k.ships_alongside);
+    $("k-cranes").textContent = k.cranes_working + "/" + k.cranes_pool;
+    $("k-late").textContent = String(Math.round(k.late_ship_hours));
+    $("k-cost").textContent = (k.cost_so_far != null ? k.cost_so_far : "n/a") + (k.optimal_cost != null ? "/" + k.optimal_cost : "");
+
+    // quay strip
+    const W = 320, Q = 46, barY = 18, barH = 22;
+    const nSec = Math.max(1, k.sections || 1);
+    const sx = (sec) => ((sec - 1) / nSec) * W;
+    const o = ['<svg viewBox="0 -2 ' + W + " " + Q + '" aria-hidden="false">'];
+    o.push('<rect class="bar" x="0.5" y="' + barY + '" width="' + (W - 1) + '" height="' + barH + '"/>');
+    const step = nSec > 40 ? 5 : 1;
+    for (let i = 1; i < nSec; i += step) o.push('<line class="tick" x1="' + sx(i + 1).toFixed(1) + '" x2="' + sx(i + 1).toFixed(1) + '" y1="' + (barY + barH - 4) + '" y2="' + (barY + barH) + '"/>');
+    (rep.ships || []).forEach((s, idx) => {
+      const secs = s.sections || 1;
+      if (t >= s.berth_hour && t < s.departure) {
+        const x0 = sx(s.first_section) + 1, w = Math.max(3, (secs / nSec) * W - 2);
+        const late = s.due != null && t > s.due;
+        const sel = S.selectedShip === idx;
+        o.push('<rect class="ship' + (late ? " late" : "") + (sel ? " sel" : "") + '" data-idx="' + idx + '" x="' + x0.toFixed(1) + '" y="' + (barY + 2) + '" width="' + w.toFixed(1) + '" height="' + (barH - 4) + '"><title>' + esc(s.name) + (late ? ", past its due hour" : "") + "</title></rect>");
+        const nm = String(s.name || "").split(" ").pop();
+        if (nm.length * 5.6 + 6 < w) o.push('<text class="sname" x="' + (x0 + w / 2).toFixed(1) + '" y="' + (barY + barH / 2 + 3) + '" text-anchor="middle">' + esc(nm) + "</text>");
+      } else if (t >= s.arrival && t < s.berth_hour) {
+        o.push('<circle class="wait" cx="' + (sx(s.first_section) + (secs / nSec) * W / 2).toFixed(1) + '" cy="8" r="3"><title>' + esc(s.name) + " at anchor</title></circle>");
+      }
+    });
+    o.push('<text class="ax" x="0" y="' + (Q - 1) + '">sec 1</text><text class="ax" x="' + W + '" y="' + (Q - 1) + '" text-anchor="end">' + nSec + "</text></svg>");
+    const quay = $("quay");
+    quay.innerHTML = o.join("");
+    quay.querySelectorAll(".ship").forEach((r) => r.addEventListener("click", (e) => {
+      const idx = Number(r.dataset.idx);
+      S.pointer = { x: e.clientX, y: e.clientY };
+      if (S.api && S.api.selectShip) S.api.selectShip(idx);
+    }));
+
+    // cranes in use per hour against the pool, fog bands, playhead
+    const SW = 320, SH = 40;
+    if (sparkCache.rep !== rep) {
+      const ser = K.series(rep);
+      const maxC = Math.max(1, Math.max.apply(null, ser.pool.concat(ser.cranes)));
+      const px = (h) => (h / Math.max(1, H)) * SW, py = (v) => SH - 2 - (v / maxC) * (SH - 6);
+      const parts = [];
+      for (const w of rep.no_moves || []) {
+        const a = w.start != null ? w.start : w[0], b = w.end != null ? w.end : w[1];
+        parts.push('<rect class="fog" x="' + px(a).toFixed(1) + '" y="0" width="' + Math.max(1, px(b) - px(a)).toFixed(1) + '" height="' + SH + '"><title>' + esc(w.label || "no movements") + "</title></rect>");
+      }
+      parts.push('<polyline class="pool" points="' + ser.hours.map((h, i) => px(h).toFixed(1) + "," + py(ser.pool[i]).toFixed(1)).join(" ") + '"/>');
+      parts.push('<polyline class="use" points="' + ser.hours.map((h, i) => px(h).toFixed(1) + "," + py(ser.cranes[i]).toFixed(1)).join(" ") + '"/>');
+      sparkCache = { rep: rep, html: parts.join(""), H: H };
+    }
+    const hx = ((t / Math.max(1, H)) * SW).toFixed(1);
+    $("cranes-spark").innerHTML = '<svg viewBox="0 0 ' + SW + " " + (SH + 12) + '" role="img" aria-label="Cranes in use per hour against the pool, with the current hour">' + sparkCache.html +
+      '<line class="head" x1="' + hx + '" x2="' + hx + '" y1="0" y2="' + SH + '"/>' +
+      '<text class="ax" x="0" y="' + (SH + 11) + '">cranes in use</text><text class="ax" x="' + SW + '" y="' + (SH + 11) + '" text-anchor="end">pool, dashed · ' + Math.round(H / 24) + " days</text></svg>";
   }
 
   function crossfade(el) {
@@ -532,6 +610,11 @@
     const back = $("back-to-run");
     if (back) back.addEventListener("click", () => { if (S.episodes.length) showEpisode(S.shownEpisode || S.episodes[S.episodes.length - 1].episode, true); });
     $("playbook-btn").addEventListener("click", openPlaybook);
+    $("quay").addEventListener("keydown", (e) => {
+      if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+      e.preventDefault();
+      if (S.api && S.api.seek) S.api.seek(Math.round(S.api.getT()) + (e.key === "ArrowRight" ? 1 : -1));
+    });
     $("pb-close").addEventListener("click", closePlaybook);
     window.addEventListener("keydown", (e) => {
       const tag = (e.target && e.target.tagName) || "";
