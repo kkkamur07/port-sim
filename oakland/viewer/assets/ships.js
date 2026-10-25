@@ -310,6 +310,120 @@
     return { tex, aspect: w / 128 };
   }
 
+  function roundPill(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  // Crisp dark pill nameplate sprite (default height reduced from 26 to 15) with carrier accent bar & LOA/TEU subtitle.
+  function makeNameplate(spec, opts) {
+    spec = spec || {};
+    opts = opts || {};
+    const height = opts.height != null ? opts.height : 15;
+    const title = String(spec.name || opts.text || "VESSEL").toUpperCase();
+    const sub = spec.subtitle ||
+      ((spec.line ? String(spec.line).toUpperCase() + " · " : "") +
+       Math.round(spec.length_m || 294) + "m LOA" +
+       (spec.teu ? " · " + Number(spec.teu).toLocaleString("en-US") + " TEU" : ""));
+    const accent = opts.accent || opts.border || spec.accent || "#42b0d5";
+    const bg = opts.bg || "rgba(10, 16, 26, 0.90)";
+    const titleFont = "700 40px -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif";
+    const subFont = "600 24px -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif";
+    let c = canvas(16, 16);
+    let ctx = c.getContext("2d");
+    ctx.font = titleFont;
+    const wTitle = ctx.measureText(title).width;
+    ctx.font = subFont;
+    const wSub = sub ? ctx.measureText(sub).width : 0;
+    const padL = 34, padR = 26, H = sub ? 116 : 84;
+    const W = Math.max(180, Math.ceil(Math.max(wTitle, wSub) + padL + padR));
+    c = canvas(W, H);
+    ctx = c.getContext("2d");
+    ctx.fillStyle = bg;
+    roundPill(ctx, 2, 2, W - 4, H - 4, 22);
+    ctx.fill();
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.18)";
+    ctx.lineWidth = 3;
+    roundPill(ctx, 2, 2, W - 4, H - 4, 22);
+    ctx.stroke();
+    ctx.fillStyle = accent;
+    roundPill(ctx, 10, 14, 10, H - 28, 5);
+    ctx.fill();
+    ctx.fillStyle = opts.fg || "#f8fafc";
+    ctx.font = titleFont;
+    ctx.textBaseline = "middle";
+    ctx.fillText(title, padL, sub ? 42 : H / 2 + 2);
+    if (sub) {
+      ctx.fillStyle = "#9fb4cc";
+      ctx.font = subFont;
+      ctx.fillText(sub, padL, 84);
+    }
+    const tex = new THREE.CanvasTexture(c);
+    tex.anisotropy = 4;
+    const mat = new THREE.SpriteMaterial({ map: tex, depthWrite: false, fog: false, transparent: true });
+    const sp = new THREE.Sprite(mat);
+    sp.scale.set(height * (W / H), height, 1);
+    sp.renderOrder = 10;
+    return sp;
+  }
+
+  function plimsollDraftTex() {
+    if (cache.plimsoll) return cache.plimsoll;
+    const W = 256, H = 256;
+    const c = canvas(W, H);
+    const ctx = c.getContext("2d");
+    ctx.strokeStyle = "rgba(244,244,240,0.9)";
+    ctx.fillStyle = "rgba(244,244,240,0.9)";
+    ctx.lineWidth = 4;
+    ctx.font = "700 20px ui-monospace, Menlo, monospace";
+    // Draft marks ladder on right half
+    const marks = ["16M", "14M", "12M", "10M", "8M"];
+    marks.forEach((m, i) => {
+      const y = 36 + i * 44;
+      ctx.fillRect(156, y - 2, 22, 4);
+      ctx.fillText(m, 184, y + 6);
+    });
+    // Plimsoll ring + load lines on left half
+    const cx = 64, cy = 136, R = 28;
+    ctx.beginPath();
+    ctx.arc(cx, cy, R, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.fillRect(cx - R - 14, cy - 3, (R + 14) * 2, 6);
+    // Load line comb (TF, F, T, S, W)
+    ctx.fillRect(cx + R + 22, cy - 42, 4, 84);
+    const comb = [["TF", -38], ["F", -22], ["T", -10], ["S", 0], ["W", 16], ["WNA", 32]];
+    ctx.font = "700 14px sans-serif";
+    for (const [lbl, dy] of comb) {
+      ctx.fillRect(cx + R + 22, cy + dy - 2, 18, 4);
+      ctx.fillText(lbl, cx + R + 44, cy + dy + 5);
+    }
+    cache.plimsoll = new THREE.CanvasTexture(c);
+    return cache.plimsoll;
+  }
+
+  function selectionRingTex() {
+    if (cache.selRing) return cache.selRing;
+    const S = 256;
+    const c = canvas(S, S);
+    const ctx = c.getContext("2d");
+    const cx = S / 2, cy = S / 2;
+    const g = ctx.createRadialGradient(cx, cy, S * 0.34, cx, cy, S * 0.49);
+    g.addColorStop(0, "rgba(0, 229, 255, 0)");
+    g.addColorStop(0.55, "rgba(0, 229, 255, 0.22)");
+    g.addColorStop(0.82, "rgba(0, 229, 255, 0.95)");
+    g.addColorStop(0.92, "rgba(180, 250, 255, 1)");
+    g.addColorStop(1, "rgba(0, 229, 255, 0)");
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, S, S);
+    cache.selRing = new THREE.CanvasTexture(c);
+    return cache.selRing;
+  }
+
   // Window grid: day map (cream wall, dark glass) and emissive map (lit windows only).
   function windowTex(cols, rows, rand, tall) {
     const cw = 24, rh = 32;
@@ -547,7 +661,7 @@
     // Rudder under the stern
     fx.add(-L / 2 + 0.012 * L, -0.55 * T, 0, 0.022 * L, 0.6 * T, 0.7, "#9c2a22");
 
-    // Hatch covers and lashing bridges
+    // Hatch covers and lashing bridges (multi-tier steel lattice catwalks + safety rails)
     for (const bay of lay.bayList) {
       const w = bay.rows * ROW_PITCH + 0.6;
       const panels = bay.rows > 12 ? 3 : 2;
@@ -557,11 +671,19 @@
       }
       const xb = bay.x - BAY_PITCH / 2;
       if (bay.index === lay.bays - 1) continue;
-      const hTop = Math.min(2, bay.tiers) * TIER_H;
+      const bridgeTiers = Math.min(3, Math.max(1, bay.tiers - 1));
+      const hTop = bridgeTiers * TIER_H;
       const base = F + HATCH_H;
-      for (const hy of [TIER_H, hTop]) fx.add(xb, base + hy, 0, 0.8, 0.22, w, "#a3abb0");
+      for (let lt = 1; lt <= bridgeTiers; lt++) {
+        const hy = lt * TIER_H;
+        fx.add(xb, base + hy, 0, 0.9, 0.24, w + 0.4, "#b8c0c8");
+        fx.add(xb + 0.42, base + hy + 0.55, 0, 0.08, 0.12, w + 0.4, "#f2c230");
+        fx.add(xb - 0.42, base + hy + 0.55, 0, 0.08, 0.12, w + 0.4, "#f2c230");
+      }
       const posts = Math.max(2, Math.round(bay.rows / 3) + 1);
-      for (let k = 0; k < posts; k++) fx.add(xb, base + hTop / 2, -w / 2 + k * w / (posts - 1), 0.35, hTop, 0.35, "#a3abb0");
+      for (let k = 0; k < posts; k++) {
+        fx.add(xb, base + hTop / 2, -w / 2 + k * w / (posts - 1), 0.38, hTop, 0.38, "#9da6ae");
+      }
     }
 
     // Forecastle breakwater and bow gear
@@ -635,6 +757,8 @@
     // Funnel
     const fLen = slot * 0.3, fWid = Math.min(wHouse * 0.42, 9);
     const fH = Hh * 0.45 + 8;
+    const funnelX = house.x0 + slot * 0.22;
+    const funnelTopY = F + Hh * 0.62 + fH;
     const fGeo = new THREE.CylinderGeometry(0.5, 0.56, 1, 24, 1, false, -Math.PI / 2);
     const funnel = new THREE.Mesh(fGeo, [
       new THREE.MeshStandardMaterial({ map: funnelTex(liv), roughness: 0.55 }),
@@ -642,21 +766,27 @@
       new THREE.MeshStandardMaterial({ color: "#111111", roughness: 0.9 }),
     ]);
     funnel.scale.set(fLen, fH, fWid);
-    funnel.position.set(house.x0 + slot * 0.22, F + Hh * 0.62 + fH / 2, 0);
+    funnel.position.set(funnelX, F + Hh * 0.62 + fH / 2, 0);
     funnel.castShadow = true;
     body.add(funnel);
-    fx.add(house.x0 + slot * 0.22, F + Hh * 0.31, 0, slot * 0.36, Hh * 0.62, wHouse * 0.7, "#e4e3dc");
-    // Lifeboats on davits
-    const boatMat = new THREE.MeshStandardMaterial({ color: "#f26a1b", roughness: 0.6 });
+    fx.add(funnelX, F + Hh * 0.31, 0, slot * 0.36, Hh * 0.62, wHouse * 0.7, "#e4e3dc");
+    // Orange freeboard lifeboats on davits + stern free-fall lifeboat
+    const boatMat = new THREE.MeshStandardMaterial({ color: "#ff5a14", roughness: 0.45 });
     for (const sgn of [1, -1]) {
-      const boat = new THREE.Mesh(new THREE.CapsuleGeometry(1.3, 5.2, 4, 10), boatMat);
+      const lbZ = sgn * (Math.max(wHouse / 2 + 1.5, deckHw - 1.2));
+      const boat = new THREE.Mesh(new THREE.CapsuleGeometry(1.35, 5.4, 4, 10), boatMat);
       boat.rotation.z = Math.PI / 2;
-      boat.position.set(blockX - blockLen * 0.1, F + DECK_H * 2.4, sgn * (wHouse / 2 + 1.5));
+      boat.position.set(blockX - blockLen * 0.1, F + DECK_H * 1.8, lbZ);
       boat.castShadow = true;
       body.add(boat);
-      fx.add(blockX - blockLen * 0.1 - 2.6, F + DECK_H * 2.4 + 1.2, sgn * (wHouse / 2 + 0.9), 0.3, 2.8, 1.6, "#d8d8d2");
-      fx.add(blockX - blockLen * 0.1 + 2.6, F + DECK_H * 2.4 + 1.2, sgn * (wHouse / 2 + 0.9), 0.3, 2.8, 1.6, "#d8d8d2");
+      fx.add(blockX - blockLen * 0.1, F + DECK_H * 1.8 + 0.85, lbZ, 3.6, 0.35, 1.4, "#f4f4f0");
+      fx.add(blockX - blockLen * 0.1 - 2.6, F + DECK_H * 1.8 + 1.2, sgn * (Math.abs(lbZ) - 0.6), 0.35, 3.0, 1.8, "#d8d8d2");
+      fx.add(blockX - blockLen * 0.1 + 2.6, F + DECK_H * 1.8 + 1.2, sgn * (Math.abs(lbZ) - 0.6), 0.35, 3.0, 1.8, "#d8d8d2");
     }
+    const sternBoat = new THREE.Mesh(new THREE.CapsuleGeometry(1.1, 4.2, 4, 10), boatMat);
+    sternBoat.rotation.z = Math.PI / 2 - 0.42;
+    sternBoat.position.set(stationX(0, dims) + 3.2, F + 2.4, 0);
+    body.add(sternBoat);
     body.add(fx.build(steelMat));
 
     // Containers (one InstancedMesh, ordered bottom-up)
@@ -704,6 +834,129 @@
     sternPl.rotation.y = -Math.PI / 2;
     body.add(sternPl);
 
+    // Plimsoll load-line and bow draft marks
+    const plimMat = new THREE.MeshBasicMaterial({
+      map: plimsollDraftTex(), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2,
+    });
+    const draftGeo = new THREE.PlaneGeometry(5.5, 5.5);
+    const dX = L / 2 - 0.075 * L, dY = Math.min(2.6, F * 0.35);
+    const dU = stationU(dX, dims);
+    const dHw = halfWidthAt(dU, dY, dims);
+    const dSlope = Math.atan2(halfWidthAt(stationU(dX + 2, dims), dY, dims) - halfWidthAt(stationU(dX - 2, dims), dY, dims), 4);
+    for (const sgn of [1, -1]) {
+      const dm = new THREE.Mesh(draftGeo, plimMat);
+      dm.position.set(dX, dY, sgn * (dHw + 0.09));
+      dm.rotation.y = sgn > 0 ? -dSlope : Math.PI + dSlope;
+      body.add(dm);
+      const midPl = new THREE.Mesh(new THREE.PlaneGeometry(4.2, 4.2), plimMat);
+      midPl.position.set(0, Math.min(2.2, F * 0.3), sgn * (B / 2 + 0.08));
+      midPl.rotation.y = sgn > 0 ? 0 : Math.PI;
+      body.add(midPl);
+    }
+
+    // Crisp dark pill nameplate sprite (height 15, carrier accent bar, LOA/TEU subtitle)
+    const nameplate = makeNameplate(
+      { name, line: spec.line, length_m: L, teu: lay.teu, accent: liv.funnel },
+      { height: spec.labelHeight || 15, accent: liv.funnel }
+    );
+    nameplate.position.set(0, F + Hh + 18, 0);
+    group.add(nameplate);
+
+    // 6 taut mooring lines (bow/stern headlines, breast lines, spring lines with yellow rat-guards)
+    const mooringGroup = new THREE.Group();
+    mooringGroup.name = "mooringLines";
+    mooringGroup.visible = false;
+    {
+      const ropeMat = new THREE.MeshStandardMaterial({ color: "#d8d3c4", roughness: 0.85 });
+      const guardMat = new THREE.MeshStandardMaterial({ color: "#f5c518", roughness: 0.45, metalness: 0.2 });
+      const bollardMat = new THREE.MeshStandardMaterial({ color: "#2b2f36", roughness: 0.7, metalness: 0.4 });
+      const zQuay = -(B / 2 + 5.2);
+      const yQuay = 3.15;
+      // 1-2: bow headlines, 3: fwd breast, 4: fwd spring, 5: aft spring, 6: stern headline/breast
+      const lineDefs = [
+        { xc: 0.44 * L, yc: F + 0.6, xb: 0.49 * L },
+        { xc: 0.38 * L, yc: F + 0.4, xb: 0.40 * L },
+        { xc: 0.28 * L, yc: F + 0.3, xb: 0.17 * L },
+        { xc: -0.26 * L, yc: F + 0.3, xb: -0.15 * L },
+        { xc: -0.37 * L, yc: F + 0.4, xb: -0.39 * L },
+        { xc: -0.45 * L, yc: F + 0.5, xb: -0.50 * L },
+      ];
+      const upVec = new THREE.Vector3(0, 1, 0);
+      for (const ld of lineDefs) {
+        const uC = stationU(ld.xc, dims);
+        const zc = -(halfWidthAt(uC, F, dims) - 0.25);
+        const pA = new THREE.Vector3(ld.xc, ld.yc, zc);
+        const pB = new THREE.Vector3(ld.xb, yQuay, zQuay);
+        const dir = new THREE.Vector3().subVectors(pB, pA);
+        const len = dir.length();
+        const dirN = dir.clone().normalize();
+        const rope = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, len, 6, 1), ropeMat);
+        rope.position.copy(pA).add(pB).multiplyScalar(0.5);
+        rope.quaternion.setFromUnitVectors(upVec, dirN);
+        mooringGroup.add(rope);
+        // Yellow conical rat-guard ~28% along the mooring line from hull chock
+        const guard = new THREE.Mesh(new THREE.ConeGeometry(0.45, 0.55, 10), guardMat);
+        guard.position.copy(pA).lerp(pB, 0.28);
+        guard.quaternion.setFromUnitVectors(upVec, dirN);
+        mooringGroup.add(guard);
+        // Quay bollard head
+        const bol = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.32, 0.85, 8), bollardMat);
+        bol.position.set(ld.xb, yQuay - 0.1, zQuay);
+        mooringGroup.add(bol);
+      }
+    }
+    group.add(mooringGroup);
+
+    // Rising funnel exhaust puffs
+    const exhaustGroup = new THREE.Group();
+    exhaustGroup.position.set(funnelX, funnelTopY + 0.5, 0);
+    body.add(exhaustGroup);
+    const exhaustPuffs = [];
+    for (let i = 0; i < 8; i++) {
+      const pMat = new THREE.SpriteMaterial({
+        map: glowTex(), color: "#cfd6de", transparent: true, opacity: 0.22, depthWrite: false,
+      });
+      const puff = new THREE.Sprite(pMat);
+      exhaustGroup.add(puff);
+      exhaustPuffs.push({ sp: puff, mat: pMat, phase: i / 8 });
+    }
+
+    // Lateral bow and stern thruster foam wash (maneuvering)
+    const thrusterGroup = new THREE.Group();
+    thrusterGroup.visible = false;
+    group.add(thrusterGroup);
+    const thrusterMeshes = [];
+    {
+      const thrPositions = [0.38 * L, -0.38 * L];
+      for (const tx of thrPositions) {
+        const hwT = halfWidthAt(stationU(tx, dims), 0, dims);
+        for (const sgn of [1, -1]) {
+          const tMat = new THREE.MeshBasicMaterial({
+            map: foamTex(), color: "#e6fbff", transparent: true, opacity: 0, depthWrite: false,
+          });
+          const plume = new THREE.Mesh(new THREE.PlaneGeometry(14, 18), tMat);
+          plume.rotation.x = -Math.PI / 2;
+          plume.rotation.z = sgn > 0 ? -Math.PI / 2 : Math.PI / 2;
+          plume.position.set(tx, 0.09, sgn * (hwT + 7));
+          plume.renderOrder = 2;
+          thrusterGroup.add(plume);
+          thrusterMeshes.push({ mesh: plume, mat: tMat, baseZ: sgn * (hwT + 7), sgn });
+        }
+      }
+    }
+
+    // Cyan water-surface selection ring
+    const selRingMat = new THREE.MeshBasicMaterial({
+      map: selectionRingTex(), color: "#00e5ff", transparent: true, opacity: 0.88,
+      blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide,
+    });
+    const selectionRing = new THREE.Mesh(new THREE.PlaneGeometry(L * 1.14, B * 1.7), selRingMat);
+    selectionRing.rotation.x = -Math.PI / 2;
+    selectionRing.position.set(0, 0.14, 0);
+    selectionRing.renderOrder = 3;
+    selectionRing.visible = false;
+    group.add(selectionRing);
+
     // Lights: sprite glows only (no PointLights)
     const addGlow = (x, y, z, size, color, opacity) => {
       const mat = new THREE.SpriteMaterial({ map: glowTex(), color, transparent: true, opacity, blending: THREE.AdditiveBlending, depthWrite: false });
@@ -744,7 +997,10 @@
     group.add(bowWave);
 
     // ---------- behaviour ----------
-    const state = { load: 1, speed: 0, foam: 0, t: rand() * 100, lightsOn: false };
+    const state = {
+      load: 1, speed: 0, foam: 0, t: rand() * 100, lightsOn: false,
+      moored: false, mooredExplicit: false, selected: false,
+    };
     const phase1 = rand() * Math.PI * 2, phase2 = rand() * Math.PI * 2;
     const omega = 2 * Math.PI / 7;
     const rollAmp = 0.2 / (B / 2);
@@ -767,6 +1023,55 @@
       state.speed = Math.max(0, +mps || 0);
     }
 
+    function setMoored(isMoored) {
+      state.mooredExplicit = true;
+      state.moored = !!isMoored;
+      mooringGroup.visible = state.moored;
+    }
+
+    function setSelected(bool) {
+      state.selected = !!bool;
+      selectionRing.visible = state.selected;
+    }
+
+    function animateExhaustAndThrusters(intensity, timeSec) {
+      const w = clamp(+intensity || 0, 0, 1);
+      const t = timeSec != null ? +timeSec : state.t;
+      // Funnel exhaust puffs rise and drift astern
+      const puffSpeed = 0.22 + 0.55 * w;
+      for (const p of exhaustPuffs) {
+        const u = ((t * puffSpeed + p.phase) % 1 + 1) % 1;
+        const driftX = -u * (8 + 26 * w);
+        const riseY = u * (12 + 16 * w);
+        const swayZ = Math.sin(t * 1.7 + p.phase * 6.28) * (0.8 + 2.2 * u);
+        p.sp.position.set(driftX, riseY, swayZ);
+        const sz = (3.2 + 10.5 * u) * (0.75 + 0.5 * w);
+        p.sp.scale.set(sz, sz * 0.85, 1);
+        p.mat.opacity = Math.sin(Math.PI * u) * (0.14 + 0.26 * w);
+      }
+      // Lateral bow/stern thruster foam wash when maneuvering (low-to-mid speed or explicit wake)
+      const thrAmt = w > 0.01 ? Math.sin(Math.PI * clamp(w / 0.85, 0, 1)) * clamp(w * 3.2, 0, 1) : 0;
+      thrusterGroup.visible = thrAmt > 0.02;
+      if (thrusterGroup.visible) {
+        thrusterMeshes.forEach((tm, idx) => {
+          const pulse = 0.75 + 0.25 * Math.sin(t * 6.5 + idx * 1.7);
+          tm.mat.opacity = 0.62 * thrAmt * pulse;
+          tm.mesh.scale.set(0.85 + 0.3 * pulse, 0.7 + 0.6 * thrAmt * pulse, 1);
+          tm.mesh.position.z = tm.baseZ + tm.sgn * (2.5 * thrAmt * pulse);
+        });
+      }
+    }
+
+    function setWake(intensity, timeSec) {
+      const w = clamp(+intensity || 0, 0, 1);
+      state.foam = w;
+      if (timeSec != null) state.t = +timeSec || state.t;
+      foamMat.opacity = 0.75 * w;
+      bowMat.opacity = 0.6 * w;
+      wake.visible = bowWave.visible = w > 0.01;
+      animateExhaustAndThrusters(w, state.t);
+    }
+
     function update(dt_s, t_h) {
       const dt = Math.max(0, +dt_s || 0);
       state.t += dt;
@@ -780,6 +1085,27 @@
       foamMat.opacity = 0.75 * state.foam;
       bowMat.opacity = 0.6 * state.foam;
       wake.visible = bowWave.visible = state.foam > 0.01;
+      animateExhaustAndThrusters(state.foam, t);
+      if (!state.mooredExplicit && group.parent) {
+        const pz = group.parent.position.z;
+        const pyaw = Math.abs(group.parent.rotation.y);
+        mooringGroup.visible = Math.abs(pz - (B / 2 + 5)) < 1.2 && pyaw < 0.04;
+      }
+      if (group.parent && group.parent.children) {
+        // Keep viewer.js legacy height-26 sprite from overlapping our height-15 dark pill nameplate
+        for (const ch of group.parent.children) {
+          if (ch !== group && ch.isSprite && ch.position.y >= 60) {
+            if (ch.scale.y > 18) {
+              const ratio = ch.scale.x / Math.max(1, ch.scale.y);
+              ch.scale.set(15 * ratio, 15, 1);
+            }
+            nameplate.visible = false;
+          }
+        }
+      }
+      if (state.selected) {
+        selRingMat.opacity = 0.72 + 0.22 * Math.sin(t * 4.5);
+      }
       const tw = state.lightsOn ? 0.85 + 0.15 * Math.sin(t * 9) : 1;
       sprites[0].material.opacity = tw;
       sprites[1].material.opacity = tw;
@@ -789,13 +1115,27 @@
     setLights(false);
     update(0, 0);
 
-    group.userData = { name, line: spec.line, sections: spec.sections, layout: { cls: lay.cls, bays: lay.bays, rows: lay.rows, tiers: lay.tiers, containers: lay.containers, teu: lay.teu } };
+    group.userData = {
+      assetType: "ship",
+      shipName: name,
+      length_m: L,
+      beam_m: B,
+      name,
+      line: spec.line,
+      sections: spec.sections,
+      layout: { cls: lay.cls, bays: lay.bays, rows: lay.rows, tiers: lay.tiers, containers: lay.containers, teu: lay.teu },
+    };
     const triangles = countTriangles(group);
-    return { group, setLoad, setLights, setSpeed, update, layout: lay, triangles };
+    return {
+      group, root: group, setLoad, setLights, setSpeed, setWake, setMoored, setSelected,
+      update, layout: lay, triangles, label: nameplate, nameplate,
+    };
   }
 
   window.OakShips = {
     makeShip,
+    makeNameplate,
+    makeLabel: makeNameplate,
     layout,
     shipClass,
     hullDims,
