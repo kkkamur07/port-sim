@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OakCranes demo</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #9fc3dc; font: 13px/1.4 system-ui, sans-serif; }
+  #hud { position: absolute; left: 12px; top: 12px; padding: 10px 12px; background: rgba(20, 26, 34, 0.78); color: #e8edf2;
+    border-radius: 6px; max-width: 340px; }
+  #hud button { margin: 6px 6px 0 0; padding: 4px 10px; border: 0; border-radius: 4px; background: #e8edf2; color: #14202c;
+    cursor: pointer; }
+  #hud small { display: block; margin-top: 6px; color: #a9b6c3; }
+</style>
+</head>
+<body>
+<div id="hud">
+  <b>OakCranes + OakYard demo</b>: a 600 m quay strip, two cranes working, two idle with the boom up.
+  <div>
+    <button id="play">Pause</button>
+    <button id="speed">Speed 4x</button>
+    <button id="night">Night</button>
+    <button id="toggle">Swap working</button>
+  </div>
+  <small id="stats"></small>
+  <small>Stylised representation of Oakland terminal equipment, not a survey-grade model.</small>
+</div>
+<script src="../vendor/three.min.js"></script>
+<script src="../vendor/OrbitControls.js"></script>
+<script src="cranes.js"></script>
+<script src="yard.js"></script>
+<script>
+(function () {
+  "use strict";
+  const QUAY_TOP = 3, L = 600;
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  document.body.appendChild(renderer.domElement);
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 6000);
+  camera.position.set(-260, 150, 260);
+  const controls = new THREE.OrbitControls(camera, renderer.domElement);
+  controls.target.set(0, 20, -40);
+  controls.update();
+
+  const hemi = new THREE.HemisphereLight(0xdfefff, 0x55606a, 0.75);
+  const sun = new THREE.DirectionalLight(0xffffff, 0.85);
+  sun.position.set(-300, 500, 250);
+  scene.add(hemi, sun);
+
+  // water, quay apron, rails, a plain hull for the working cranes
+  const water = new THREE.Mesh(new THREE.PlaneGeometry(3000, 1500), new THREE.MeshLambertMaterial({ color: 0x2f6f8f }));
+  water.rotation.x = -Math.PI / 2;
+  water.position.set(0, 0, 700);
+  const land = new THREE.Mesh(new THREE.BoxGeometry(L + 200, QUAY_TOP, 600), new THREE.MeshLambertMaterial({ color: 0x8d9298 }));
+  land.position.set(0, QUAY_TOP / 2, -300);
+  const railMat = new THREE.MeshLambertMaterial({ color: 0x55595f });
+  const rail1 = new THREE.Mesh(new THREE.BoxGeometry(L, 0.4, 1), railMat);
+  rail1.position.set(0, QUAY_TOP + 0.2, -6);
+  const rail2 = rail1.clone();
+  rail2.position.z = -34;
+  const hull = new THREE.Mesh(new THREE.BoxGeometry(330, 26, 46), new THREE.MeshLambertMaterial({ color: 0x1c3f95 }));
+  hull.position.set(-110, 6, 30);
+  const deck = new THREE.Mesh(new THREE.BoxGeometry(250, 8, 40), new THREE.MeshLambertMaterial({ color: 0xb5543c }));
+  deck.position.set(-110, 23, 30);
+  scene.add(water, land, rail1, rail2, hull, deck);
+
+  const yard = OakYard.makeYard({ length_m: L, depth_m: 450, lines: ["ONE", "Maersk", "MSC", "Evergreen", "CMA CGM", "COSCO"], seed: 1 });
+  yard.group.position.set(0, QUAY_TOP, 0);
+  scene.add(yard.group);
+
+  const xs = [-225, -75, 75, 225];
+  const cranes = xs.map((x, i) => {
+    const c = OakCranes.makeCrane({ rail_gauge_m: 28, height_m: 50, outreach_m: 65, seed: i + 1, color: i < 2 ? "#5aa0d8" : "#c8102e" });
+    c.group.position.set(x, QUAY_TOP, -20);
+    scene.add(c.group);
+    return c;
+  });
+  let workingSet = [true, true, false, false];
+  function applyWorking() {
+    cranes.forEach((c, i) => { c.setWorking(workingSet[i]); c.setBoomUp(true); });
+    hull.position.x = workingSet[0] ? -110 : 110;
+    deck.position.x = hull.position.x;
+  }
+  applyWorking();
+
+  let playing = true, speed = 4, night = false;
+  const $ = (id) => document.getElementById(id);
+  $("play").onclick = () => { playing = !playing; $("play").textContent = playing ? "Pause" : "Play"; };
+  $("speed").onclick = () => { speed = speed === 4 ? 16 : speed === 16 ? 1 : 4; $("speed").textContent = "Speed " + speed + "x"; };
+  $("night").onclick = () => {
+    night = !night;
+    $("night").textContent = night ? "Day" : "Night";
+    scene.background = new THREE.Color(night ? 0x0b1220 : 0x9fc3dc);
+    hemi.intensity = night ? 0.18 : 0.75;
+    sun.intensity = night ? 0.08 : 0.85;
+    cranes.forEach((c) => c.setLights(night));
+    yard.setLights(night);
+  };
+  $("toggle").onclick = () => { workingSet = workingSet.map((w) => !w); applyWorking(); };
+  scene.background = new THREE.Color(0x9fc3dc);
+
+  window.addEventListener("resize", () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  });
+
+  let last = performance.now(), frames = 0;
+  function frame(now) {
+    const dt = Math.min(0.1, (now - last) / 1000);
+    last = now;
+    if (playing) {
+      const sdt = dt * speed;
+      cranes.forEach((c) => c.update(sdt));
+      yard.update(sdt);
+    }
+    renderer.render(scene, camera);
+    if (++frames % 30 === 0) {
+      $("stats").textContent = "triangles " + renderer.info.render.triangles.toLocaleString() + ", draw calls " +
+        renderer.info.render.calls + ", trolley z " + cranes.map((c) => c.trolley.z.toFixed(0)).join(" / ");
+    }
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+  window.__demo = { cranes, yard, renderer, scene, camera, controls };
+})();
+</script>
+</body>
+</html>
