@@ -268,14 +268,15 @@ def render(task: Task, plan: Plan, path) -> None:
             )
         )
         ax.text(
-            h + 0.45,
+            h + 0.4,
             mid_y,
             _label(task, s, counts),
-            color="#090D16",
-            fontsize=5.8,
+            color="#F8FAFC",
+            fontsize=5.6,
             fontweight="bold",
             va="center",
             ha="left",
+            bbox={"boxstyle": "round,pad=0.16", "facecolor": "#0B1120", "edgecolor": col, "alpha": 0.82, "lw": 0.6},
             clip_on=True,
             zorder=4,
         )
