@@ -1182,6 +1182,7 @@
       if (HUD && window.OakControlPanel) {
         window.OakControlPanel.updateAtHour(replay, t);
       }
+      if (window.OakLearning) window.OakLearning.onHour(replay, t);
     }
   }
 
@@ -1364,6 +1365,7 @@
 
   function setCam(name) {
     if (!world) return;
+    state.cam = name;
     const k = Math.max(L, 700) / 2100;
     if (name === "satellite") {
       satelliteView();
@@ -1485,6 +1487,7 @@
             if (HUD && window.OakControlPanel) window.OakControlPanel.selectShip(pickIdx, replay, state.t);
             else focusShip(world.ships[pickIdx]);
           } else if (pickType === "crane") {
+            if (window.OakLearning) window.OakLearning.hideShipCard();
             if (HUD && window.OakControlPanel) {
               const st = world.cranes[pickIdx].asset && world.cranes[pickIdx].asset.getStatus
                 ? world.cranes[pickIdx].asset.getStatus() : null;
@@ -1498,6 +1501,7 @@
         cur = cur.parent;
       }
     }
+    if (window.OakLearning) window.OakLearning.hideShipCard();
   });
 
   // ---------- loading ----------
@@ -1610,6 +1614,7 @@
       },
       onSelectShip(idx) {
         if (world && world.ships[idx]) focusShip(world.ships[idx]);
+        if (window.OakLearning) window.OakLearning.showShipCard(idx, replay, state.t);
       },
       onSelectCrane(idx) {
         if (world && world.cranes[idx]) focusCrane(world.cranes[idx]);
@@ -1811,8 +1816,22 @@
       .then(() => setTimeout(pollFollow, 5000));
   }
 
+  // learning.js drives which replay is shown when a loop run is loaded (?run=, default fixtures/run-demo)
+  const CAMS = ["overview", "satellite", "quayside", "overhead", "crane-cab", "bay-bridge"];
+  window.OakViewer = {
+    load,
+    play(p) { setPlaying(p === undefined ? !state.playing : !!p); },
+    fallback() { loadFixture(state.activeScenario); },
+    cycleCam() {
+      const name = CAMS[(CAMS.indexOf(state.cam) + 1) % CAMS.length];
+      setCam(name);
+      document.querySelectorAll("#cam-rail [data-cam]").forEach((b) => b.classList.toggle("on", b.dataset.cam === name));
+      return name;
+    },
+  };
+
   const params = new URLSearchParams(location.search);
-  if (params.get("run")) {
+  if (params.get("run") && !window.OakLearning) {
     const dir = params.get("run").replace(/\/+$/, "");
     follow.base = new URL(dir + "/", location.href);
     follow.name = dir.split("/").pop() || dir;
@@ -1820,6 +1839,7 @@
     setInterval(() => { if (follow.pending && !state.playing) playEntry(follow.pending); }, 500);
   } else if (params.get("replay")) loadUrl(params.get("replay"));
   else if (params.get("scenario")) loadFixture(params.get("scenario"));
-  else loadFixture(state.activeScenario);
+  else if (!window.OakLearning) loadFixture(state.activeScenario);
+  if (window.OakLearning) window.OakLearning.start(window.OakViewer);
   requestAnimationFrame(tick);
 })();
