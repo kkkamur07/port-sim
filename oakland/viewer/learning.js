@@ -261,7 +261,7 @@
       o.push('<text class="vlab" x="' + cx.toFixed(1) + '" y="' + (cy + (n.cls === "accepted" ? -10 : 16)).toFixed(1) + '" text-anchor="middle">v' + n.version + "</text>");
       o.push("</g>");
     }
-    if (nodes.length === 1) o.push('<text class="wait" x="28" y="' + (by + 4).toFixed(1) + '">waiting for the first coach round</text>');
+    if (nodes.length === 1) o.push('<text class="wait" x="4" y="' + (by + 28).toFixed(1) + '">waiting for the first coach round</text>');
     o.push("</svg>");
     el.innerHTML = o.join("");
     const tipEl = $("front-tip");
@@ -317,10 +317,16 @@
     Promise.all([fetchText(S.base + "/playbooks/v0.md"), fetchText(S.base + "/playbooks/v" + v + ".md")]).then(([t0, tv]) => {
       if (tv == null) { $("pb-text").textContent = "playbooks/v" + v + ".md not found in this run."; return; }
       const lines = R().playbookDiff(v ? t0 : null, tv);
-      $("pb-text").innerHTML = lines.map((l) => (l.added ? '<span class="add">' + esc(l.text) + "</span>" : esc(l.text) + "\n")).join("");
+      $("pb-text").innerHTML = lines.map((l) => (l.added && /^\s*[-*\d]/.test(l.text) && /rule/i.test(sectionOf(lines, l)) ? '<span class="add">' + esc(l.text) + "</span>" : esc(l.text) + "\n")).join("");
     });
   }
-  function closePlaybook() {
+  // the heading a line sits under: only rule bullets count as what the coach added
+  function sectionOf(lines, line) {
+    let h = "";
+    for (const l of lines) { if (/^#+\s/.test(l.text)) h = l.text; if (l === line) break; }
+    return h;
+  }
+    function closePlaybook() {
     const sheet = $("playbook-sheet");
     if (sheet.classList.contains("hidden")) return false;
     sheet.classList.add("hidden");

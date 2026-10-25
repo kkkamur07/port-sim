@@ -5,17 +5,39 @@ anchor, berth on their quay sections, quay cranes work them hour by hour, late s
 shallow sections and fog windows are shown. A KPI panel shows how well the port is being run at the current hour. It
 reads a replay JSON (see `docs/replay_schema.md`) and never recomputes rules: everything it draws comes from that file.
 
+## The learning HUD
+
+The screen is the 3D port, a top bar, one Learning panel and the playback bar. The top bar centre says which episode
+is shown ("Episode 4 of 9 · TraPac · storm · playbook v2") and a pill says LIVE (following a run) or REPLAY. The
+Learning panel has three blocks: the verification score of the accepted playbook with its delta since v0, the
+evolution front (playbook versions by coach round, height = verification score, accepted in the accent, rejected as
+outlines, overfit in amber, a halo on the Pareto front, the accepted lineage as one line; hover or focus a node for
+its change) and the last coach decision in one sentence. The Playbook button opens the playbook in force with the
+rules added since v0 highlighted, and the reward per episode chart below it. Nothing is trained: only that text changes.
+
+- `?run=<path>` loads a loop run directory (`episodes.json` or `episodes.jsonl`, `eval.jsonl`, `playbooks/`,
+  `replays/`), relative to this page, plays the newest episode and polls every 5 s; a new episode or coach round
+  shows a 3 s toast and the new front node fades in. `&live=0` turns polling off. Without `?run=` the bundled
+  `fixtures/run-demo` (a finished 16-episode run with an accepted round) is shown, without polling.
+- `?replay=<url>` or `?scenario=<key>` still load a single replay; the panel then still shows the run.
+- `runs.js` mirrors `oakland/dashboard/runs.js` on branch oak/demo (the pure readers of a run directory);
+  `learning.js` draws the panel.
+- Keys: Space play or pause, 1 to 9 episode N, G berth schedule, L Learning panel, C next camera, P playbook,
+  T AIS tracks, V truck trails, N night, H hide panels, Esc closes the sheet or the ship card. Click a ship (in the
+  scene or the schedule) for one small card; click the water to dismiss it.
+- The "..." button at the bottom right holds the terminal and policy scenarios, loading a replay JSON, cameras and layers.
+
 ## How to open
 
-- Double-click `index.html` (works from disk, no build step, no npm). It opens the OICT demo fixture.
+- Double-click `index.html` (works from disk, no build step, no npm). It opens the bundled run; from disk, where fetch is blocked, it falls back to the OICT demo fixture.
 - Or serve the folder: `cd oakland/viewer && python -m http.server 8000`, then open `http://localhost:8000/`.
-- Load another replay with the "Load JSON" button, or by URL when served: `http://localhost:8000/?replay=fixtures/matson-demo.json`
-  (any URL the browser may fetch). Pages opened from disk cannot fetch files, so use "Load JSON" there.
+- Load another replay with "Load replay JSON" in the "..." menu, or by URL when served: `http://localhost:8000/?replay=fixtures/matson-demo.json`
+  (any URL the browser may fetch). Pages opened from disk cannot fetch files, so use "Load replay JSON" there.
 
 ## Controls and camera presets
 
 Play/Pause (or the space bar), speed 1x 4x 16x 64x (1x is a quarter of a sim hour per second), the hour scrubber,
-and mouse orbit (drag to rotate, right-drag to pan, wheel to zoom). Click a ship in the side list to fly to it.
+and mouse orbit (drag to rotate, right-drag to pan, wheel to zoom). Click a ship in the scene to fly to it.
 
 - Satellite: high above the port, about 60 degrees down from the south-south-west with north up on screen (the
   Google Maps satellite look). With the map loaded it frames all four terminals, else this terminal and its anchorage.
