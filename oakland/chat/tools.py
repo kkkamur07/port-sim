@@ -30,7 +30,8 @@ from oakland_core import replay as build_replay
 MAX_CHARS = 1500
 PORT_CHARS = 3000   # port_status and late_ships: a whole quay at one hour
 OVERVIEW_CHARS = 2500
-SOLVE_S, SOLVE_WORKERS = 15, 4   # make_plan's CP-SAT budget
+TASKS_DIR = Path(__file__).resolve().parents[1] / "tasks"
+SOLVE_S, SOLVE_WORKERS = 20, 8   # make_plan's CP-SAT budget (4 workers miss the optimum under load)
 
 
 def _round(x: Any) -> Any:
@@ -161,7 +162,8 @@ class RunTools:
             "verification_mean_by_accepted_version": {f"v{e['version']}": e.get("eval_mean") for e in accepted},
             "last_rounds": [{"version": e.get("version"), "verdict": e.get("verdict"), "reason": e.get("reason")}
                             for e in evals[-3:]],
-            "model_cost_usd": round(spent, 4)})
+            "model_cost_usd": round(spent, 4),
+            "model_cost_per_episode_usd": round(spent / len(eps), 4) if eps else None})
 
     def improvement(self) -> str:
         """Are you improving: verification mean and verdict per playbook version, delta against v0, and the mean
@@ -197,9 +199,15 @@ class RunTools:
                                                 for v, r in sorted(by_v.items())},
             "note": "verification means are on held-out tasks; episode rewards are on different training tasks"})
 
-    def coach_round(self, version: int) -> str:
-        """One coach round: the playbook change, the diagnosis, the mistakes with evidence spans (episode,
-        event index), and the verdict and reason."""
+    def coach_round(self, version: int | None = None) -> str:
+        """One coach round (default: the latest): the playbook change, the diagnosis, the mistakes with evidence
+        spans (episode, event index), and the verdict and reason."""
+        if version is None:
+            known = [e.get("version") for e in self.evals()] + [n.get("version") for n in self.tree()]
+            known = [int(v) for v in known if v is not None and int(v) > 0]
+            if not known:
+                return _dump({"error": "no coach round yet: the run is still on playbook v0"})
+            version = max(known)
         version = int(version)
         ev = next((e for e in self.evals() if e.get("version") == version), None)
         node = next((n for n in self.tree() if n.get("version") == version), None)
@@ -301,8 +309,16 @@ class RunTools:
         if key.lstrip("-").isdigit():
             return next((s for s in ships if s["id"] == int(key)), None)
         low = key.lower()
-        return next((s for s in ships if s["name"].lower() == low), None) or \
-            next((s for s in ships if low in s["name"].lower()), None)
+        named = [s for s in ships if s["name"].lower() == low] or [s for s in ships if low in s["name"].lower()]
+        if len(named) < 2:
+            return named[0] if named else None
+        # a name the line reuses: the ship selected in the viewer, else the most late call of that name
+        v_ep, _, v_ship = self._view.get()
+        sel = next((s for s in named if s["id"] == v_ship), None)
+        if sel is not None:
+            return sel
+        late = {x.get("id"): x.get("late_h") or 0 for x in rep.get("ships", [])}
+        return max(named, key=lambda s: (late.get(s["id"], 0), -s["id"]))
 
     def ship(self, n: int | None = None, ship_id_or_name: Any = None) -> str:
         """One ship in episode n: ETA, LOA, draught, cranes, planned vs actual section, berth hour, departure, due,
@@ -559,10 +575,25 @@ class RunTools:
 
     def _optimum_rows(self, n: int, task: Task) -> list[dict]:
         """The CP-SAT optimal plan of episode n's task as plan rows, solved once per episode and kept in memory."""
+        cache = self.run_dir / "proposals" / "plans" / f"optimum_ep{n:03d}.json"
+        if n not in self._optima and cache.exists():
+            self._optima[n] = json.loads(cache.read_text())
+        if n not in self._optima:   # the optimal plan the task pack stores, when the task came from oakland/tasks
+            for f in sorted(TASKS_DIR.glob("*.jsonl")):
+                with f.open() as fh:
+                    row = next((json.loads(ln) for ln in fh if f'"{task.task_id}"' in ln), None)
+                ref = None if row is None or row.get("task_id") != task.task_id else row.get("reference") or {}
+                if ref and ref.get("optimal_plan"):
+                    self._optima[n] = ref["optimal_plan"]
+                    break
         if n not in self._optima:
             from oakland_core import solve
-            plan, _, _ = solve(task, time_limit_s=SOLVE_S, workers=SOLVE_WORKERS)
+            plan, cost, _ = solve(task, time_limit_s=SOLVE_S, workers=SOLVE_WORKERS)
             self._optima[n] = plan_to_list(plan, task.kind)
+            opt = task.reference.get("optimal_cost")
+            if opt is not None and cost <= int(opt):   # keep only a plan at the optimum
+                cache.parent.mkdir(parents=True, exist_ok=True)
+                cache.write_text(json.dumps(self._optima[n]))
         return [dict(r) for r in self._optima[n]]
 
     def make_plan(self, episode: int | None = None, pins: list[dict] | None = None) -> str:
