@@ -1,7 +1,8 @@
 /*
  * Oakland port operations dashboard: "how well is the port being operated", from replay JSON files.
  *
- * Sources, in order: ?replays=a.json,b.json (one replay per episode), ?manifest=episodes.json (the default), or
+ * Sources, in order: ?run=../runs/<name> (a live oakland/loop run directory, re-polled every 3 s unless &live=0),
+ * ?replays=a.json,b.json (one replay per episode), ?manifest=episodes.json (the default), or
  * files dropped on the page / picked with "Load JSON". From file:// the browser cannot fetch, so the page falls back
  * to the embedded viewer fixtures (window.PORTSIM_FIXTURES). All numbers come from metrics.js (window.OakMetrics);
  * nothing here recomputes the port rules. Ship calls in the demo replays are GENERATED, not real records.
@@ -11,6 +12,7 @@
 
   const M = window.OakMetrics;
   const C = window.OakCharts;
+  const R = window.OakRuns;
 
   // Line colours shared with the 3D scene (primary livery colour per line).
   const LINE_COLORS = {
@@ -43,7 +45,8 @@
   };
 
   const $ = (id) => document.getElementById(id);
-  const state = { episodes: [], selected: 0, source: "" };
+  const state = { episodes: [], selected: 0, source: "", run: null };
+  const POLL_MS = 3000;
 
   function lineColor(line) {
     if (LINE_COLORS[line]) return LINE_COLORS[line];
@@ -119,8 +122,263 @@
     return Object.keys(fx).map((k, i) => ({ episode: i + 1, label: k + " (embedded)", replay: fx[k], src: k }));
   }
 
+  // ---------- run mode (?run=<dir>) ----------
+
+  function fetchText(url, optional) {
+    return fetch(url, { cache: "no-store" }).then((r) => {
+      if (!r.ok) {
+        if (optional) return "";
+        throw new Error(url + ": HTTP " + r.status);
+      }
+      return r.text();
+    }).catch((err) => {
+      if (optional) return "";
+      throw err;
+    });
+  }
+
+  function runName(dir) {
+    return String(dir).replace(/\/+$/, "").split("/").pop() || String(dir);
+  }
+
+  function startRun(dir, live) {
+    const base = new URL(dir.replace(/\/+$/, "") + "/", location.href);
+    state.run = { dir: dir, name: runName(dir), base: base, live: live, sig: "", rows: [], evalRows: [], tree: null, md: {}, replays: {}, follow: true };
+    state.source = "run " + state.run.name;
+    $("run-panels").classList.remove("hidden");
+    pollRun();
+  }
+
+  function pollRun() {
+    const run = state.run;
+    const u = (p) => new URL(p, run.base).href;
+    Promise.all([fetchText(u("episodes.jsonl")), fetchText(u("eval.jsonl"), true), fetchText(u("playbooks/tree.json"), true)])
+      .then(([epText, evText, treeText]) => {
+        const sig = epText.length + ":" + evText.length + ":" + treeText.length + ":" + epText.slice(-200) + evText.slice(-200);
+        if (sig === run.sig) return null;
+        run.rows = R.parseJSONL(epText);
+        run.evalRows = R.parseJSONL(evText);
+        try { run.tree = treeText ? JSON.parse(treeText) : null; } catch (e) { /* half-written: keep the last one */ }
+        return loadRunData(run).then(() => {
+          run.sig = sig;
+          applyRun(run);
+        });
+      })
+      .catch((err) => {
+        if (!run.rows.length) message("Waiting for run " + run.name + ": " + err.message + (run.live ? " (retrying every 3 s)" : ""), !run.live);
+      })
+      .then(() => {
+        if (run.live) setTimeout(pollRun, POLL_MS);
+      });
+  }
+
+  // Replays and playbook texts are written once and never change: fetch each a single time.
+  function loadRunData(run) {
+    const u = (p) => new URL(p, run.base).href;
+    const jobs = run.rows.map((row, i) => {
+      const ep = row.episode !== undefined ? row.episode : i + 1;
+      const rel = row.replay || "replays/ep" + String(ep).padStart(3, "0") + ".json";
+      if (run.replays[rel]) return Promise.resolve();
+      return fetchJSON(u(rel)).then((rep) => { run.replays[rel] = rep; }).catch(() => {});
+    });
+    const pb = R.currentPlaybook(run.evalRows, run.tree);
+    for (const v of [pb.version, pb.previous]) {
+      if (v === null || v === undefined || run.md[v] !== undefined) continue;
+      jobs.push(fetchText(u("playbooks/v" + v + ".md"), true).then((t) => { if (t) run.md[v] = t; }));
+    }
+    return Promise.all(jobs);
+  }
+
+  function applyRun(run) {
+    const list = [];
+    run.rows.forEach((row, i) => {
+      const ep = row.episode !== undefined ? row.episode : i + 1;
+      const rel = row.replay || "replays/ep" + String(ep).padStart(3, "0") + ".json";
+      const rep = run.replays[rel];
+      if (!rep) return;
+      const pv = row.playbook_version !== undefined && row.playbook_version !== null ? "playbook v" + row.playbook_version + ", " : "";
+      list.push({ episode: ep, label: pv + (row.task_id || baseName(rel)), reward: row.reward, replay: rep, src: rel });
+    });
+    message("");
+    if (!list.length) {
+      message("Run " + run.name + " has started; waiting for its first graded episode.");
+      renderRun();
+      return;
+    }
+    const prevLen = state.episodes.length;
+    const following = !prevLen || state.selected === prevLen - 1;
+    list.sort((a, b) => a.episode - b.episode);
+    state.episodes = list;
+    if (following) state.selected = list.length - 1;
+    const sel = $("episode");
+    sel.innerHTML = list.map((e, i) => '<option value="' + i + '">' + esc("Episode " + e.episode + ": " + e.label) + "</option>").join("");
+    sel.value = String(state.selected);
+    render();
+  }
+
+  function money(v) {
+    return "$" + (v >= 1 ? v.toFixed(2) : v.toFixed(3));
+  }
+
+  function wrap(text, width) {
+    const out = [];
+    let line = "";
+    for (const w of String(text || "").split(/\s+/)) {
+      if (!w) continue;
+      if (line && (line + " " + w).length > width) { out.push(line); line = w; } else line = line ? line + " " + w : w;
+    }
+    if (line) out.push(line);
+    return out.join("\n");
+  }
+
+  function delta(a, b) {
+    if (a === null || b === null) return "";
+    const d = b - a;
+    const cls = d > 0.0005 ? "up" : d < -0.0005 ? "down" : "muted";
+    return ' <span class="' + cls + '">(' + (d >= 0 ? "+" : "") + d.toFixed(3) + ")</span>";
+  }
+
+  function arrow(a, b) {
+    return fmt(a, 3) + " \u2192 " + fmt(b, 3) + delta(a, b);
+  }
+
+  function renderRunHeader(run) {
+    const h = R.runHeader(run.rows, run.evalRows);
+    const cost = h.cost_usd > 0 ? ", model cost " + money(h.cost_usd) : "";
+    $("subtitle").innerHTML = '<span class="live-dot' + (run.live ? "" : " off") + '" title="' + (run.live ? "live: polling every 3 s" : "not polling") + '"></span>' +
+      esc("run " + run.name + ": episode " + h.episode + ", playbook v" + h.playbook + ", Gemini 4 Argon" + cost);
+  }
+
+  const VERDICT_LEGEND = [
+    { cls: "accepted", name: "accepted" },
+    { cls: "rejected", name: "rejected" },
+    { cls: "overfit", name: "overfit" },
+    { cls: "minibatch", name: "minibatch" },
+  ];
+
+  function renderEvolution(run) {
+    const ev = R.evolution(run.evalRows);
+    const present = {};
+    for (const p of ev.points) present[p.cls] = true;
+    const leg = [
+      { name: "verification reward in force (accepted lineage)", color: COL.reward, kind: "line" },
+      { name: "baseline", color: C.THEME.muted, kind: "dash" },
+    ];
+    for (const v of VERDICT_LEGEND) if (present[v.cls] || v.cls === "accepted" || v.cls === "rejected") leg.push({ name: v.name, color: R.COLORS[v.cls], kind: "dot" });
+    leg.push({ name: "episode reward of the candidate (hollow)", color: C.THEME.muted, kind: "ring" });
+    const points = ev.points.map((p) => Object.assign({}, p, {
+      tip: "v" + p.version + " from v" + (p.parent === null ? "?" : p.parent) + ", round " + p.round + "\n" +
+        R.BADGES[p.cls] + (p.reason ? ": " + wrap(p.reason, 56) : "") + "\n" +
+        "verification reward " + fmt(p.eval, 3) + ", episode reward " + fmt(p.train, 3) +
+        (p.change ? "\n\nchange:\n" + wrap(p.change, 56) : ""),
+    }));
+    C.evolution($("c-evo"), {
+      height: 320, rounds: ev.rounds, baseline: ev.baseline, lineage: ev.lineage, points: points,
+      lineColor: COL.reward, legend: leg, xLabel: "coach round (base = starting playbook v0)", yLabel: "reward",
+    });
+  }
+
+  function renderEpisodeRewards(run) {
+    const x = run.rows.map((r, i) => (r.episode !== undefined ? r.episode : i + 1));
+    const rw = run.rows.map((r) => (typeof r.reward === "number" ? r.reward : null));
+    const markers = R.roundMarkers(run.evalRows, run.rows).map((m) => ({ x: m.episode, label: m.label, color: m.color }));
+    C.line($("c-epi"), {
+      height: 230,
+      series: [
+        { name: "Episode reward", color: COL.reward, values: rw, x: x, points: true },
+        { name: "Moving average (3)", color: COL.avg, values: R.movingAverage(rw, 3), x: x, width: 1.5 },
+      ],
+      markers: markers,
+      legend: true,
+      yMin: 0, yMax: 1,
+      xLabel: "episode", yLabel: "reward",
+      xFormat: (v) => "Episode " + v,
+    });
+  }
+
+  function renderCoach(run) {
+    const rounds = R.coachRounds(run.evalRows);
+    const open = {};
+    for (const d of $("coach").querySelectorAll("details[open]")) open[d.dataset.key] = true;
+    $("coach-sub").textContent = rounds.length ? rounds.length + " rounds, " + rounds.filter((r) => r.cls === "accepted").length + " accepted, newest first" : "no coach round yet";
+    $("coach").innerHTML = rounds.length ? rounds.map((r) => {
+      const key = "v" + r.version + "-" + r.round;
+      const bars = r.perTask.map((t) => {
+        const h = Math.max(2, Math.round((t.reward || 0) * 30));
+        const cls = t.delta === null ? "" : t.delta > 0.0005 ? "up" : t.delta < -0.0005 ? "down" : "";
+        return '<i class="' + cls + '" style="height:' + h + 'px" title="' + esc(t.task_id + ": " + fmt(t.reward, 3) + (t.delta !== null ? " (" + (t.delta >= 0 ? "+" : "") + t.delta.toFixed(3) + " vs parent)" : "")) + '"></i>';
+      }).join("");
+      return '<li><div class="row1"><span class="badge" style="color:' + r.color + '">' + esc(r.badge) + '</span>' +
+        '<span class="ver">v' + esc(r.version) + " from v" + esc(r.parent === null ? "?" : r.parent) + '</span><span class="muted small">round ' + esc(r.round) +
+        (r.cost > 0 ? ", " + money(r.cost) : "") + "</span></div>" +
+        (r.reason ? '<div class="reason muted small">' + esc(r.reason) + "</div>" : "") +
+        '<div class="nums small"><span class="muted">verification reward</span><span>' + arrow(r.evalBefore, r.evalAfter) + "</span>" +
+        '<span class="muted">episode reward</span><span>' + arrow(r.trainBefore, r.trainAfter) + "</span></div>" +
+        (r.change ? '<div class="change">' + esc(r.change) + "</div>" : "") +
+        (r.diagnosis ? '<details data-key="' + esc(key) + '"' + (open[key] ? " open" : "") + "><summary>diagnosis</summary><p>" + esc(r.diagnosis) + "</p></details>" : "") +
+        (bars ? '<div class="strip" aria-label="verification reward per task">' + bars + "</div>" : "") +
+        "</li>";
+    }).join("") + '<li class="strip-legend muted small"><span class="sw" style="background:var(--ok)"></span>task better than parent' +
+      '<span class="sw" style="background:var(--late)"></span>worse<span class="sw" style="background:var(--muted)"></span>same; bar height = verification reward per task</li>'
+      : '<li class="muted">The coach runs every few episodes; its rounds appear here.</li>';
+  }
+
+  function inline(t) {
+    return esc(t).replace(/`([^`]+)`/g, "<code>$1</code>").replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>");
+  }
+
+  // Minimal markdown: headings, bullet and numbered lists, paragraphs. Added lines carry the "added" class.
+  function markdown(lines) {
+    const out = [];
+    let list = null;
+    const close = () => { if (list) { out.push("</" + list + ">"); list = null; } };
+    for (const ln of lines) {
+      const t = ln.text;
+      const cls = ln.added ? ' class="added"' : "";
+      let m;
+      if (!t.trim()) { close(); continue; }
+      if ((m = t.match(/^#{1,6}\s+(.*)$/))) { close(); out.push("<h4" + cls + ">" + inline(m[1]) + "</h4>"); }
+      else if ((m = t.match(/^\s*[-*]\s+(.*)$/))) { if (list !== "ul") { close(); out.push("<ul>"); list = "ul"; } out.push("<li" + cls + ">" + inline(m[1]) + "</li>"); }
+      else if ((m = t.match(/^\s*\d+[.)]\s+(.*)$/))) { if (list !== "ol") { close(); out.push("<ol>"); list = "ol"; } out.push("<li" + cls + ">" + inline(m[1]) + "</li>"); }
+      else { close(); out.push("<p" + cls + ">" + inline(t) + "</p>"); }
+    }
+    close();
+    return out.join("");
+  }
+
+  function renderPlaybook(run) {
+    const pb = R.currentPlaybook(run.evalRows, run.tree);
+    $("pb-title").textContent = "Playbook v" + pb.version;
+    const cur = run.md[pb.version];
+    if (cur === undefined) {
+      $("pb-sub").textContent = "";
+      $("playbook").innerHTML = '<p class="muted">playbooks/v' + esc(pb.version) + ".md is not readable yet.</p>";
+      return;
+    }
+    const prev = pb.previous === null ? null : run.md[pb.previous];
+    // the panel title already names the version: drop the file's own "# Playbook v<k>" heading
+    const lines = R.playbookDiff(prev === undefined ? null : prev, cur).filter((l, i) => !(i < 2 && /^#\s+playbook v\d+\s*$/i.test(l.text)));
+    const added = lines.filter((l) => l.added).length;
+    $("pb-sub").textContent = pb.previous === null ? "starting playbook, in force now" : "in force now, " + added + " lines added since v" + pb.previous;
+    $("playbook").innerHTML = markdown(lines) + (added ? '<div class="pb-legend muted small"><span class="sw"></span>added since v' + esc(pb.previous) + "</div>" : "");
+  }
+
+  function renderRun() {
+    const run = state.run;
+    if (!run) return;
+    renderRunHeader(run);
+    renderEvolution(run);
+    renderEpisodeRewards(run);
+    renderCoach(run);
+    renderPlaybook(run);
+  }
+
   function start() {
     const q = new URLSearchParams(location.search);
+    if (q.get("run")) {
+      startRun(q.get("run"), q.get("live") !== "0");
+      return;
+    }
     const replays = q.get("replays");
     const manifest = q.get("manifest") || "episodes.json";
     let p;
@@ -338,7 +596,7 @@
     const se = M.series(r);
     const rows = M.shipRows(r);
     const ep = M.episodes(state.episodes);
-    $("subtitle").textContent = "Episode " + cur.episode + " of " + state.episodes.length + ": " + cur.label + " (" + m.terminal + ", " + m.task_id + "), source: " + state.source;
+    if (!state.run) $("subtitle").textContent = "Episode " + cur.episode + " of " + state.episodes.length + ": " + cur.label + " (" + m.terminal + ", " + m.task_id + "), source: " + state.source;
     renderTiles(m, ep);
     renderSparks(ep, se);
     renderImprovement(ep);
@@ -347,13 +605,14 @@
     renderShifts(m);
     renderTable(rows, m);
     renderEvents(r);
+    if (state.run) renderRun();
   }
 
   // ---------- interaction ----------
 
   function initTooltip() {
     const tip = $("tip");
-    document.addEventListener("mousemove", (ev) => {
+    const show = (ev) => {
       const c = ev.target;
       const text = c && c.tagName === "CANVAS" && c._hit ? c._hit(ev.offsetX, ev.offsetY) : null;
       if (!text) {
@@ -366,7 +625,9 @@
       const y = Math.min(ev.clientY + 14, window.innerHeight - tip.offsetHeight - 8);
       tip.style.left = Math.max(8, x) + "px";
       tip.style.top = Math.max(8, y) + "px";
-    });
+    };
+    document.addEventListener("mousemove", show);
+    document.addEventListener("click", show);
   }
 
   function initDrop() {
@@ -391,7 +652,7 @@
   let resizeTimer = null;
   window.addEventListener("resize", () => {
     clearTimeout(resizeTimer);
-    resizeTimer = setTimeout(render, 120);
+    resizeTimer = setTimeout(() => (state.episodes.length ? render() : renderRun()), 120);
   });
   initTooltip();
   initDrop();

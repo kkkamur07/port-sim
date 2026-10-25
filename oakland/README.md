@@ -197,6 +197,62 @@ Open `oakland/viewer/index.html` in a browser and point it at a replay JSON with
 `viewer/index.html?replay=replays/berth-eval-0.json`. Save a replay with
 `json.dump(env.replay(), open("replays/berth-eval-0.json", "w"))` after a submission, or fetch `GET /replay`.
 
+## Demo
+
+`./demo.sh` (from `oakland/`) is the live demo: it loads the repo's `.env` if present (the API key is never printed),
+starts a static server on port 8765 from `oakland/` when the port is free, prints the two URLs, and runs the loop:
+
+```bash
+../.venv/bin/python -m loop.run --run live --episodes ${EPISODES:-9} --coach-every ${COACH_EVERY:-3} --kind berth \
+    --eval-pack tasks/berth-eval-demo.jsonl --player ${PLAYER:-auto} --coach ${COACH:-auto} --quiet
+```
+
+- Dashboard: `http://127.0.0.1:8765/dashboard/?run=../runs/live` re-reads the run every 3 s: the self-improvement
+  chart (verification reward per coach round, accepted lineage, every candidate by verdict), episode rewards with the
+  coach rounds marked, the coach rounds list and the playbook in force with its added lines highlighted.
+- Viewer: `http://127.0.0.1:8765/viewer/?run=../runs/live` plays the newest episode at 16x and moves to each new one
+  when its playback ends, with a toast per new episode.
+- Offline: `dashboard/?run=fixtures/run-demo&live=0` and `viewer/?run=../dashboard/fixtures/run-demo` show a finished
+  16-episode real run (4 coach rounds) bundled with the dashboard.
+
+Nothing is trained: only the playbook changes between episodes (in-context adaptation from feedback). The UI calls the
+held-out score the "verification reward" and the score on the episodes just played the "episode reward".
+
+`tasks/berth-eval-demo.jsonl` is the demo subset of the verification pack: the 4 storm and extreme tier tasks of
+`tasks/berth-eval.jsonl` on which the greedy baseline plan scores lowest (`reward.grade` of `solve.greedy_plan`:
+everport-storm-100002 0.25, everport-storm-100010 0.28, trapac-extreme-100011 0.34, trapac-storm-100014 0.38), so a
+good playbook rule has room to show and each coach round stays short on stage. The full 12-task
+`tasks/berth-eval.jsonl` stays the benchmark.
+
+## Chat with the operator
+
+`oakland/chat/` answers questions about a run as the Gemini Argon operator: a LangGraph ReAct agent (the player's
+`make_model` wrapper, model `gemini-4-argon`, temperature 0.3) over read-only tools on the run's files and the real
+checker. Nothing is trained; only the playbook changes between episodes. Ship calls are GENERATED.
+
+    cd oakland
+    set -a; . ../.env; set +a                      # GOOGLE_API_KEY or GEMINI_API_KEY
+    ALLOW_MODEL_REQUESTS=1 python -m chat.server --runs-dir runs --port 8770
+
+Contract (CORS open, stateless: the client sends the whole conversation, one agent is cached per run, 90 s per
+request, errors as `{"error": ...}`):
+
+    POST /chat   {"run": "live", "messages": [{"role": "user", "content": "Are you improving?"}], "episode": 7}
+                 run: a directory name under --runs-dir ("../runs/live" also works, its basename is used)
+                 episode: the episode the viewer is showing, or null
+              -> {"answer": "...", "steps": [{"tool", "args", "result_preview"}],
+                  "links": [{"episode", "ship_id"?, "hour"?}], "what_if": {...} | null,
+                  "tokens_in", "tokens_out", "cost_usd"}
+    GET  /health -> {"ok": true, "model": "gemini-4-argon", "runs_dir": "runs"}
+    GET  /runs   -> [{"run": "real-berth-gepa", "episodes": 16}]
+
+Tools (`chat/tools.py`, `RunTools(run_dir)`, compact JSON of at most about 1500 characters): `run_status`,
+`improvement`, `coach_round(version)`, `playbook(version)`, `episode(n)`, `player_log(n, limit)`, `ship(n, id or
+name)`, `what_if(n, ship_id, berth_hour, section, cranes)` (regrades a modified copy of the submitted plan with
+`oakland_core.grade`, writes nothing) and `reward_rules`. `what_if` in the response is that tool's last result, so the
+viewer can draw the changed berth. Tests use the scripted `FakeModel` (`tests/test_chat.py`, needs
+`runs/real-berth-gepa` copied in; skipped otherwise).
+
 ## Tests
 
 ```bash
