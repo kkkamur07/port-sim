@@ -1,9 +1,15 @@
 """The operator chat over HTTP, standard library only, CORS open so the viewer can call it.
 
-    python -m chat.server --runs-dir runs --port 8770      (from oakland/)
+    python -m chat.server --runs-dir runs --port 8771      (from oakland/)
 
-    POST /chat    {"run": "live", "messages": [{"role": "user", "content": "..."}], "episode": 7 | null}
+    POST /chat    {"run": "live", "messages": [{"role": "user", "content": "..."}], "episode": 7 | null,
+                   "hour": 40 | null, "ship_id": 3 | null}
                   -> {answer, steps, links, what_if, tokens_in, tokens_out, cost_usd} | {error}
+                  `episode`, `hour` and `ship_id` are what the viewer shows (ship_id: the selected ship, for "this
+                  ship"); the tools default to them, so
+                  "How is the port doing?" answers for the hour on screen; after make_plan or route_ship the
+                  response also has "plan": {replay, cost, optimum, feasible, violations}, where replay is a path
+                  under the run directory (proposals/plans/planN.json)
     GET  /health  -> {ok, model, runs_dir}
     GET  /runs    -> [{run, episodes}]
     GET  /proposal?run=live[&id=3] -> {id, status, change, baseline_eval_mean, eval_mean, verdict_reason} | 404
@@ -12,7 +18,8 @@
 
 `run` is a directory name under --runs-dir; a path like "../runs/live" is accepted and only its basename is used.
 The server is stateless: the conversation is the messages list the client sends. One agent is cached per run.
-Each request gets 90 s; errors come back as {"error": ...}. Gemini needs ALLOW_MODEL_REQUESTS=1 and a key.
+Each request gets 90 s; a model failure inside a turn comes back as a normal answer (retried once on the overview
+digest, else built in code with "degraded": true); other errors come back as {"error": ...}. Gemini needs ALLOW_MODEL_REQUESTS=1 and a key.
 """
 
 from __future__ import annotations
@@ -68,13 +75,15 @@ class Chat:
         msgs = body.get("messages")
         if not isinstance(msgs, list) or not msgs:
             return 400, {"error": "messages must be a non-empty list of {role, content}"}
-        episode = body.get("episode")
+        episode, hour, ship_id = body.get("episode"), body.get("hour"), body.get("ship_id")
         try:
             episode = None if episode is None else int(episode)
+            hour = None if hour is None else int(hour)
+            ship_id = None if ship_id is None else int(ship_id)
             agent = self.agent(body.get("run") or "live")
         except (ValueError, TypeError) as e:
             return 400, {"error": str(e)}
-        fut = self.pool.submit(agent.ask, msgs, episode)
+        fut = self.pool.submit(agent.ask, msgs, episode, hour, ship_id)
         try:
             return 200, fut.result(timeout=self.timeout_s)
         except FutureTimeout:
@@ -148,7 +157,7 @@ def make_handler(chat: Chat) -> type[BaseHTTPRequestHandler]:
     return Handler
 
 
-def make_server(runs_dir: str | Path, host: str = "127.0.0.1", port: int = 8770,
+def make_server(runs_dir: str | Path, host: str = "127.0.0.1", port: int = 8771,
                 make_agent: Callable[[Path], Any] | None = None) -> ThreadingHTTPServer:
     return ThreadingHTTPServer((host, port), make_handler(Chat(runs_dir, make_agent)))
 
@@ -157,7 +166,7 @@ def main() -> None:
     ap = argparse.ArgumentParser(description="Chat with the Gemini Argon operator about a run.")
     ap.add_argument("--runs-dir", default="runs")
     ap.add_argument("--host", default="127.0.0.1")
-    ap.add_argument("--port", type=int, default=8770)
+    ap.add_argument("--port", type=int, default=8771)
     ap.add_argument("--verify-pack", nargs="+", default=None,
                     help="task files to verify chat proposals on (default: the run's own verification tasks)")
     a = ap.parse_args()

@@ -1,13 +1,14 @@
 """Read-only tools over one run directory, for the operator chat. Every tool returns compact JSON text (at most
-about 1500 characters, numbers rounded). Nothing here writes to the run; what_if grades a modified copy of a plan
-with the real checker (oakland_core.grade) and keeps it in memory.
+about 1500 characters, 3000 for port_status and late_ships, numbers rounded). Nothing here writes to the run;
+what_if grades a modified copy of a plan with the real checker (oakland_core.grade) and keeps it in memory.
 
     tools = RunTools("runs/real-berth-gepa")
     tools.run_status(); tools.episode(7); tools.what_if(7, 0, berth_hour=30, section=4, cranes=3)
     tools.langchain_tools()   # the same functions as LangChain tools, for the chat agent
 
-optimize_playbook, verify_proposal and proposal_status (chat/optimize.py) are the exception: they write only to
-<run_dir>/proposals/, a directory the loop never touches.
+optimize_playbook, verify_proposal and proposal_status (chat/optimize.py) and make_plan / route_ship are the
+exception: they write only to <run_dir>/proposals/ (schedules under proposals/plans/), a directory the loop never
+touches.
 
 Run layout read here: episodes.jsonl (or episodes.json), eval.jsonl, playbooks/tree.json and vN.md,
 replays/epNNN.json, events/epNNN.jsonl. Any of them may be missing (a live run that just started): the tools then
@@ -17,13 +18,19 @@ say so instead of failing.
 from __future__ import annotations
 
 import json
+from contextlib import contextmanager
+from contextvars import ContextVar
 from pathlib import Path
 from typing import Any
 
 from env import MAX_CHECKS
-from oakland_core import PlanError, Task, grade, parse_plan
+from oakland_core import PlanError, Task, grade, parse_plan, plan_to_list
+from oakland_core import replay as build_replay
 
 MAX_CHARS = 1500
+PORT_CHARS = 3000   # port_status and late_ships: a whole quay at one hour
+OVERVIEW_CHARS = 2500
+SOLVE_S, SOLVE_WORKERS = 15, 4   # make_plan's CP-SAT budget
 
 
 def _round(x: Any) -> Any:
@@ -78,6 +85,9 @@ class RunTools:
     def __init__(self, run_dir: str | Path, optimizer: Any = None):
         self.run_dir = Path(run_dir)
         self._optimizer = optimizer
+        self._optima: dict[int, list[dict]] = {}
+        self._view: ContextVar[tuple[int | None, int | None, int | None]] = ContextVar(
+            f"view-{id(self)}", default=(None, None, None))
 
     @property
     def optimizer(self) -> Any:
@@ -294,12 +304,24 @@ class RunTools:
         return next((s for s in ships if s["name"].lower() == low), None) or \
             next((s for s in ships if low in s["name"].lower()), None)
 
-    def ship(self, n: int, ship_id_or_name: Any) -> str:
+    def ship(self, n: int | None = None, ship_id_or_name: Any = None) -> str:
         """One ship in episode n: ETA, LOA, draught, cranes, planned vs actual section, berth hour, departure, due,
-        hours late."""
-        rep = self.replay(int(n))
+        hours late. For "this ship" or "it" leave the arguments out: the episode on screen and the ship selected
+        there, else the most late ship (then `picked` says so)."""
+        n, _ = self._pick(n, None)
+        rep = None if n is None else self.replay(n)
         if rep is None:
             return _dump({"error": f"no replay for episode {n}"})
+        picked = None
+        if ship_id_or_name is None:
+            v_ep, _, v_ship = self._view.get()
+            if v_ship is not None and v_ep in (None, n):
+                ship_id_or_name, picked = v_ship, "the ship selected in the viewer"
+            else:
+                late = sorted((x for x in rep.get("ships", []) if (x.get("late_h") or 0) > 0), key=lambda x: -x["late_h"])
+                if not late:
+                    return _dump({"error": f"no ship named and none late in episode {n}"})
+                ship_id_or_name, picked = late[0]["id"], "no ship named: the most late ship"
         s = self._find_ship(rep, ship_id_or_name)
         if s is None:
             return _dump({"error": f"no ship {ship_id_or_name!r} in episode {n}"})
@@ -312,7 +334,8 @@ class RunTools:
             "planned_hour": s.get("planned_hour"), "planned_section": s.get("planned_section"),
             "berth_hour": entry.get("berth_hour"), "section": entry.get("section"),
             "departure": rs.get("departure"), "due": s["due"], "late_h": rs.get("late_h"),
-            "problems": rs.get("problems", [])[:3], "note": "generated ship call, not a real record"})
+            "problems": rs.get("problems", [])[:3], "note": "generated ship call, not a real record",
+            **({"picked": picked} if picked else {})})
 
     def what_if(self, n: int, ship_id: Any, berth_hour: int | None = None, section: int | None = None,
                 cranes: int | None = None) -> str:
@@ -351,6 +374,253 @@ class RunTools:
             "violations": [_short(v.get("problem", v), 120) if isinstance(v, dict) else _short(v, 120)
                            for v in new.violations][:6] + new.parse_problems[:2],
             "violation_count": len(new.violations) + len(new.parse_problems)})
+
+    # ------------------------------------------------------------ the port at one hour
+
+    @contextmanager
+    def viewing(self, episode: int | None = None, hour: int | None = None, ship_id: int | None = None):
+        """While inside, the tools default to the episode, hour and selected ship the viewer shows."""
+        token = self._view.set((episode, hour, ship_id))
+        try:
+            yield
+        finally:
+            self._view.reset(token)
+
+    def _latest_episode(self) -> int | None:
+        nums = [int(p.stem[2:]) for p in (self.run_dir / "replays").glob("ep*.json") if p.stem[2:].isdigit()]
+        return max(nums) if nums else None
+
+    def _pick(self, episode: Any, hour: Any) -> tuple[int | None, int | None]:
+        """The episode (given, else the viewer's, else the latest) and the hour (given, else the viewer's when it is
+        the viewer's episode, else None)."""
+        v_ep, v_hour, _ = self._view.get()
+        if episode is None:
+            episode = v_ep if v_ep is not None else self._latest_episode()
+        if hour is None and v_ep is not None and episode is not None and int(episode) == int(v_ep):
+            hour = v_hour
+        return (None if episode is None else int(episode)), (None if hour is None else int(hour))
+
+    def port_status(self, episode: int | None = None, hour: int | None = None) -> str:
+        """How the port is doing at one hour of an episode's plan (default: the episode and hour on screen, else the
+        latest episode at its last berthing): ships alongside, ships waiting at anchor, late ships, cranes in use of
+        the pool, bar closures, the next arrivals, and the plan's cost against the best possible."""
+        n, h = self._pick(episode, hour)
+        rep = None if n is None else self.replay(n)
+        if rep is None:
+            return _dump({"error": f"no replay for episode {n}" if n is not None else "no episodes yet"})
+        task, g, ships = rep["task"], rep.get("grade") or {}, rep.get("ships", [])
+        horizon = int(rep.get("horizon_h") or 1)
+        if h is None:
+            h = max((s["berth_hour"] for s in ships if s.get("berth_hour") is not None), default=0)
+        h = max(0, min(int(h), horizon - 1))
+
+        def span(first: Any, n_sec: Any) -> str | None:
+            return None if first is None else f"{first}-{first + (n_sec or 1) - 1}"
+
+        alongside, waiting, cranes = [], [], 0
+        for s in ships:
+            b, d = s.get("berth_hour"), s.get("departure")
+            c = dict((t, k) for t, k in s.get("cranes_by_hour", [])).get(h, 0)
+            if b is not None and d is not None and b <= h < d:
+                cranes += c
+                alongside.append({"ship": s["id"], "name": s["name"], "section": span(s.get("first_section"),
+                                  s.get("sections")), "cranes": c, "started_hour": b, "done_hour": d,
+                                  "late_hours": s.get("late_h") or 0})
+            elif s["arrival"] <= h and (b is None or b > h):
+                waiting.append({"ship": s["id"], "name": s["name"], "arrived_hour": s["arrival"],
+                                "waited_hours": h - s["arrival"], "berth_hour": b})
+        fixed = []
+        for blk in rep.get("blocks", []):
+            if blk.get("start", 0) <= h < blk.get("end", 0) and blk.get("kind") in ("alongside", "closed"):
+                if blk["kind"] == "alongside":
+                    cranes += dict((t, k) for t, k in blk.get("cranes_by_hour", [])).get(h, 0)
+                fixed.append({"kind": blk["kind"], "sections": f"{blk['first']}-{blk['last']}",
+                              "label": blk.get("label"), "until_hour": blk.get("end")})
+        closures = [{"label": w.get("label"), "start": w["start"], "end": w["end"]}
+                    for w in rep.get("no_moves", []) if w["start"] <= h < w["end"]]
+        late = sorted(({"ship": s["id"], "name": s["name"], "late_hours": s["late_h"]}
+                       for s in ships if (s.get("late_h") or 0) > 0), key=lambda s: -s["late_hours"])
+        nxt = sorted((s for s in ships if s["arrival"] > h), key=lambda s: s["arrival"])[:3]
+        pool = dict((t, k) for t, k in rep.get("crane_pool_by_hour", [])).get(h)
+        planned = {s["id"]: s.get("planned_section") for s in task["ships"]}
+        moved = sum(1 for r in rep.get("plan", []) if planned.get(r["ship"]) is not None
+                    and r.get("section") is not None and r.get("section") != planned.get(r["ship"]))
+        cost, opt = g.get("cost"), g.get("optimal_cost")
+        weather = [w for w in task.get("disruptions", []) if w.get("type") in ("fog", "storm", "wind")]
+        return _dump({
+            "episode": n, "task_id": task.get("task_id"), "terminal": task.get("terminal"),
+            "tier": task.get("difficulty"), "weather": [f"{w['type']} h{w['start']}-{w['end']}" for w in weather][:4],
+            "hour": h, "alongside": alongside, "waiting": waiting, "late": late[:5], "late_ship_count": len(late),
+            "cranes_in_use": cranes, "crane_pool": pool, "fixed_blocks": fixed, "closures_now": closures,
+            "next_arrivals": [{"ship": s["id"], "name": s["name"], "hour": s["arrival"]} for s in nxt],
+            "plan": {"cost": cost, "optimum": opt,
+                     "gap_pct": None if cost is None or not opt else round(100 * (cost - opt) / opt, 1),
+                     "late_ship_hours_total": sum(s["late_hours"] for s in late),
+                     "ships_moved_off_published_section": moved, "feasible": g.get("feasible"),
+                     "violations": len(g.get("violations", []))}}, limit=PORT_CHARS)
+
+    def late_ships(self, episode: int | None = None) -> str:
+        """Every late ship of an episode (default: the one on screen, else the latest), most late first: late hours,
+        due hour, arrival, berth hour, section, cranes, and why the plan made it late (arrived late, waited for a
+        bar closure, a closed or occupied section, the crane pool, or too few cranes)."""
+        n, _ = self._pick(episode, None)
+        rep = None if n is None else self.replay(n)
+        if rep is None:
+            return _dump({"error": f"no replay for episode {n}" if n is not None else "no episodes yet"})
+        task, ships = rep["task"], rep.get("ships", [])
+        spec = {s["id"]: s for s in task["ships"]}
+        plan = {r["ship"]: r for r in rep.get("plan", [])}
+        pool = dict((t, k) for t, k in rep.get("crane_pool_by_hour", []))
+        arrived_late = {d["ship"]: d["hours"] for d in task.get("disruptions", []) if d.get("type") == "late"}
+
+        def used(t: int, but: int) -> int:
+            return sum(dict((x, k) for x, k in o.get("cranes_by_hour", [])).get(t, 0)
+                       for o in ships + rep.get("blocks", []) if o.get("id") != but)
+
+        def taken(first: int, last: int, t: int, but: int) -> str | None:
+            for o in ships:
+                b, d, f = o.get("berth_hour"), o.get("departure"), o.get("first_section")
+                if o["id"] != but and None not in (b, d, f) and b <= t < d and f <= last and first <= f + o["sections"] - 1:
+                    return f"{o['name']} #{o['id']}"
+            for blk in rep.get("blocks", []):
+                if blk["kind"] in ("alongside", "closed") and blk["start"] <= t < blk["end"] \
+                        and blk["first"] <= last and first <= blk["last"]:
+                    return blk.get("label") or blk["kind"]
+            return None
+
+        out = []
+        for s in sorted((s for s in ships if (s.get("late_h") or 0) > 0), key=lambda s: -s["late_h"]):
+            sp, entry = spec.get(s["id"], {}), plan.get(s["id"], {})
+            b, a, f = s.get("berth_hour"), s["arrival"], s.get("first_section")
+            why = []
+            if s["id"] in arrived_late:
+                why.append(f"arrived {arrived_late[s['id']]} h late (weather on the crossing)")
+            if a >= s["due"]:
+                why.append(f"arrived at hour {a}, after its due hour {s['due']}")
+            if b is not None and b > a:
+                before = len(why)
+                w = [x for x in rep.get("no_moves", []) if x["start"] < b and a < x["end"]]
+                if w:
+                    why.append(f"waited for {w[0].get('label', 'a bar closure')} h{w[0]['start']}-{w[0]['end']}")
+                occ = None if f is None else taken(f, f + s["sections"] - 1, a, s["id"])
+                if occ:
+                    why.append(f"waited {b - a} h for sections {f}-{f + s['sections'] - 1} ({occ} there)")
+                if a in pool and used(a, s["id"]) >= pool[a]:
+                    why.append(f"crane pool full at hour {a} ({pool[a]} cranes)")
+                if len(why) == before:
+                    why.append(f"waited {b - a} h at anchor")
+            cr = entry.get("cranes")
+            if cr is not None and sp.get("max_cranes") and cr < sp["max_cranes"]:
+                why.append(f"worked with {cr} of up to {sp['max_cranes']} cranes")
+            out.append({"ship": s["id"], "name": s["name"], "late_hours": s["late_h"], "due": s["due"],
+                        "arrival": a, "berth_hour": b, "section": None if f is None else f"{f}-{f + s['sections'] - 1}",
+                        "cranes": cr, "reason": "; ".join(why) or None})
+        return _dump({"episode": n, "late_ship_count": len(out), "late_ship_hours_total": sum(x["late_hours"] for x in out),
+                      "late_ships": out}, limit=PORT_CHARS)
+
+    def overview(self) -> str:
+        """Everything in one digest, for any question no other tool fits: the port at the latest episode's last
+        berthing, that episode (terminal, tier, cost against the optimum, late ships), the run (episodes, accepted
+        playbook and its verified score, last coach verdict), the playbook's current rules and the latest chat
+        proposal. No model, no solver."""
+        out: dict[str, Any] = {}
+        n = self._latest_episode()
+        if n is not None:
+            st = json.loads(self.port_status(n, None))
+            if "error" not in st:
+                out["port_now"] = {k: st[k] for k in ("terminal", "tier", "hour", "cranes_in_use", "crane_pool")}
+                out["port_now"].update(alongside=[x["name"] for x in st["alongside"]],
+                                       waiting=[x["name"] for x in st["waiting"]], closures=st["closures_now"])
+                out["latest_episode"] = {"episode": n, "task_id": st["task_id"], "ships": len(self.replay(n)["ships"]),
+                                         "cost": st["plan"]["cost"], "optimum": st["plan"]["optimum"],
+                                         "gap_pct": st["plan"]["gap_pct"], "feasible": st["plan"]["feasible"],
+                                         "late_ship_count": st["late_ship_count"], "late_top3": st["late"][:3]}
+        eps, evals = self.episodes(), self.evals()
+        accepted = [e for e in evals if e.get("verdict") == "accepted"]
+        out["run"] = {"episodes_played": len(eps), "accepted_playbook": accepted[-1].get("version") if accepted else None,
+                      "verified_score": accepted[-1].get("eval_mean") if accepted else None,
+                      "last_coach": None if not evals else
+                      f"v{evals[-1].get('version')} {evals[-1].get('verdict')}: {_short(evals[-1].get('reason'), 140)}"}
+        p = self.run_dir / "playbooks" / f"v{out['run']['accepted_playbook'] or 0}.md"
+        if p.exists():
+            out["playbook_rules"] = [_short(ln.strip(" -*"), 120) for ln in p.read_text().splitlines()
+                                     if ln.strip() and not ln.startswith("#")][:5]
+        try:
+            got = self.optimizer.status(None)
+            out["chat_proposal"] = None if "error" in got else {k: got.get(k) for k in
+                                                                 ("id", "status", "change", "eval_mean")}
+        except Exception:   # noqa: BLE001, the digest never fails on a proposal file
+            out["chat_proposal"] = None
+        if not out.get("latest_episode") and not eps:
+            out["note"] = f"no episodes yet in run {self.run_dir.name}"
+        return _dump(out, limit=OVERVIEW_CHARS)
+
+    # ------------------------------------------------------------ schedules on demand
+
+    def _optimum_rows(self, n: int, task: Task) -> list[dict]:
+        """The CP-SAT optimal plan of episode n's task as plan rows, solved once per episode and kept in memory."""
+        if n not in self._optima:
+            from oakland_core import solve
+            plan, _, _ = solve(task, time_limit_s=SOLVE_S, workers=SOLVE_WORKERS)
+            self._optima[n] = plan_to_list(plan, task.kind)
+        return [dict(r) for r in self._optima[n]]
+
+    def make_plan(self, episode: int | None = None, pins: list[dict] | None = None) -> str:
+        """Build a full berth schedule for an episode's task (default: the one on screen, else the latest) with the
+        exact solver, then apply `pins` = [{ship, section?, berth_hour?, cranes?}] on top and run the real checker.
+        Returns cost against the best possible and the plan I played, feasibility, violations, late ships, the pinned
+        rows and the replay file the viewer can show in 3D."""
+        n, _ = self._pick(episode, None)
+        rep = None if n is None else self.replay(n)
+        if rep is None:
+            return _dump({"error": f"no replay for episode {n}" if n is not None else "no episodes yet"})
+        task = self._task(rep)
+        if task.kind != "berth":
+            return _dump({"error": f"episode {n} is a crane task: make_plan builds berth schedules"})
+        rows = self._optimum_rows(n, task)
+        pinned = []
+        for pin in pins or []:
+            s = self._find_ship(rep, pin.get("ship"))
+            if s is None:
+                return _dump({"error": f"no ship {pin.get('ship')!r} in episode {n}"})
+            entry = next(r for r in rows if r["ship"] == s["id"])
+            for k in ("berth_hour", "section", "cranes"):
+                if pin.get(k) is not None:
+                    entry[k] = int(pin[k])
+            pinned.append({"name": s["name"], **entry})
+        try:
+            plan, problems = parse_plan(task, rows)
+        except PlanError as e:
+            return _dump({"error": f"plan could not be read: {e}"})
+        g = grade(task, plan, problems)
+        out = build_replay(task, plan, problems)
+        pdir = self.run_dir / "proposals" / "plans"
+        pdir.mkdir(parents=True, exist_ok=True)
+        k = 1 + max((int(p.stem[4:]) for p in pdir.glob("plan*.json") if p.stem[4:].isdigit()), default=0)
+        (pdir / f"plan{k}.json").write_text(json.dumps(out))
+        planned = {s["id"]: s.get("planned_section") for s in rep["task"]["ships"]}
+        late = sorted(({"ship": s["id"], "name": s["name"], "late_hours": s["late_h"]}
+                       for s in out["ships"] if (s.get("late_h") or 0) > 0), key=lambda s: -s["late_hours"])
+        viol = [v.get("problem", v) if isinstance(v, dict) else v for v in g.violations] + g.parse_problems
+        played = (rep.get("grade") or {}).get("cost")
+        return _dump({
+            "episode": n, "cost": g.cost, "optimum": g.optimal_cost,
+            "gap_pct": None if g.cost is None or not g.optimal_cost else
+            round(100 * (g.cost - g.optimal_cost) / g.optimal_cost, 1),
+            "feasible": g.feasible, "violations": {"count": len(viol), "first": [_short(v, 120) for v in viol[:3]]},
+            "late_ships": late[:3], "ships_moved_off_published_section": sum(
+                1 for r in rows if planned.get(r["ship"]) is not None and r["section"] != planned[r["ship"]]),
+            "pinned": pinned,
+            "vs_played": {"played_cost": played,
+                          "delta": None if played is None or g.cost is None else g.cost - played},
+            "replay": f"proposals/plans/plan{k}.json"}, limit=PORT_CHARS)
+
+    def route_ship(self, episode: int, ship: Any, section: int | None = None, berth_hour: int | None = None,
+                   cranes: int | None = None) -> str:
+        """Route one ship (id or name) to a section and/or berth hour and/or crane count, rebuild the rest of the
+        schedule with the exact solver and run the checker: make_plan with that one pin."""
+        return self.make_plan(episode, [{"ship": ship, "section": section, "berth_hour": berth_hour,
+                                         "cranes": cranes}])
 
     def reward_rules(self) -> str:
         """How reward and cost are computed (fixed text, from oakland_core/reward.py and check.py)."""
@@ -397,6 +667,6 @@ class RunTools:
     def langchain_tools(self) -> list:
         from langchain_core.tools import StructuredTool
 
-        names = ["run_status", "improvement", "coach_round", "playbook", "episode", "player_log", "ship", "what_if",
+        names = ["overview", "port_status", "late_ships", "make_plan", "route_ship", "run_status", "improvement", "coach_round", "playbook", "episode", "player_log", "ship", "what_if",
                  "reward_rules", "optimize_playbook", "verify_proposal", "proposal_status"]
         return [StructuredTool.from_function(getattr(self, n), name=n) for n in names]
