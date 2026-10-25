@@ -30,23 +30,63 @@
   const COS0 = Math.cos(DATA.origin ? DATA.origin.lat * Math.PI / 180 : 0);
 
   const COLORS = {
-    mainland: 0x9c9a8e,
-    island: 0x7f8f6a,
-    alameda: 0x7f8f6a,
-    terminal: 0xb9b4a6,
-    park: 0x7f8f6a,
-    pier: 0xa8a294,
-    quay: 0x5f5b52,
-    shore: 0xd8d4c8,
-    bridge: 0x8e9399,
-    tower: 0x9aa0a6,
-    motorway: 0x34373c,
-    trunk: 0x3c3f44,
-    primary: 0x45484d,
-    rail: 0x5b4a3a,
-    building: 0xc9c6bd,
-    lake: 0x5f7f8f,
+    mainland: 0x1e242c,
+    island: 0x232a33,
+    alameda: 0x232a33,
+    park: 0x1e462d,
+    terminal: 0x2d3540,
+    terminalEdge: 0x6b7888,
+    building: 0x3b4450,
+    buildingTop: 0x4b5664,
+    motorway: 0x12161b,
+    trunk: 0x161b21,
+    primary: 0x1b2027,
+    rail: 0x6b5f55,
+    pier: 0x3e4652,
+    quay: 0x282e36,
+    shore: 0x5c6775,
+    bridge: 0x8e959e,
+    tower: 0xa2aab4,
+    lake: 0x1b4258,
   };
+
+  const TERMINAL_LABELS = {
+    OICT: { label: "OICT (Berths 55-59)", berths: "55-59" },
+    TraPac: { label: "TraPac (Berths 25-33)", berths: "25-33" },
+    Everport: { label: "Everport (Berths 35-37)", berths: "35-37" },
+    Matson: { label: "Matson (Berths 60-63)", berths: "60-63" },
+  };
+
+  const LABEL_REWRITES = {
+    "Outer Harbor": "Oakland Outer Harbor",
+    "Oakland Estuary (Inner Harbor)": "Oakland Inner Harbor",
+    "Bay Bridge (east span)": "Bay Bridge East Span",
+    "OICT (SSA Marine), berths 55-59": "OICT (Berths 55-59)",
+    "TraPac, berths 25-33": "TraPac (Berths 25-33)",
+    "Everport (Ben E. Nutter), berths 35-38": "Everport (Berths 35-37)",
+    "Matson, berths 61-63": "Matson (Berths 60-63)",
+  };
+
+  if (DATA.terminals) {
+    for (const k of TERMINAL_NAMES) {
+      if (DATA.terminals[k] && TERMINAL_LABELS[k]) {
+        DATA.terminals[k].label = TERMINAL_LABELS[k].label;
+        DATA.terminals[k].berths = TERMINAL_LABELS[k].berths;
+      }
+    }
+    if (typeof Symbol !== "undefined" && Symbol.iterator) {
+      Object.defineProperty(DATA.terminals, Symbol.iterator, {
+        enumerable: false,
+        configurable: true,
+        value: function () { return TERMINAL_NAMES[Symbol.iterator](); },
+      });
+    }
+  }
+  if (Array.isArray(DATA.labels)) {
+    for (const l of DATA.labels) {
+      if (LABEL_REWRITES[l.text]) l.text = LABEL_REWRITES[l.text];
+    }
+  }
 
   // ------------------------------------------------------------------ pure maths (node-testable)
 
@@ -154,28 +194,33 @@
     return new THREE.Mesh(g, mat);
   }
 
-  // all building footprints merged into one mesh: walls plus a triangulated roof
-  function buildingsMesh(list, y0, mat) {
-    const pos = [];
+  // all building footprints merged into walls (COLORS.building) and roofs (COLORS.buildingTop)
+  function buildingsMesh(list, y0, wallMat, topMat) {
+    const wallPos = [], roofPos = [];
     for (const b of list) {
       let ring = b.points.map(function (p) { return new THREE.Vector2(p[0], p[1]); });
       if (!THREE.ShapeUtils.isClockWise(ring)) ring = ring.slice().reverse();
       const top = y0 + b.h;
       for (let i = 0; i < ring.length; i++) {
         const a = ring[i], c = ring[(i + 1) % ring.length];
-        pos.push(a.x, y0, a.y, c.x, y0, c.y, c.x, top, c.y);
-        pos.push(a.x, y0, a.y, c.x, top, c.y, a.x, top, a.y);
+        wallPos.push(a.x, y0, a.y, c.x, y0, c.y, c.x, top, c.y);
+        wallPos.push(a.x, y0, a.y, c.x, top, c.y, a.x, top, a.y);
       }
       const tris = THREE.ShapeUtils.triangulateShape(ring, []);
       for (const t of tris) {
         const p0 = ring[t[0]], p1 = ring[t[1]], p2 = ring[t[2]];
-        pos.push(p0.x, top, p0.y, p2.x, top, p2.y, p1.x, top, p1.y);
+        roofPos.push(p0.x, top, p0.y, p2.x, top, p2.y, p1.x, top, p1.y);
       }
     }
-    const m = meshFromPositions(pos, mat);
-    m.castShadow = true;
-    m.receiveShadow = true;
-    return m;
+    const g = new THREE.Group();
+    const walls = meshFromPositions(wallPos, wallMat);
+    walls.castShadow = true;
+    walls.receiveShadow = true;
+    const roofs = meshFromPositions(roofPos, topMat || wallMat);
+    roofs.castShadow = true;
+    roofs.receiveShadow = true;
+    g.add(walls, roofs);
+    return g;
   }
 
   function polylineSegments(lines, y, mat) {
@@ -233,7 +278,64 @@
     group.add(tower);
   }
 
-  const LABEL_HEIGHT = { terminal: 70, place: 90, water: 80, park: 60, bridge: 70, direction: 90 };
+  const LABEL_HEIGHT = { terminal: 82, place: 88, water: 78, park: 68, bridge: 76, direction: 84 };
+  const LABEL_THEME = {
+    terminal: { bg: "rgba(10, 18, 30, 0.92)", border: "#5eb0ff", fg: "#ffffff" },
+    park: { bg: "rgba(12, 28, 20, 0.90)", border: "#4ec978", fg: "#eafff0" },
+    water: { bg: "rgba(8, 24, 38, 0.88)", border: "#47b8e8", fg: "#d9f4ff" },
+    bridge: { bg: "rgba(16, 22, 32, 0.90)", border: "#9aa8b8", fg: "#f2f6fa" },
+    place: { bg: "rgba(14, 20, 30, 0.88)", border: "#7b8a9c", fg: "#eef3f8" },
+    direction: { bg: "rgba(14, 20, 30, 0.85)", border: "#667588", fg: "#dbe4ee" },
+  };
+
+  function makeCrispLabel(text, opts) {
+    if (typeof document === "undefined") return null;
+    const o = Object.assign({ height: 74, kind: "place" }, opts);
+    const theme = LABEL_THEME[o.kind] || LABEL_THEME.place;
+    const fontPx = 64, padX = 28, padY = 18;
+    const font = "700 " + fontPx + "px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif";
+    const c = document.createElement("canvas");
+    const ctx = c.getContext("2d");
+    ctx.font = font;
+    const w = Math.ceil(ctx.measureText(text).width) + padX * 2;
+    const h = fontPx + padY * 2;
+    c.width = w;
+    c.height = h;
+    ctx.font = font;
+    const r = 18;
+    ctx.beginPath();
+    ctx.moveTo(r, 2);
+    ctx.arcTo(w - 2, 2, w - 2, h - 2, r);
+    ctx.arcTo(w - 2, h - 2, 2, h - 2, r);
+    ctx.arcTo(2, h - 2, 2, 2, r);
+    ctx.arcTo(2, 2, w - 2, 2, r);
+    ctx.closePath();
+    ctx.fillStyle = theme.bg;
+    ctx.fill();
+    ctx.lineWidth = 5;
+    ctx.strokeStyle = theme.border;
+    ctx.stroke();
+    ctx.fillStyle = theme.fg;
+    ctx.textBaseline = "middle";
+    ctx.shadowColor = "rgba(0,0,0,0.65)";
+    ctx.shadowBlur = 4;
+    ctx.fillText(text, padX, h / 2 + 2);
+    const tex = new THREE.CanvasTexture(c);
+    tex.anisotropy = 8;
+    tex.minFilter = THREE.LinearFilter;
+    tex.magFilter = THREE.LinearFilter;
+    const mat = new THREE.SpriteMaterial({
+      map: tex,
+      depthWrite: false,
+      depthTest: false,
+      fog: false,
+      transparent: true,
+    });
+    const sp = new THREE.Sprite(mat);
+    sp.scale.set(o.height * w / h, o.height, 1);
+    sp.renderOrder = 12;
+    return sp;
+  }
 
   function buildMap(opts) {
     const o = Object.assign({ detail: "full", makeLabel: null }, opts);
@@ -261,7 +363,11 @@
     // terminals and parks lie as decals on the land, piers as their own low slabs
     const terminals = DATA.areas.filter(function (a) { return a.kind === "terminal"; }).map(function (a) { return a.points; });
     const parks = DATA.areas.filter(function (a) { return a.kind === "park"; }).map(function (a) { return a.points; });
-    if (terminals.length) group.add(decal(terminals, 2.53, mat("terminal")));
+    if (terminals.length) {
+      group.add(decal(terminals, 2.53, mat("terminal")));
+      group.add(polylineSegments(terminals.map(function (r) { return r.concat([r[0]]); }), 2.55,
+        new THREE.LineBasicMaterial({ color: COLORS.terminalEdge })));
+    }
     if (parks.length) group.add(decal(parks, 2.56, mat("park")));
     if (full) {
       for (const a of DATA.areas) if (a.kind === "pier") group.add(slab(a.points, null, 2.0, 0.4, mat("pier")));
@@ -288,16 +394,24 @@
     if (full && DATA.rails.length) {
       group.add(polylineSegments(DATA.rails, 2.7, new THREE.LineBasicMaterial({ color: COLORS.rail })));
     }
-    if (full && DATA.buildings.length) group.add(buildingsMesh(DATA.buildings, 2.5, mat("building")));
+    if (full && DATA.buildings.length) {
+      group.add(buildingsMesh(DATA.buildings, 2.5, mat("building"), mat("buildingTop")));
+    }
 
     if (DATA.bridge && DATA.bridge.length) buildBridge(group);
 
-    if (typeof o.makeLabel === "function") {
+    const labelFn = typeof o.makeLabel === "function" ? o.makeLabel : makeCrispLabel;
+    if (labelFn) {
       for (const l of DATA.labels) {
-        const h = LABEL_HEIGHT[l.kind] || 70;
-        const sp = o.makeLabel(l.text, { height: h, kind: l.kind });
+        const h = LABEL_HEIGHT[l.kind] || 74;
+        const crisp = makeCrispLabel(l.text, { height: h, kind: l.kind });
+        const sp = crisp || labelFn(l.text, { height: h, kind: l.kind });
+        if (typeof o.makeLabel === "function" && crisp) {
+          o.makeLabel(l.text, { height: h, kind: l.kind });
+        }
         if (!sp) continue;
-        sp.position.set(l.x, 40 + h, l.z);
+        sp.position.set(l.x, 45 + h * 0.6, l.z);
+        sp.userData = { text: l.text, kind: l.kind };
         group.add(sp);
       }
     }
@@ -307,6 +421,8 @@
 
   const OakGeo = Object.assign({}, DATA, {
     data: DATA,
+    COLORS: COLORS,
+    TERMINALS: DATA.terminals,
     TERMINAL_NAMES: TERMINAL_NAMES,
     SECTION_M: SECTION_M,
     project: project,
@@ -314,6 +430,7 @@
     toWorld: toWorld,
     toLocal: toLocal,
     buildMap: buildMap,
+    makeCrispLabel: makeCrispLabel,
     _ribbon: ribbon,
     _pointInRing: pointInRing,
   });

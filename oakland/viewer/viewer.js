@@ -42,7 +42,8 @@
 
   // asset modules are optional window globals
   const has = (name) => typeof window[name] !== "undefined";
-  const GEO = has("OakGeo"), SHIPS = has("OakShips"), CRANES = has("OakCranes"), YARD = has("OakYard");
+  const GEO = has("OakGeo"), SHIPS = has("OakShips"), CRANES = has("OakCranes"), YARD = has("OakYard"),
+    PORT_LIFE = has("OakPortLife"), HUD = has("OakControlPanel");
 
   // ---------- small helpers ----------
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -327,11 +328,24 @@
   const stars = buildStars();
 
   // the real-port map (once), and the terminal root that carries the replay scene onto its real quay line
+  const mapSprites = [];
   const mapGroup = GEO ? buildMapGroup() : null;
   if (mapGroup) {
     land.visible = false;      // the map carries the real shoreline, bridge and skyline direction
     horizon.visible = false;
   }
+  const harborTraffic = (PORT_LIFE && GEO && typeof OakPortLife.makeHarborTraffic === "function")
+    ? (() => {
+        try {
+          const ht = OakPortLife.makeHarborTraffic(OakGeo);
+          scene.add(ht.group);
+          return ht;
+        } catch (e) {
+          console.error("OakPortLife.makeHarborTraffic failed", e);
+          return null;
+        }
+      })()
+    : null;
   const terminalRoot = new THREE.Group();
   scene.add(terminalRoot);
   const GLOW = glowTexture(), WAKE = wakeTexture();
@@ -342,12 +356,20 @@
   let L = 2100, X0 = -1050;
   let frame = null;            // OakGeo terminal frame of the current replay, null for the single-terminal layout
 
-  const state = { t: 0, playing: false, speed: 4, dragging: false, anim: 0, lastHour: -1, kpiT: -1 };
+  const state = {
+    t: 12, playing: false, speed: 4, dragging: false, anim: 0, lastHour: -1, kpiT: -1,
+    forceNight: false, showAis: true, showTrails: true,
+    activeScenario: (window.PORTSIM_SCENARIOS && Object.keys(window.PORTSIM_SCENARIOS)[0]) || "oict_berth_medium",
+    activePlan: "optimal",
+  };
 
   function buildMapGroup() {
     try {
-      const g = OakGeo.buildMap({ detail: "full", makeLabel: (text) => makeLabel(text, { height: 70 }) });
-      g.traverse((m) => { if (m.isMesh) m.receiveShadow = true; });
+      const g = OakGeo.buildMap({ detail: "full" });
+      g.traverse((m) => {
+        if (m.isMesh) m.receiveShadow = true;
+        if (m.isSprite) mapSprites.push(m);
+      });
       scene.add(g);
       return g;
     } catch (e) {
@@ -519,11 +541,11 @@
     const g = new THREE.Group();
 
     // quay apron, yard ground and section ticks
-    const quayMat = new THREE.MeshStandardMaterial({ color: 0x9a9fa5, roughness: 0.9, metalness: 0 });
+    const quayMat = new THREE.MeshStandardMaterial({ color: 0x666f7a, roughness: 0.88, metalness: 0.04 });
     const apron = box(L + 60, QUAY_TOP + 2, APRON_DEPTH, quayMat, 0, (QUAY_TOP - 2) / 2, -APRON_DEPTH / 2);
     apron.castShadow = apron.receiveShadow = true;
     g.add(apron);
-    const ground = box(L + 60, QUAY_TOP + 2, 470, new THREE.MeshStandardMaterial({ color: 0x6b6f75, roughness: 1 }),
+    const ground = box(L + 60, QUAY_TOP + 2, 470, new THREE.MeshStandardMaterial({ color: 0x444b53, roughness: 0.95 }),
       0, (QUAY_TOP - 2) / 2 - 0.1, -APRON_DEPTH - 235);
     ground.receiveShadow = true;
     g.add(ground);
@@ -607,7 +629,12 @@
     }
 
     // ships
-    const shipObjs = (rep.ships || []).map((s, i) => buildShip(s, i, task));
+    const shipObjs = (rep.ships || []).map((s, i) => {
+      const o = buildShip(s, i, task);
+      o.idx = i;
+      o.group.userData = { pickType: "ship", pickIdx: i };
+      return o;
+    });
     shipObjs.forEach((o) => g.add(o.group));
 
     // cranes
@@ -621,20 +648,51 @@
       if (CRANES) {
         try {
           const a = OakCranes.makeCrane({ rail_gauge_m: 28, height_m: 50, outreach_m: 65, seed: i + 1, color: trim });
-          c = { group: a.group, asset: a, home: 0, x: 0, z: -20, working: null };
+          c = { group: a.group, asset: a, home: 0, x: 0, z: -20, working: null, idx: i };
         } catch (e) {
           console.error("OakCranes.makeCrane failed, using the box crane", e);
         }
       }
-      if (!c) c = buildCrane(craneMat, accentMat, GLOW);
+      if (!c) c = Object.assign(buildCrane(craneMat, accentMat, GLOW), { idx: i });
       c.home = X0 + L * (i + 0.5) / pool;
       c.group.position.set(c.home, QUAY_TOP, c.z);
+      c.group.userData = { pickType: "crane", pickIdx: i };
       g.add(castShadows(c.group));
       cranes.push(c);
     }
 
+    if (yard && yard.setTrails) yard.setTrails(state.showTrails);
+
+    // World-space ambient Port of Oakland harbor layers (passive terminals, tractor tugs, 3D ECDIS AIS overlay)
+    const worldSpaceGroup = new THREE.Group();
+    scene.add(worldSpaceGroup);
+    let passiveTerminals = null, tugFleet = null, aisOverlay = null;
+    if (PORT_LIFE && GEO) {
+      const rawFrame = typeof OakGeo.terminalFrame === "function" ? OakGeo.terminalFrame(task.terminal || "OICT") : null;
+      try {
+        if (typeof OakPortLife.makePassiveTerminals === "function") {
+          passiveTerminals = OakPortLife.makePassiveTerminals(task.terminal || "OICT");
+          worldSpaceGroup.add(passiveTerminals.group);
+        }
+      } catch (e) { console.error("makePassiveTerminals failed", e); }
+      try {
+        if (typeof OakPortLife.makeTugFleet === "function") {
+          tugFleet = OakPortLife.makeTugFleet({ termFrame: rawFrame });
+          worldSpaceGroup.add(tugFleet.group);
+        }
+      } catch (e) { console.error("makeTugFleet failed", e); }
+      try {
+        if (typeof OakPortLife.makeAisOverlay === "function") {
+          aisOverlay = OakPortLife.makeAisOverlay(rep, rawFrame);
+          aisOverlay.setVisible(state.showAis);
+          worldSpaceGroup.add(aisOverlay.group);
+        }
+      } catch (e) { console.error("makeAisOverlay failed", e); }
+    }
+
     terminalRoot.add(g);
-    return { group: g, ships: shipObjs, cranes, craneMat, blocks: blockObjs, nSec, lamps, yard,
+    return { group: g, worldSpaceGroup, passiveTerminals, tugFleet, aisOverlay,
+      ships: shipObjs, cranes, craneMat, blocks: blockObjs, nSec, lamps, yard,
       targets: new Map() };
   }
 
@@ -749,11 +807,11 @@
     flag.position.set(len * 0.4, 12, 0);
     flag.visible = false;
     group.add(flag);
-    // labels (normal and late)
-    const label = makeLabel(s.name, { height: 26, border: color });
-    const lateLabel = makeLabel(s.name + "  late " + s.late_h + " h", { height: 26, bg: "rgba(190,30,30,0.95)" });
-    label.position.set(0, 72, 0);
-    lateLabel.position.set(0, 72, 0);
+    // labels (normal and late) — compact height so close-up Quayside views stay crisp
+    const label = makeLabel(s.name, { height: 15, border: color });
+    const lateLabel = makeLabel(s.name + "  late " + s.late_h + " h", { height: 15, bg: "rgba(190,30,30,0.95)" });
+    label.position.set(0, 62, 0);
+    lateLabel.position.set(0, 62, 0);
     lateLabel.visible = false;
     group.add(label, lateLabel);
     group.visible = false;
@@ -968,7 +1026,7 @@
   }
 
   function updateSky(t, dt) {
-    const d = daylight(t);
+    const d = state.forceNight ? 0.04 : daylight(t);
     const hd = ((t % 24) + 24) % 24;
     const tint = 4 * d * (1 - d);
     _sky.copy(NIGHT).lerp(DAY, d).lerp(hd < 12 ? DAWN : DUSK, tint * 0.55);
@@ -979,17 +1037,17 @@
     scene.fog.color.copy(bg);
     // fog distances follow the camera so the satellite view stays clear; the fog window closes them right in
     const camDist = camera.position.distanceTo(controls.target);
-    scene.fog.near = lerp(Math.max(2500, camDist * 0.9), 60, f);
-    scene.fog.far = lerp(Math.max(18000, camDist * 4), 1500, f);
+    scene.fog.near = lerp(Math.max(6000, camDist * 1.7), 60, f);
+    scene.fog.far = lerp(Math.max(30000, camDist * 6), 1500, f);
     hemi.color.copy(_sky).lerp(WHITE, 0.35);
     hemi.groundColor.copy(GROUND_NIGHT).lerp(GROUND_DAY, d);
-    hemi.intensity = 0.25 + 0.65 * d;
+    hemi.intensity = 0.22 + 0.46 * d;
     // the sun rises in the east (+x), crosses the south (+z) and sets in the west
     const u = clamp((hd - 6) / 13.5, 0, 1);
     const el = Math.max(0.12, Math.sin(Math.PI * u) * 1.1);
     const az = Math.PI * u;
     _dir.set(Math.cos(az) * Math.cos(el), Math.sin(el), (0.35 + 0.55 * Math.sin(az)) * Math.cos(el)).normalize();
-    sun.intensity = 0.06 + 1.45 * d * (1 - f * 0.6);
+    sun.intensity = 0.08 + 1.12 * d * (1 - f * 0.6);
     sun.color.copy(SUN_LOW).lerp(SUN_HIGH, smooth(clamp((el - 0.12) / 0.6, 0, 1)));
     if (world && world.center) sun.target.position.copy(world.center);
     sun.position.copy(sun.target.position).addScaledVector(_dir, 4000);
@@ -1010,22 +1068,37 @@
     dt = dt || 0;
     const d = updateSky(t, dt);
     const night = d < 0.4;
+    const nightFactor = 1 - d;
     const h = Math.floor(t), frac = t - h;
     const meal = h % 24 === 17;
 
+    // Hide high-altitude map labels when the camera is low (Quayside / Crane Cab) so they never block ships/cranes
+    const showHighLabels = camera.position.y >= 175;
+    for (let i = 0; i < mapSprites.length; i++) mapSprites[i].visible = showHighLabels;
+
+    const shipStatesForHarbor = [];
     for (const o of world.ships) {
       const speed = placeShip(o, t);
       const late = o.s.late_h > 0 && t >= o.s.due && t < o.s.departure + 2;
+      const moored = t >= o.s.berth_hour && t < o.s.departure && speed < 0.05;
+      const stKey = !o.group.visible ? "departed"
+        : moored ? "alongside"
+        : (Math.abs(t - o.s.berth_hour) <= 1.2 ? "arriving"
+        : (Math.abs(t - o.s.departure) <= 1.2 ? "departing"
+        : (t < o.s.berth_hour ? "waiting" : "departing")));
+
       o.flag.visible = late;
-      o.label.visible = !late;
+      o.label.visible = !late && !o.asset;
       o.lateLabel.visible = late;
-      o.wake.visible = speed > 0.05;
+      o.wake.visible = !o.asset && speed > 0.05;
       o.wake.material.opacity = 0.65 * speed;
       if (o.asset) {
         if (o.lit !== night) {
           o.asset.setLights(night);
           o.lit = night;
         }
+        if (o.asset.setMoored) o.asset.setMoored(moored);
+        if (o.asset.setWake) o.asset.setWake(speed);
         const load = 1 - window.OakKPI.progress(replay, o.s, t);
         if (Math.abs(load - o.load) > 0.01) {
           o.asset.setLoad(load);
@@ -1035,11 +1108,25 @@
       } else {
         o.lights.forEach((g) => (g.visible = night));
       }
+      shipStatesForHarbor.push({
+        id: o.s.id,
+        name: o.s.name,
+        group: o.group,
+        visible: o.group.visible,
+        status: stKey,
+        length_m: o.len,
+        beam_m: o.beam,
+        sog: speed * 12.5,
+      });
     }
 
     for (const blk of world.blocks) blk.obj.visible = t >= blk.b.start && t < blk.b.end;
     world.lamps.forEach((g) => (g.visible = night));
-    if (world.yard && world.yard.update) world.yard.update(dt);
+    if (world.yard && world.yard.update) world.yard.update(dt, nightFactor);
+    if (world.passiveTerminals && world.passiveTerminals.update) world.passiveTerminals.update(t, nightFactor);
+    if (world.tugFleet && world.tugFleet.update) world.tugFleet.update(t, nightFactor, shipStatesForHarbor);
+    if (world.aisOverlay && world.aisOverlay.update) world.aisOverlay.update(t, shipStatesForHarbor);
+    if (harborTraffic && harborTraffic.update) harborTraffic.update(t, nightFactor);
 
     const T0 = craneTargets(h), T1 = craneTargets(h + 1);
     const w = smooth(clamp((frac - 0.7) / 0.3, 0, 1));
@@ -1049,7 +1136,7 @@
       c.x = lerp(T0.x[i], T1.x[i], w);
       c.group.position.x = c.x;
       const working = T0.working[i] && !meal;
-      const lit = working && d < 0.6;
+      const lit = (working && d < 0.6) || night;
       if (c.asset) {
         if (working !== c.working) {
           c.asset.setWorking(working);
@@ -1092,6 +1179,9 @@
       state.kpiT = t;
       updateList(t);
       updateKpis(t);
+      if (HUD && window.OakControlPanel) {
+        window.OakControlPanel.updateAtHour(replay, t);
+      }
     }
   }
 
@@ -1273,6 +1363,7 @@
   const toWorld = (x, y, z) => world.group.localToWorld(new THREE.Vector3(x, y, z));
 
   function setCam(name) {
+    if (!world) return;
     const k = Math.max(L, 700) / 2100;
     if (name === "satellite") {
       satelliteView();
@@ -1282,6 +1373,14 @@
     } else if (name === "overhead") {
       camera.position.copy(toWorld(0, 2600 * k + 300, 400 * k));
       controls.target.copy(toWorld(0, 0, 350 * k));
+    } else if (name === "crane-cab") {
+      const activeCrane = world.cranes.find((c) => c.working) || world.cranes[Math.floor(world.cranes.length / 2)] || world.cranes[0];
+      const cx = activeCrane ? activeCrane.x : 0;
+      camera.position.copy(toWorld(cx - 18, 48, -8));
+      controls.target.copy(toWorld(cx + 22, 16, 48));
+    } else if (name === "bay-bridge") {
+      camera.position.set(-2350, 290, 1950);
+      controls.target.set(-600, 20, 180);
     } else {
       camera.position.copy(toWorld(-300 * k, 1300 * k + 200, 2400 * k + 400));
       controls.target.copy(toWorld(0, 0, 450 * k));
@@ -1322,16 +1421,84 @@
     camera.position.set(cx - dist * Math.sin(az) * Math.cos(el), dist * Math.sin(el), cz + dist * Math.cos(az) * Math.cos(el));
   }
 
+  function highlightSelection(type, idx) {
+    if (!world) return;
+    world.ships.forEach((o, i) => {
+      if (o.asset && o.asset.setSelected) o.asset.setSelected(type === "ship" && i === idx);
+    });
+    world.cranes.forEach((c, i) => {
+      if (c.asset && c.asset.setSelected) c.asset.setSelected(type === "crane" && i === idx);
+    });
+  }
+
   function focusShip(o) {
+    if (!o) return;
+    highlightSelection("ship", o.idx);
     const p = o.group.visible ? o.group.getWorldPosition(new THREE.Vector3())
       : world.group.localToWorld(o.keys[o.keys.length - 3][1].clone());
-    const off = camera.position.clone().sub(controls.target).setLength(Math.max(500, o.len * 1.8));
+    const off = camera.position.clone().sub(controls.target).setLength(Math.max(480, o.len * 1.65));
+    controls.target.copy(p);
+    camera.position.copy(p).add(off);
+    controls.update();
+  }
+
+  function focusCrane(c) {
+    if (!c) return;
+    highlightSelection("crane", c.idx);
+    const p = c.group.getWorldPosition(new THREE.Vector3());
+    p.y += 28;
+    const off = camera.position.clone().sub(controls.target).setLength(280);
     controls.target.copy(p);
     camera.position.copy(p).add(off);
     controls.update();
   }
 
   document.querySelectorAll("[data-cam]").forEach((b) => b.addEventListener("click", () => setCam(b.dataset.cam)));
+
+  // ---------- 3D Raycast Asset Picking ----------
+  const raycaster = new THREE.Raycaster();
+  const pointerDownPos = new THREE.Vector2();
+  const pointerNdc = new THREE.Vector2();
+
+  renderer.domElement.addEventListener("pointerdown", (ev) => {
+    pointerDownPos.set(ev.clientX, ev.clientY);
+  });
+
+  renderer.domElement.addEventListener("pointerup", (ev) => {
+    if (!world || Math.hypot(ev.clientX - pointerDownPos.x, ev.clientY - pointerDownPos.y) > 5) return;
+    const rect = renderer.domElement.getBoundingClientRect();
+    pointerNdc.x = ((ev.clientX - rect.left) / rect.width) * 2 - 1;
+    pointerNdc.y = -((ev.clientY - rect.top) / rect.height) * 2 + 1;
+    raycaster.setFromCamera(pointerNdc, camera);
+
+    const targets = [];
+    for (const o of world.ships) if (o.group.visible) targets.push(o.group);
+    for (const c of world.cranes) targets.push(c.group);
+
+    const hits = raycaster.intersectObjects(targets, true);
+    for (const hit of hits) {
+      let cur = hit.object;
+      while (cur) {
+        if (cur.userData && cur.userData.pickType) {
+          const { pickType, pickIdx } = cur.userData;
+          if (pickType === "ship") {
+            if (HUD && window.OakControlPanel) window.OakControlPanel.selectShip(pickIdx, replay, state.t);
+            else focusShip(world.ships[pickIdx]);
+          } else if (pickType === "crane") {
+            if (HUD && window.OakControlPanel) {
+              const st = world.cranes[pickIdx].asset && world.cranes[pickIdx].asset.getStatus
+                ? world.cranes[pickIdx].asset.getStatus() : null;
+              window.OakControlPanel.selectCrane(pickIdx, st, replay, state.t);
+            } else {
+              focusCrane(world.cranes[pickIdx]);
+            }
+          }
+          return;
+        }
+        cur = cur.parent;
+      }
+    }
+  });
 
   // ---------- loading ----------
   function validate(rep) {
@@ -1344,7 +1511,22 @@
     }
   }
 
-  function load(rep) {
+  function disposeGroup(grp) {
+    if (!grp) return;
+    grp.traverse((obj) => {
+      if (obj.geometry) obj.geometry.dispose();
+      if (obj.material) {
+        if (Array.isArray(obj.material)) obj.material.forEach((m) => m.dispose && m.dispose());
+        else {
+          if (obj.material.map) obj.material.map.dispose();
+          obj.material.dispose();
+        }
+      }
+    });
+  }
+
+  function load(rep, opts) {
+    opts = opts || {};
     try {
       validate(rep);
     } catch (e) {
@@ -1354,13 +1536,11 @@
     clearError();
     if (world) {
       terminalRoot.remove(world.group);
-      world.group.traverse((obj) => {
-        if (obj.geometry) obj.geometry.dispose();
-        if (obj.material) {
-          if (obj.material.map) obj.material.map.dispose();
-          obj.material.dispose();
-        }
-      });
+      disposeGroup(world.group);
+      if (world.worldSpaceGroup) {
+        scene.remove(world.worldSpaceGroup);
+        disposeGroup(world.worldSpaceGroup);
+      }
     }
     replay = rep;
     world = buildWorld(rep);
@@ -1372,14 +1552,99 @@
     sc.near = 100; sc.far = 9000;
     sc.updateProjectionMatrix();
     ui.scrub.max = String(window.OakKPI.horizon(rep));
-    state.t = 0;
+    if (!opts.keepTime) {
+      const urlT = new URLSearchParams(location.search).get("t");
+      state.t = urlT !== null ? Number(urlT) : 12;
+    }
     state.kpiT = -1;
     buildHeader(rep);
     buildList();
     buildKpis();
-    setCam("overview");
+    if (!opts.keepCamera) setCam("overview");
+    if (HUD && window.OakControlPanel) {
+      const scEntry = window.PORTSIM_SCENARIOS && window.PORTSIM_SCENARIOS[state.activeScenario];
+      window.OakControlPanel.setReplay(rep, state.activePlan, scEntry ? scEntry.plans : null);
+    }
     update(state.t);
   }
+
+  function populateScenarioSelect() {
+    if (!window.PORTSIM_SCENARIOS) return;
+    if (ui.fixture) {
+      ui.fixture.innerHTML = "";
+      for (const [scKey, sc] of Object.entries(window.PORTSIM_SCENARIOS)) {
+        for (const planKey of ["optimal", "greedy", "naive"]) {
+          if (!sc.plans || !sc.plans[planKey]) continue;
+          const opt = document.createElement("option");
+          opt.value = scKey + ":" + planKey;
+          opt.textContent = sc.label + " — " + planKey.toUpperCase();
+          ui.fixture.appendChild(opt);
+        }
+      }
+    }
+    if (HUD && window.OakControlPanel) {
+      const list = Object.entries(window.PORTSIM_SCENARIOS).map(([key, sc]) => ({
+        key,
+        label: sc.label || key,
+        terminal: sc.terminal,
+        kind: sc.kind,
+      }));
+      window.OakControlPanel.setScenarioList(list, state.activeScenario, state.activePlan);
+    }
+  }
+
+  if (HUD && window.OakControlPanel) {
+    window.OakControlPanel.init({
+      onSelectScenario(scKey, planKey) {
+        state.activeScenario = scKey;
+        state.activePlan = planKey || state.activePlan || "optimal";
+        loadFixture(state.activeScenario + ":" + state.activePlan);
+      },
+      onSelectPlan(planKey, scKey) {
+        state.activePlan = planKey;
+        if (scKey) state.activeScenario = scKey;
+        const sc = window.PORTSIM_SCENARIOS && window.PORTSIM_SCENARIOS[state.activeScenario];
+        if (sc && sc.plans && sc.plans[planKey]) {
+          load(sc.plans[planKey], { keepCamera: true, keepTime: true });
+        }
+      },
+      onSelectShip(idx) {
+        if (world && world.ships[idx]) focusShip(world.ships[idx]);
+      },
+      onSelectCrane(idx) {
+        if (world && world.cranes[idx]) focusCrane(world.cranes[idx]);
+      },
+      onSelectCamera(cam) {
+        setCam(cam);
+      },
+      onToggleLayer(layer, on) {
+        if (layer === "ais") {
+          state.showAis = on;
+          if (world && world.aisOverlay) world.aisOverlay.setVisible(on);
+        } else if (layer === "trucks") {
+          state.showTrails = on;
+          if (world && world.yard && world.yard.setTrails) world.yard.setTrails(on);
+        } else if (layer === "night") {
+          state.forceNight = on;
+          update(state.t, 0);
+        }
+      },
+      onScrub(newT) {
+        state.t = newT;
+        update(state.t, 0);
+      },
+      onLoadFile(f) {
+        f.text().then((txt) => {
+          try {
+            load(JSON.parse(txt));
+          } catch (e) {
+            showError("Cannot parse " + f.name + ": " + e.message);
+          }
+        });
+      },
+    });
+  }
+  populateScenarioSelect();
 
   function loadUrl(url) {
     return fetch(url)
@@ -1393,6 +1658,25 @@
   }
 
   function loadFixture(name) {
+    if (name && name.includes(":") && window.PORTSIM_SCENARIOS) {
+      const [scKey, planKey] = name.split(":");
+      state.activeScenario = scKey;
+      state.activePlan = planKey;
+      const sc = window.PORTSIM_SCENARIOS[scKey];
+      if (sc && sc.plans && sc.plans[planKey]) {
+        load(sc.plans[planKey]);
+        return;
+      }
+    }
+    if (window.PORTSIM_SCENARIOS && window.PORTSIM_SCENARIOS[name]) {
+      state.activeScenario = name;
+      const sc = window.PORTSIM_SCENARIOS[name];
+      const plan = (sc.plans && sc.plans[state.activePlan]) || (sc.plans && sc.plans.optimal);
+      if (plan) {
+        load(plan);
+        return;
+      }
+    }
     const fx = window.PORTSIM_FIXTURES || {};
     if (fx[name]) load(fx[name]);
     else loadUrl("fixtures/" + name + ".json");
@@ -1535,6 +1819,7 @@
     pollFollow();
     setInterval(() => { if (follow.pending && !state.playing) playEntry(follow.pending); }, 500);
   } else if (params.get("replay")) loadUrl(params.get("replay"));
-  else loadFixture("oict-demo");
+  else if (params.get("scenario")) loadFixture(params.get("scenario"));
+  else loadFixture(state.activeScenario);
   requestAnimationFrame(tick);
 })();

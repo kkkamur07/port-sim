@@ -1,8 +1,7 @@
 {
  "task": {
-  "task_id": "matson-demo",
+  "task_id": "matson_berth_easy",
   "split": "demo",
-  "kind": "berth",
   "quay": "61-63",
   "terminal": "Matson",
   "first_section": 1,
@@ -13,163 +12,288 @@
   "ships": [
    {
     "id": 0,
-    "name": "DANIEL K. INOUYE",
-    "imo": "",
-    "length_m": 260,
-    "sections": 7,
-    "arrival": 6,
-    "handling": 16,
-    "planned_hour": 6,
-    "planned_section": 1,
-    "due": 26,
+    "name": "KAUAI SKY",
+    "imo": "GEN9986254",
+    "length_m": 205.0,
+    "sections": 5,
+    "arrival": 9,
+    "handling": 23,
+    "planned_hour": 9,
+    "planned_section": 3,
+    "due": 32,
     "from_port": "Honolulu",
     "to_port": "Long Beach",
-    "beam_m": 34,
-    "draught_m": 11.6,
-    "workload": 43,
+    "beam_m": 27.0,
+    "draught_m": 10.3,
+    "workload": 1130,
     "min_cranes": 1,
-    "max_cranes": 4,
-    "std_cranes": 3,
+    "max_cranes": 3,
+    "std_cranes": 2,
     "weight": 1,
     "berth_deadline": null,
-    "deadline_penalty": 0
+    "deadline_penalty": 0,
+    "line": "Matson",
+    "service": "HAW"
    },
    {
     "id": 1,
-    "name": "MANULANI",
-    "imo": "",
-    "length_m": 218,
+    "name": "MAUNA HALE",
+    "imo": "GEN9724900",
+    "length_m": 230.0,
     "sections": 6,
-    "arrival": 30,
-    "handling": 11,
-    "planned_hour": 30,
-    "planned_section": 7,
-    "due": 37,
-    "from_port": "Guam",
-    "to_port": "Honolulu",
-    "beam_m": 32,
-    "draught_m": 11.0,
-    "workload": 31,
+    "arrival": 60,
+    "handling": 21,
+    "planned_hour": 51,
+    "planned_section": 6,
+    "due": 72,
+    "from_port": "Honolulu",
+    "to_port": "Long Beach",
+    "beam_m": 30.3,
+    "draught_m": 10.5,
+    "workload": 1010,
     "min_cranes": 1,
-    "max_cranes": 3,
-    "std_cranes": 3,
+    "max_cranes": 4,
+    "std_cranes": 2,
     "weight": 1,
     "berth_deadline": null,
-    "deadline_penalty": 0
+    "deadline_penalty": 0,
+    "line": "Matson",
+    "service": "HAW"
    },
    {
     "id": 2,
-    "name": "KAIMANA HILA",
-    "imo": "",
-    "length_m": 260,
-    "sections": 7,
-    "arrival": 50,
-    "handling": 19,
-    "planned_hour": 50,
-    "planned_section": 1,
-    "due": 73,
-    "from_port": "Honolulu",
-    "to_port": "Seattle",
-    "beam_m": 34,
-    "draught_m": 11.6,
-    "workload": 39,
-    "min_cranes": 1,
-    "max_cranes": 4,
-    "std_cranes": 3,
-    "weight": 1,
-    "berth_deadline": null,
-    "deadline_penalty": 0
-   },
-   {
-    "id": 3,
-    "name": "MATSONIA",
-    "imo": "",
-    "length_m": 255,
-    "sections": 7,
-    "arrival": 76,
-    "handling": 19,
-    "planned_hour": 76,
-    "planned_section": 7,
-    "due": 92,
-    "from_port": "Kahului",
-    "to_port": "Honolulu",
-    "beam_m": 35,
-    "draught_m": 10.8,
-    "workload": 35,
-    "min_cranes": 1,
-    "max_cranes": 4,
-    "std_cranes": 2,
-    "weight": 1,
-    "berth_deadline": null,
-    "deadline_penalty": 0
-   },
-   {
-    "id": 4,
-    "name": "LURLINE",
-    "imo": "",
-    "length_m": 265,
-    "sections": 7,
-    "arrival": 104,
-    "handling": 14,
-    "planned_hour": 104,
-    "planned_section": 1,
-    "due": 122,
-    "from_port": "Honolulu",
-    "to_port": "Long Beach",
-    "beam_m": 35,
-    "draught_m": 10.8,
-    "workload": 37,
-    "min_cranes": 1,
-    "max_cranes": 4,
-    "std_cranes": 3,
-    "weight": 1,
-    "berth_deadline": null,
-    "deadline_penalty": 0
-   },
-   {
-    "id": 5,
-    "name": "MAUNALEI",
-    "imo": "",
-    "length_m": 208,
+    "name": "MOANA ALOHA",
+    "imo": "GEN9601148",
+    "length_m": 199.0,
     "sections": 5,
-    "arrival": 134,
-    "handling": 15,
-    "planned_hour": 134,
-    "planned_section": 7,
-    "due": 153,
-    "from_port": "Shanghai",
+    "arrival": 82,
+    "handling": 13,
+    "planned_hour": 82,
+    "planned_section": 8,
+    "due": 95,
+    "from_port": "Guam",
     "to_port": "Honolulu",
-    "beam_m": 32,
-    "draught_m": 10.5,
-    "workload": 27,
+    "beam_m": 26.2,
+    "draught_m": 10.1,
+    "workload": 620,
     "min_cranes": 1,
     "max_cranes": 3,
     "std_cranes": 2,
     "weight": 1,
     "berth_deadline": null,
-    "deadline_penalty": 0
+    "deadline_penalty": 0,
+    "line": "Matson",
+    "service": "GUAM"
+   },
+   {
+    "id": 3,
+    "name": "LAHAINA SUN",
+    "imo": "GEN9125105",
+    "length_m": 210.0,
+    "sections": 5,
+    "arrival": 83,
+    "handling": 20,
+    "planned_hour": 83,
+    "planned_section": 3,
+    "due": 103,
+    "from_port": "Guam",
+    "to_port": "Honolulu",
+    "beam_m": 27.6,
+    "draught_m": 10.0,
+    "workload": 950,
+    "min_cranes": 1,
+    "max_cranes": 3,
+    "std_cranes": 2,
+    "weight": 1,
+    "berth_deadline": null,
+    "deadline_penalty": 0,
+    "line": "Matson",
+    "service": "GUAM"
+   },
+   {
+    "id": 4,
+    "name": "KANALOA",
+    "imo": "GEN9180553",
+    "length_m": 208.0,
+    "sections": 5,
+    "arrival": 104,
+    "handling": 20,
+    "planned_hour": 104,
+    "planned_section": 6,
+    "due": 124,
+    "from_port": "Honolulu",
+    "to_port": "Long Beach",
+    "beam_m": 27.4,
+    "draught_m": 10.2,
+    "workload": 960,
+    "min_cranes": 1,
+    "max_cranes": 3,
+    "std_cranes": 2,
+    "weight": 3,
+    "berth_deadline": null,
+    "deadline_penalty": 0,
+    "line": "Matson",
+    "service": "HAW"
+   },
+   {
+    "id": 5,
+    "name": "MANULANI",
+    "imo": "GEN9483822",
+    "length_m": 248.0,
+    "sections": 6,
+    "arrival": 138,
+    "handling": 22,
+    "planned_hour": 124,
+    "planned_section": 4,
+    "due": 146,
+    "from_port": "Honolulu",
+    "to_port": "Long Beach",
+    "beam_m": 32.6,
+    "draught_m": 11.3,
+    "workload": 1080,
+    "min_cranes": 1,
+    "max_cranes": 4,
+    "std_cranes": 2,
+    "weight": 1,
+    "berth_deadline": null,
+    "deadline_penalty": 0,
+    "line": "Matson",
+    "service": "HAW"
+   },
+   {
+    "id": 6,
+    "name": "NANI KAI",
+    "imo": "GEN9397607",
+    "length_m": 204.0,
+    "sections": 5,
+    "arrival": 146,
+    "handling": 12,
+    "planned_hour": 146,
+    "planned_section": 1,
+    "due": 158,
+    "from_port": "Guam",
+    "to_port": "Honolulu",
+    "beam_m": 26.8,
+    "draught_m": 10.4,
+    "workload": 620,
+    "min_cranes": 1,
+    "max_cranes": 3,
+    "std_cranes": 2,
+    "weight": 1,
+    "berth_deadline": null,
+    "deadline_penalty": 0,
+    "line": "Matson",
+    "service": "GUAM"
+   },
+   {
+    "id": 7,
+    "name": "MOANA ALOHA",
+    "imo": "GEN9819768",
+    "length_m": 199.0,
+    "sections": 5,
+    "arrival": 152,
+    "handling": 21,
+    "planned_hour": 152,
+    "planned_section": 6,
+    "due": 173,
+    "from_port": "Guam",
+    "to_port": "Honolulu",
+    "beam_m": 26.2,
+    "draught_m": 10.4,
+    "workload": 1020,
+    "min_cranes": 1,
+    "max_cranes": 3,
+    "std_cranes": 2,
+    "weight": 1,
+    "berth_deadline": null,
+    "deadline_penalty": 0,
+    "line": "Matson",
+    "service": "GUAM"
    }
   ],
-  "blocks": [],
+  "blocks": [
+   {
+    "first": 1,
+    "last": 13,
+    "start": 0,
+    "end": 168,
+    "kind": "shallow",
+    "label": "max draught 12.8 m",
+    "cranes": 0,
+    "max_draught_m": 12.8
+   },
+   {
+    "first": 8,
+    "last": 13,
+    "start": 0,
+    "end": 10,
+    "kind": "alongside",
+    "label": "MANULANI (Matson, generated call)",
+    "cranes": 2,
+    "max_draught_m": null
+   }
+  ],
   "notices": [
-   "DEMO DATA: ship calls are generated, not real records."
+   "Generated calls (not real records) at Matson, berths 61-63, over 1 week(s). Hour 0 is Monday 00:00 Pacific.",
+   "Fog forecast: the Bar Pilots close the Golden Gate bar from hour 6 to hour 12. No ship may berth or leave in that window; a ship that finishes inside it waits alongside.",
+   "Fog forecast: the Bar Pilots close the Golden Gate bar from hour 100 to hour 105. No ship may berth or leave in that window; a ship that finishes inside it waits alongside.",
+   "Fog forecast: the Bar Pilots close the Golden Gate bar from hour 149 to hour 154. No ship may berth or leave in that window; a ship that finishes inside it waits alongside.",
+   "Ship 5 MANULANI was delayed by weather on the Pacific crossing: it now arrives at hour 138 (planned berthing hour 124). Its planned departure stays hour 146.",
+   "Ship 1 MAUNA HALE was delayed by weather on the Pacific crossing: it now arrives at hour 60 (planned berthing hour 51). Its planned departure stays hour 72.",
+   "Priority cargo: ship 4 KANALOA carries time-critical cargo; each hour it leaves late counts three times."
   ],
   "disruptions": [
    {
-    "kind": "fog",
-    "start": 54,
-    "end": 58
+    "type": "fog",
+    "start": 6,
+    "end": 12
+   },
+   {
+    "type": "fog",
+    "start": 100,
+    "end": 105
+   },
+   {
+    "type": "fog",
+    "start": 149,
+    "end": 154
+   },
+   {
+    "type": "late",
+    "ship": 5,
+    "hours": 14
+   },
+   {
+    "type": "late",
+    "ship": 1,
+    "hours": 9
+   },
+   {
+    "type": "priority",
+    "ship": 4
    }
   ],
-  "difficulty": "busy",
+  "difficulty": "standard",
   "rules": {
    "crane_pool": 4,
    "crane_outages": [],
    "max_moves_per_hour": 2,
    "no_moves": [
     {
-     "start": 54,
-     "end": 58,
+     "start": 6,
+     "end": 12,
+     "min_length": 0,
+     "label": "fog, bar closed"
+    },
+    {
+     "start": 100,
+     "end": 105,
+     "min_length": 0,
+     "label": "fog, bar closed"
+    },
+    {
+     "start": 149,
+     "end": 154,
      "min_length": 0,
      "label": "fog, bar closed"
     }
@@ -196,144 +320,150 @@
    ],
    "hoot_pool": 2,
    "hoot_gang_cost": 2
-  }
+  },
+  "kind": "berth",
+  "weeks": 1
  },
  "plan": [
   {
    "ship": 0,
-   "berth_hour": 6,
-   "section": 1,
-   "cranes": 3
+   "berth_hour": 12,
+   "section": 3,
+   "cranes": 2
   },
   {
    "ship": 1,
-   "berth_hour": 30,
-   "section": 7,
-   "cranes": 3
+   "berth_hour": 60,
+   "section": 6,
+   "cranes": 4
   },
   {
    "ship": 2,
-   "berth_hour": 50,
-   "section": 1,
-   "cranes": 3
+   "berth_hour": 82,
+   "section": 8,
+   "cranes": 2
   },
   {
    "ship": 3,
-   "berth_hour": 76,
-   "section": 7,
+   "berth_hour": 83,
+   "section": 3,
    "cranes": 2
   },
   {
    "ship": 4,
-   "berth_hour": 104,
-   "section": 1,
+   "berth_hour": 106,
+   "section": 6,
    "cranes": 3
   },
   {
    "ship": 5,
-   "berth_hour": 134,
-   "section": 7,
+   "berth_hour": 138,
+   "section": 6,
+   "cranes": 2
+  },
+  {
+   "ship": 6,
+   "berth_hour": 154,
+   "section": 1,
+   "cranes": 2
+  },
+  {
+   "ship": 7,
+   "berth_hour": 159,
+   "section": 6,
    "cranes": 2
   }
  ],
  "grade": {
-  "reward": 0.945,
+  "reward": 1.0,
   "feasible": true,
-  "cost": 45,
-  "optimal_cost": 40,
+  "cost": 188,
+  "optimal_cost": 188,
   "violations": []
  },
  "horizon_h": 168,
  "ships": [
   {
    "id": 0,
-   "name": "DANIEL K. INOUYE",
+   "name": "KAUAI SKY",
    "line": "Matson",
-   "length_m": 260,
-   "sections": 7,
-   "first_section": 1,
-   "arrival": 6,
-   "berth_hour": 6,
-   "departure": 22,
-   "due": 26,
-   "late_h": 0,
+   "length_m": 205.0,
+   "sections": 5,
+   "first_section": 3,
+   "arrival": 9,
+   "berth_hour": 12,
+   "departure": 35,
+   "due": 32,
+   "late_h": 3,
    "cranes_by_hour": [
     [
-     6,
-     2
-    ],
-    [
-     7,
-     2
-    ],
-    [
-     8,
-     3
-    ],
-    [
-     9,
-     3
-    ],
-    [
-     10,
-     3
-    ],
-    [
-     11,
-     3
-    ],
-    [
      12,
-     3
+     2
     ],
     [
      13,
-     3
+     2
     ],
     [
      14,
-     3
+     2
     ],
     [
      15,
-     3
+     2
     ],
     [
      16,
-     3
+     2
     ],
     [
      18,
-     3
+     2
     ],
     [
      19,
-     3
+     2
     ],
     [
      20,
-     3
+     2
     ],
     [
      21,
-     3
-    ]
-   ],
-   "problems": []
-  },
-  {
-   "id": 1,
-   "name": "MANULANI",
-   "line": "Matson",
-   "length_m": 218,
-   "sections": 6,
-   "first_section": 7,
-   "arrival": 30,
-   "berth_hour": 30,
-   "departure": 41,
-   "due": 37,
-   "late_h": 4,
-   "cranes_by_hour": [
+     2
+    ],
+    [
+     22,
+     2
+    ],
+    [
+     23,
+     2
+    ],
+    [
+     24,
+     2
+    ],
+    [
+     25,
+     2
+    ],
+    [
+     26,
+     2
+    ],
+    [
+     27,
+     2
+    ],
+    [
+     28,
+     2
+    ],
+    [
+     29,
+     2
+    ],
     [
      30,
      2
@@ -344,152 +474,88 @@
     ],
     [
      32,
-     3
+     2
     ],
     [
      33,
-     3
+     2
     ],
     [
      34,
-     3
+     2
+    ]
+   ],
+   "problems": []
+  },
+  {
+   "id": 1,
+   "name": "MAUNA HALE",
+   "line": "Matson",
+   "length_m": 230.0,
+   "sections": 6,
+   "first_section": 6,
+   "arrival": 60,
+   "berth_hour": 60,
+   "departure": 71,
+   "due": 72,
+   "late_h": 0,
+   "cranes_by_hour": [
+    [
+     60,
+     4
     ],
     [
-     35,
-     3
+     61,
+     4
     ],
     [
-     36,
-     3
+     62,
+     4
     ],
     [
-     37,
-     3
+     63,
+     4
     ],
     [
-     38,
-     3
+     64,
+     4
     ],
     [
-     39,
-     3
+     66,
+     4
     ],
     [
-     40,
-     3
+     67,
+     4
+    ],
+    [
+     68,
+     4
+    ],
+    [
+     69,
+     4
+    ],
+    [
+     70,
+     4
     ]
    ],
    "problems": []
   },
   {
    "id": 2,
-   "name": "KAIMANA HILA",
+   "name": "MOANA ALOHA",
    "line": "Matson",
-   "length_m": 260,
-   "sections": 7,
-   "first_section": 1,
-   "arrival": 50,
-   "berth_hour": 50,
-   "departure": 69,
-   "due": 73,
+   "length_m": 199.0,
+   "sections": 5,
+   "first_section": 8,
+   "arrival": 82,
+   "berth_hour": 82,
+   "departure": 95,
+   "due": 95,
    "late_h": 0,
    "cranes_by_hour": [
-    [
-     50,
-     3
-    ],
-    [
-     51,
-     2
-    ],
-    [
-     52,
-     2
-    ],
-    [
-     53,
-     2
-    ],
-    [
-     58,
-     3
-    ],
-    [
-     59,
-     3
-    ],
-    [
-     60,
-     3
-    ],
-    [
-     61,
-     3
-    ],
-    [
-     62,
-     3
-    ],
-    [
-     63,
-     3
-    ],
-    [
-     64,
-     3
-    ],
-    [
-     66,
-     3
-    ],
-    [
-     67,
-     3
-    ],
-    [
-     68,
-     3
-    ]
-   ],
-   "problems": []
-  },
-  {
-   "id": 3,
-   "name": "MATSONIA",
-   "line": "Matson",
-   "length_m": 255,
-   "sections": 7,
-   "first_section": 7,
-   "arrival": 76,
-   "berth_hour": 76,
-   "departure": 95,
-   "due": 92,
-   "late_h": 3,
-   "cranes_by_hour": [
-    [
-     76,
-     2
-    ],
-    [
-     77,
-     2
-    ],
-    [
-     78,
-     2
-    ],
-    [
-     79,
-     2
-    ],
-    [
-     80,
-     2
-    ],
-    [
-     81,
-     2
-    ],
     [
      82,
      2
@@ -542,26 +608,110 @@
    "problems": []
   },
   {
-   "id": 4,
-   "name": "LURLINE",
+   "id": 3,
+   "name": "LAHAINA SUN",
    "line": "Matson",
-   "length_m": 265,
-   "sections": 7,
-   "first_section": 1,
-   "arrival": 104,
-   "berth_hour": 104,
-   "departure": 118,
-   "due": 122,
-   "late_h": 0,
+   "length_m": 210.0,
+   "sections": 5,
+   "first_section": 3,
+   "arrival": 83,
+   "berth_hour": 83,
+   "departure": 105,
+   "due": 103,
+   "late_h": 2,
    "cranes_by_hour": [
     [
-     104,
-     3
+     83,
+     2
     ],
     [
-     105,
-     3
+     84,
+     2
     ],
+    [
+     85,
+     2
+    ],
+    [
+     86,
+     2
+    ],
+    [
+     87,
+     2
+    ],
+    [
+     88,
+     2
+    ],
+    [
+     90,
+     2
+    ],
+    [
+     91,
+     2
+    ],
+    [
+     92,
+     2
+    ],
+    [
+     93,
+     2
+    ],
+    [
+     94,
+     2
+    ],
+    [
+     95,
+     2
+    ],
+    [
+     96,
+     2
+    ],
+    [
+     97,
+     2
+    ],
+    [
+     98,
+     2
+    ],
+    [
+     99,
+     2
+    ],
+    [
+     100,
+     2
+    ],
+    [
+     101,
+     2
+    ],
+    [
+     102,
+     2
+    ]
+   ],
+   "problems": []
+  },
+  {
+   "id": 4,
+   "name": "KANALOA",
+   "line": "Matson",
+   "length_m": 208.0,
+   "sections": 5,
+   "first_section": 6,
+   "arrival": 104,
+   "berth_hour": 106,
+   "departure": 120,
+   "due": 124,
+   "late_h": 0,
+   "cranes_by_hour": [
     [
      106,
      3
@@ -605,35 +755,31 @@
     [
      117,
      3
+    ],
+    [
+     118,
+     3
+    ],
+    [
+     119,
+     3
     ]
    ],
    "problems": []
   },
   {
    "id": 5,
-   "name": "MAUNALEI",
+   "name": "MANULANI",
    "line": "Matson",
-   "length_m": 208,
-   "sections": 5,
-   "first_section": 7,
-   "arrival": 134,
-   "berth_hour": 134,
-   "departure": 149,
-   "due": 153,
-   "late_h": 0,
+   "length_m": 248.0,
+   "sections": 6,
+   "first_section": 6,
+   "arrival": 138,
+   "berth_hour": 138,
+   "departure": 159,
+   "due": 146,
+   "late_h": 13,
    "cranes_by_hour": [
-    [
-     134,
-     2
-    ],
-    [
-     135,
-     2
-    ],
-    [
-     136,
-     2
-    ],
     [
      138,
      2
@@ -677,16 +823,287 @@
     [
      148,
      2
+    ],
+    [
+     149,
+     2
+    ],
+    [
+     150,
+     2
+    ],
+    [
+     151,
+     2
+    ],
+    [
+     152,
+     2
+    ],
+    [
+     153,
+     2
+    ],
+    [
+     154,
+     2
+    ],
+    [
+     155,
+     2
+    ],
+    [
+     156,
+     2
+    ],
+    [
+     157,
+     2
+    ],
+    [
+     158,
+     2
+    ]
+   ],
+   "problems": []
+  },
+  {
+   "id": 6,
+   "name": "NANI KAI",
+   "line": "Matson",
+   "length_m": 204.0,
+   "sections": 5,
+   "first_section": 1,
+   "arrival": 146,
+   "berth_hour": 154,
+   "departure": 167,
+   "due": 158,
+   "late_h": 9,
+   "cranes_by_hour": [
+    [
+     154,
+     2
+    ],
+    [
+     155,
+     2
+    ],
+    [
+     156,
+     2
+    ],
+    [
+     157,
+     2
+    ],
+    [
+     158,
+     2
+    ],
+    [
+     159,
+     2
+    ],
+    [
+     160,
+     2
+    ],
+    [
+     162,
+     2
+    ],
+    [
+     163,
+     2
+    ],
+    [
+     164,
+     2
+    ],
+    [
+     165,
+     2
+    ],
+    [
+     166,
+     2
+    ]
+   ],
+   "problems": []
+  },
+  {
+   "id": 7,
+   "name": "MOANA ALOHA",
+   "line": "Matson",
+   "length_m": 199.0,
+   "sections": 5,
+   "first_section": 6,
+   "arrival": 152,
+   "berth_hour": 159,
+   "departure": 180,
+   "due": 173,
+   "late_h": 7,
+   "cranes_by_hour": [
+    [
+     159,
+     2
+    ],
+    [
+     160,
+     2
+    ],
+    [
+     162,
+     2
+    ],
+    [
+     163,
+     2
+    ],
+    [
+     164,
+     2
+    ],
+    [
+     165,
+     2
+    ],
+    [
+     166,
+     2
+    ],
+    [
+     167,
+     2
+    ],
+    [
+     168,
+     2
+    ],
+    [
+     169,
+     2
+    ],
+    [
+     170,
+     2
+    ],
+    [
+     171,
+     2
+    ],
+    [
+     172,
+     2
+    ],
+    [
+     173,
+     2
+    ],
+    [
+     174,
+     2
+    ],
+    [
+     175,
+     2
+    ],
+    [
+     176,
+     2
+    ],
+    [
+     177,
+     2
+    ],
+    [
+     178,
+     2
+    ],
+    [
+     179,
+     2
     ]
    ],
    "problems": []
   }
  ],
- "blocks": [],
+ "blocks": [
+  {
+   "first": 1,
+   "last": 13,
+   "start": 0,
+   "end": 168,
+   "kind": "shallow",
+   "label": "max draught 12.8 m",
+   "max_draught_m": 12.8
+  },
+  {
+   "first": 8,
+   "last": 13,
+   "start": 0,
+   "end": 10,
+   "kind": "alongside",
+   "label": "MANULANI (Matson, generated call)",
+   "cranes": 2,
+   "cranes_by_hour": [
+    [
+     0,
+     2
+    ],
+    [
+     1,
+     2
+    ],
+    [
+     2,
+     2
+    ],
+    [
+     3,
+     2
+    ],
+    [
+     4,
+     2
+    ],
+    [
+     5,
+     2
+    ],
+    [
+     6,
+     2
+    ],
+    [
+     7,
+     2
+    ],
+    [
+     8,
+     2
+    ],
+    [
+     9,
+     2
+    ]
+   ]
+  }
+ ],
  "no_moves": [
   {
-   "start": 54,
-   "end": 58,
+   "start": 6,
+   "end": 12,
+   "label": "fog, bar closed"
+  },
+  {
+   "start": 100,
+   "end": 105,
+   "label": "fog, bar closed"
+  },
+  {
+   "start": 149,
+   "end": 154,
    "label": "fog, bar closed"
   }
  ],
