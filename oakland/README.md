@@ -201,13 +201,29 @@ Open `oakland/viewer/index.html` in a browser and point it at a replay JSON with
 
 ## Demo
 
-`./demo.sh` (from `oakland/`) is the live demo: it loads the repo's `.env` if present (the API key is never printed),
-starts a static server on port 8765 from `oakland/` when the port is free, prints the two URLs, and runs the loop:
+Three commands, from `oakland/`:
 
 ```bash
-../.venv/bin/python -m loop.run --run live --episodes ${EPISODES:-9} --coach-every ${COACH_EVERY:-3} --kind berth \
-    --eval-pack tasks/berth-eval-demo.jsonl --player ${PLAYER:-auto} --coach ${COACH:-auto} --quiet
+./demo.sh                     # viewer on 8765, chat on 8771, and the loop on run "live"
+LOOP=off RUN=live ./demo.sh   # serve an existing run only: viewer and chat, no loop
+./demo.sh stop                # stop what demo.sh started for RUN
 ```
+
+`./demo.sh` loads the repo's `.env` (`ENV_FILE` to override; the key is never printed) and exits 1 when neither
+`GOOGLE_API_KEY` nor `GEMINI_API_KEY` is set. It exports `ALLOW_MODEL_REQUESTS=1`, starts a static server on `PORT`
+(default 8765) from `oakland/` and the chat server on `CHAT_PORT` (default 8771, `--runs-dir runs --verify-pack
+tasks/berth-eval-demo.jsonl`), then prints the dashboard, viewer and chat health URLs. A port that already serves
+`/viewer/` (or answers `/health` for chat) is reused; a port held by anything else is an error (exit 1). With the
+default `LOOP=on` it then runs the loop in the background and waits for it (Ctrl-C stops the loop only):
+
+```bash
+$PYTHON -m loop.run --run $RUN --episodes ${EPISODES:-9} --coach-every ${COACH_EVERY:-3} --kind berth \
+    --tasks tasks/berth-train.jsonl --verify-pack tasks/berth-eval-demo.jsonl --tiers storm,extreme --workers 4 \
+    --player ${PLAYER:-auto} --coach ${COACH:-auto} --quiet
+```
+
+Logs go to `runs/<RUN>/logs/{http.log,chat.log,loop.log}` and the pids of what it started to `runs/<RUN>/logs/pids`,
+which `./demo.sh stop` reads (use the same `RUN`). The servers keep running after the loop ends until you stop them.
 
 - Dashboard: `http://127.0.0.1:8765/dashboard/?run=../runs/live` re-reads the run every 3 s: the self-improvement
   chart (verification reward per coach round, accepted lineage, every candidate by verdict), episode rewards with the
