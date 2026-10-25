@@ -263,7 +263,7 @@ h3 { font-size: 13px; font-weight: 600; margin: 0; }
 .playbook p { margin: 4px 0; }
 .playbook ul, .playbook ol { margin: 4px 0 8px; padding-left: 22px; }
 .playbook li { padding: 1px 4px; border-radius: 4px; }
-.playbook .added { background: rgba(90, 212, 138, 0.14); box-shadow: inset 3px 0 0 var(--ok); }
+.playbook .added { background: rgba(90, 212, 138, 0.14); box-shadow: inset 3px 0 0 var(--ok); padding: 1px 4px 1px 10px; border-radius: 4px; }
 .playbook .pb-legend { margin-top: 12px; }
 .playbook .pb-legend .sw { display: inline-block; width: 18px; height: 10px; margin-right: 6px; vertical-align: -1px; background: rgba(90, 212, 138, 0.14); box-shadow: inset 3px 0 0 var(--ok); }
 #run-panels canvas.chart { width: 94%; margin: 0 auto; }

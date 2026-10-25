@@ -114,4 +114,8 @@ test("the bundled real run fixture builds", () => {
   assert.equal(evo.lineage.length, 5);
   assert.deepEqual(R.roundMarkers(ev, eps).map((m) => m.episode), [4, 8, 12, 16]);
   assert.equal(R.coachRounds(ev)[0].version, 4);
+  // round 2 accepted (verification 0.360 -> 0.429), round 4 overfit
+  assert.deepEqual(evo.points.map((p) => p.cls), ["rejected", "accepted", "rejected", "overfit"]);
+  assert.deepEqual(evo.lineage.map((p) => p.value), [0.3596, 0.3596, 0.4288, 0.4288, 0.4288]);
+  assert.deepEqual(R.currentPlaybook(ev, null), { version: 2, previous: 0 });
 });

@@ -9,29 +9,29 @@
   {
     "version": 1,
     "parent": 0,
-    "change": "Before choosing a berth hour, read the no_moves windows in the rules; never berth inside a no-movement window, berth at its end.",
+    "change": "For each late ship (departure past due), try more cranes up to its maximum or an earlier berth hour, screen with ship_timeline, then check; lateness costs sections x hours.",
     "verdict": "rejected",
-    "reason": "no eval gain: eval +0.001 (needs +0.005)"
+    "reason": "no verification gain: verification +0.000 (needs +0.005)"
   },
   {
     "version": 2,
     "parent": 0,
-    "change": "Keep the cranes working in every hour within that hour's pool; the hoot pool (03:00-08:00) is smaller, so give fewer cranes in hoot hours or berth after the hoot shift.",
-    "verdict": "rejected",
-    "reason": "no eval gain: eval +0.000 (needs +0.005)"
+    "change": "Keep every scheduled ship on its planned section (each ship moved off it costs 5): start from baseline_plan, move ships back to their planned section one at a time, screen each with ship_timeline, then check.",
+    "verdict": "accepted",
+    "reason": "verification +0.069 (margin 0.005)"
   },
   {
     "version": 3,
-    "parent": 0,
+    "parent": 2,
     "change": "Add up the cranes of every ship alongside in each hour and keep the total within the pool, less any crane outage; cut cranes on the ship with the most slack first.",
     "verdict": "rejected",
-    "reason": "no eval gain: eval +0.000 (needs +0.005)"
+    "reason": "no verification gain: verification +0.000 (needs +0.005)"
   },
   {
     "version": 4,
-    "parent": 0,
-    "change": "Respect the movement limit (berthings plus departures per hour): when ships arrive together, stagger their berth hours by one hour.",
+    "parent": 2,
+    "change": "Before choosing a berth hour, read the no_moves windows in the rules; never berth inside a no-movement window, berth at its end.",
     "verdict": "rejected",
-    "reason": "no eval gain: eval +0.000 (needs +0.005)"
+    "reason": "overfit: episodes +0.009 but verification +0.002"
   }
 ]

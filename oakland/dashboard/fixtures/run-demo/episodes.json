@@ -50,49 +50,49 @@
  {
   "episode": 9,
   "replay": "replays/ep009.json",
-  "reward": 0.378504,
-  "label": "playbook v0, oak-trapac-berth-standard-12 (generated calls)"
+  "reward": 0.854985,
+  "label": "playbook v2, oak-trapac-berth-standard-12 (generated calls)"
  },
  {
   "episode": 10,
   "replay": "replays/ep010.json",
-  "reward": 0.432446,
-  "label": "playbook v0, oak-matson-berth-busy-13 (generated calls)"
+  "reward": 0.443131,
+  "label": "playbook v2, oak-matson-berth-busy-13 (generated calls)"
  },
  {
   "episode": 11,
   "replay": "replays/ep011.json",
-  "reward": 0.571313,
-  "label": "playbook v0, oak-trapac-berth-extreme-15 (generated calls)"
+  "reward": 0.742085,
+  "label": "playbook v2, oak-trapac-berth-extreme-15 (generated calls)"
  },
  {
   "episode": 12,
   "replay": "replays/ep012.json",
-  "reward": 0.251598,
-  "label": "playbook v0, oak-everport-berth-busy-17 (generated calls)"
+  "reward": 0.258416,
+  "label": "playbook v2, oak-everport-berth-busy-17 (generated calls)"
  },
  {
   "episode": 13,
   "replay": "replays/ep013.json",
-  "reward": 0.200022,
-  "label": "playbook v0, oak-oict-berth-storm-18 (generated calls)"
+  "reward": 0.200029,
+  "label": "playbook v2, oak-oict-berth-storm-18 (generated calls)"
  },
  {
   "episode": 14,
   "replay": "replays/ep014.json",
-  "reward": 0.200023,
-  "label": "playbook v0, oak-matson-berth-standard-20 (generated calls)"
+  "reward": 0.200026,
+  "label": "playbook v2, oak-matson-berth-standard-20 (generated calls)"
  },
  {
   "episode": 15,
   "replay": "replays/ep015.json",
-  "reward": 0.34117,
-  "label": "playbook v0, oak-everport-berth-storm-22 (generated calls)"
+  "reward": 0.389579,
+  "label": "playbook v2, oak-everport-berth-storm-22 (generated calls)"
  },
  {
   "episode": 16,
   "replay": "replays/ep016.json",
-  "reward": 0.208539,
-  "label": "playbook v0, oak-oict-berth-standard-24 (generated calls)"
+  "reward": 0.223211,
+  "label": "playbook v2, oak-oict-berth-standard-24 (generated calls)"
  }
 ]
