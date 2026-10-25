@@ -9,7 +9,8 @@
 
 Verdicts: "accepted", "rejected", "open" (scored or not, not yet decided). The player uses the latest ACCEPTED
 node; rejected nodes stay in the tree, scored ones as candidates of the Pareto front (pareto_front): a version is on
-the front when it has the best eval reward on at least one eval task (GEPA-style candidate pool).
+the front when it has the best eval reward on at least one eval task (accepted versions on a tie, others only when
+strictly best; GEPA-style candidate pool).
 """
 
 from __future__ import annotations
@@ -46,6 +47,11 @@ def _rule_bullets(md: str) -> tuple[list[str], int | None, int | None]:
     end = next((i for i in range(start + 1, len(lines)) if lines[i].startswith("## ")), len(lines))
     bullets = [l for l in lines[start + 1:end] if re.match(r"\s*[-*]\s+\S", l) and "(none yet)" not in l]
     return bullets, start, end
+
+
+def rule_bullets(md: str) -> list[str]:
+    """The bullet lines under '## Rules' of a playbook (the "(none yet)" placeholder left out)."""
+    return _rule_bullets(md)[0]
 
 
 def merge_playbooks(version: int, first: str, second: str) -> str:
@@ -123,7 +129,8 @@ class PlaybookStore:
 
     def win_sets(self) -> dict[int, set[str]]:
         """{version: eval task ids it is best on} over the versions scored on the eval pack with the latest accepted
-        node's player_version (accepted or rejected); ties count for every tied version."""
+        node's player_version (accepted or rejected). An accepted version wins a task when it ties for the best
+        reward; any other version only when it strictly beats every other scored version on that task."""
         nodes = self.nodes()
         ref = self.node(self.latest_accepted()).get("player_version")
         pool = [n for n in nodes if n.get("eval_per_task") and n.get("player_version") == ref]
@@ -132,7 +139,13 @@ class PlaybookStore:
             for t, r in n["eval_per_task"].items():
                 if r is not None and (t not in best or r > best[t]):
                     best[t] = r
-        wins = {n["version"]: {t for t, r in n["eval_per_task"].items() if r is not None and r == best[t]}
+        at_best: dict[str, int] = {}
+        for n in pool:
+            for t, r in n["eval_per_task"].items():
+                if r is not None and r == best[t]:
+                    at_best[t] = at_best.get(t, 0) + 1
+        wins = {n["version"]: {t for t, r in n["eval_per_task"].items() if r is not None and r == best[t]
+                               and (n["verdict"] == "accepted" or at_best[t] == 1)}
                 for n in pool}
         return {v: w for v, w in wins.items() if w}
 

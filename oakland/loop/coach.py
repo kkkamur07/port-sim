@@ -4,7 +4,7 @@ graph.py accepts or rejects the proposal on the held-out eval pack. The ship cal
 Input: the JSONL event logs of the last N episodes and nothing else from the episodes (every model call, tool call
 and result, the violation texts and steering hints, the live feed events, and the stop event with the reward, the
 gap to the hidden optimum and the port metrics), plus the current playbook (the latest accepted node) and the list of
-changes already tried and rejected, plus the lessons of the parent playbook's ancestors (GEPA-style: verdict, reason
+rules already in force (the accepted and the parent playbook) or tried and rejected, plus the lessons of the parent playbook's ancestors (GEPA-style: verdict, reason
 and change of each, newest first).
 
 Output (structured): {diagnosis, mistakes: [{what, evidence: [{episode, event_idx}], rule}], playbook_md,
@@ -232,8 +232,9 @@ class ScriptedCoach:
     model_id = "scripted"
 
     def propose(self, logs: list[dict], playbook: str, version: int, rejected: list[str],
-                lessons: list[str] | None = None) -> dict:
-        """`lessons` (the ancestors' verdicts) is ignored: the catalogue and `rejected` decide."""
+                lessons: list[str] | None = None, exclude: list[str] | None = None) -> dict:
+        """`lessons` (the ancestors' verdicts) is ignored. A finding whose rule is in the playbook, in `rejected` or
+        in `exclude` (the rules already in force or rejected) is skipped."""
         findings = []
         for key, what, rule, detect in FINDINGS:
             ev = [{"episode": l["episode"], "event_idx": e["idx"]} for l in logs for e in l["events"] if detect(e)]
@@ -244,7 +245,8 @@ class ScriptedCoach:
         keys = {f["rule"]: f["key"] for f in ranked}
         mistakes = validate_mistakes(ranked, logs)
         rules = current_rules(playbook)
-        new = next((m for m in mistakes if m["rule"] not in rules and m["rule"] not in rejected), None)
+        skip = set(rules) | set(rejected) | set(exclude or [])
+        new = next((m for m in mistakes if m["rule"] not in skip), None)
         stats = summarize_logs(logs)
         if new is not None:
             rules = rules + [new["rule"]]
@@ -272,8 +274,8 @@ def _brief_events(logs: list[dict], limit: int = 1500) -> str:
 
 
 COACH_PROMPT = """You coach a port planning agent on generated Port of Oakland tasks (the ship calls are GENERATED,
-not real records). Read the event logs of its last episodes (event index in brackets), its current playbook, and the
-changes already rejected. Make ONE change to the playbook (add, sharpen or remove one rule) that will raise its
+not real records). Read the event logs of its last episodes (event index in brackets), its current playbook, the
+rules already in force or rejected, and the lessons of its ancestors. Make ONE change to the playbook (add, sharpen or remove one rule) that will raise its
 reward on unseen tasks. Every mistake needs evidence spans {{episode, event_idx}} pointing at the events that show
 it, and a rule written as an imperative sentence the agent can follow. The playbook is markdown: a title line
 "# Playbook v{version}", a "## Rules" section of bullet rules and a "## Checklist" of at most 6 numbered steps, at
@@ -283,7 +285,7 @@ public task dict, plan a list of plan rows), standard library only; leave it nul
 ## Current playbook
 {playbook}
 
-## Rejected changes (do not propose these again)
+## Rules already in force or rejected (do not propose these again)
 {rejected}
 
 ## Lessons from this playbook's ancestors
@@ -299,7 +301,7 @@ class GeminiCoach:
     model_id = MODEL_ID
 
     def propose(self, logs: list[dict], playbook: str, version: int, rejected: list[str],
-                lessons: list[str] | None = None) -> dict:
+                lessons: list[str] | None = None, exclude: list[str] | None = None) -> dict:
         from pydantic import BaseModel, Field
 
         class Evidence(BaseModel):
@@ -319,7 +321,8 @@ class GeminiCoach:
 
         model = make_model(0.2).with_structured_output(CoachOutput, include_raw=True)
         prompt = COACH_PROMPT.format(version=version, playbook=playbook,
-                                     rejected="\n".join(f"- {r}" for r in rejected) or "(none)",
+                                     rejected="\n".join(f"- {r}" for r in (exclude if exclude is not None
+                                                                           else rejected)) or "(none)",
                                      lessons="\n".join(f"- {l}" for l in lessons or []) or "(none)",
                                      events=_brief_events(logs))
         t0 = time.time()

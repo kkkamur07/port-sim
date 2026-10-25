@@ -140,8 +140,9 @@ verification mean.
 
 - **Per-task scores**: every scored node keeps `eval_per_task` and `train_per_task` (`{task_id: reward}`).
 - **Pareto front** (`PlaybookStore.pareto_front()`): the versions, accepted or rejected, scored on the verification
-  set with the latest accepted node's player_version, that have the best reward on at least one verification task
-  (ties count for every tied version). Each node's `front` and `wins` (tasks it is best on) are refreshed after every
+  set with the latest accepted node's player_version, that have the best reward on at least one verification task.
+  An accepted version wins a task on a tie; a rejected (or open) version only when it strictly beats every other
+  scored version there, so a rejected duplicate of an accepted playbook leaves the front. Each node's `front` and `wins` (tasks it is best on) are refreshed after every
   scoring.
 - **Parent selection** (`--select pareto`, default): the coach's parent is sampled from the front weighted by `wins`,
   with `random.Random("<run>:<round>")`, so runs are reproducible. `--select latest` uses the latest accepted node.
@@ -151,12 +152,16 @@ verification mean.
   verification set (`eval_mean` null, `per_task` empty). This saves model cost: a bad candidate costs a window of
   episodes, not the whole verification set.
 - **Merge**: after a rejected round, when the front has two members that win different task sets and that pair was
-  never merged (`merged_from` in the tree), maybe_coach proposes a merge instead of asking the coach: the union of
+  never merged (`merged_from` in the tree), and each has a `## Rules` bullet the other lacks, maybe_coach proposes a merge instead of asking the coach: the union of
   their `## Rules` bullets (parent order, then the other's new ones), the first's checklist, at most 60 lines,
   change `merge v<a>+v<b>`. It goes through the same pre-screen and gate.
 - **Ancestor lessons**: the coach gets `lessons`, one line `v<k> (<verdict>, <reason>): <change>` for the parent and
   each ancestor up to the root, newest first, at most 8. GeminiCoach shows them under
   "## Lessons from this playbook's ancestors"; ScriptedCoach ignores them.
+- **No duplicate proposals**: the coach gets `exclude`, the rules of the latest accepted playbook and of the parent
+  plus every rejected change. ScriptedCoach skips those findings; GeminiCoach lists them under "## Rules already in
+  force or rejected (do not propose these again)". When nothing is left and no merge qualifies, the round prints
+  `coach round N | nothing new to propose` and plays nothing (no verification cost).
 - **Parallel scoring**: `Loop.score()` plays its episodes with a `ThreadPoolExecutor` of `--workers` threads (each
   episode has its own env and event log; rows stay in task order). A live Gemini episode takes about 2 minutes, so
   with 4 workers a coach round costs about one episode of wall time plus the coach call.

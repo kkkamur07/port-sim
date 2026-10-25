@@ -37,9 +37,9 @@ from env import load_tasks
 from oakland_core import grade, plan_from_list
 from oakland_core.solve import naive_plan
 
-from .coach import GeminiCoach, ScriptedCoach, load_episode_logs
+from .coach import GeminiCoach, ScriptedCoach, current_rules, load_episode_logs
 from .player import GeminiPlayer, ScriptedPlayer, player_version, run_episode
-from .playbook import PlaybookStore, merge_playbooks
+from .playbook import PlaybookStore, merge_playbooks, rule_bullets
 
 ACCEPT_MARGIN = 0.005
 OAKLAND = Path(__file__).resolve().parents[1]
@@ -256,18 +256,20 @@ class Loop:
         version = max(n["version"] for n in self.store.nodes()) + 1
         pair = self.merge_pair(parent, ws) if state.get("last_verdict") == "rejected" else None
         if pair is not None:
-            a, b = pair
-            md = merge_playbooks(version, self.store.text(a), self.store.text(b))
-            made = self.store.add(a, md, f"merge of v{a} and v{b}", f"merge v{a}+v{b}", self.store.heuristic_code(a))
-            self.store.update(made, merged_from=[a, b], mistakes=[], coach_model="merge", coach_tokens_in=0,
-                              coach_tokens_out=0, coach_cost_usd=0.0)
-            cand = {"version": made, "parent": a, "change": f"merge v{a}+v{b}", "diagnosis": f"merge of v{a} and v{b}",
-                    "mistakes": 0, "coach_tokens": 0, "coach_cost_usd": 0.0, "merged_from": [a, b],
-                    "accepted_version": accepted, "parent_selected_by": selected_by}
-            return {"candidate": cand, "coach_round": rnd, "lines": []}
+            return self.merge_candidate(pair, version, rnd, accepted, selected_by)
         logs = load_episode_logs([(w["episode"], self.dir / w["events"]) for w in state["window"]])
-        out = self.coach.propose(logs, self.store.text(parent), version, self.store.rejected_changes(),
-                                 self.store.lessons(parent))
+        rejected = self.store.rejected_changes()
+        exclude = list(dict.fromkeys(current_rules(self.store.text(accepted)) + current_rules(self.store.text(parent))
+                                     + rejected))
+        out = self.coach.propose(logs, self.store.text(parent), version, rejected, self.store.lessons(parent),
+                                 exclude=exclude)
+        if out["change"] is None and not out["heuristic_code"]:
+            pair = self.merge_pair(parent, ws)
+            if pair is not None:
+                return self.merge_candidate(pair, version, rnd, accepted, selected_by)
+            self.coach_costs.append({"round": rnd, "coach_cost_usd": out["cost_usd"], "eval_cost_usd": 0.0})
+            return {"candidate": None, "coach_round": rnd, "window": [],
+                    "lines": [f"coach round {rnd} | nothing new to propose"]}
         made = self.store.add(parent, out["playbook_md"], out["diagnosis"], out["change"], out["heuristic_code"])
         self.store.update(made, mistakes=out["mistakes"], coach_model=out["model"], coach_tokens_in=out["tokens_in"],
                           coach_tokens_out=out["tokens_out"], coach_cost_usd=out["cost_usd"])
@@ -277,17 +279,33 @@ class Loop:
                 "parent_selected_by": selected_by}
         return {"candidate": cand, "coach_round": rnd, "lines": []}
 
+    def merge_candidate(self, pair: tuple[int, int], version: int, rnd: int, accepted: int,
+                        selected_by: str) -> dict:
+        """The maybe_coach update for a merge of two front members (no coach call)."""
+        a, b = pair
+        md = merge_playbooks(version, self.store.text(a), self.store.text(b))
+        made = self.store.add(a, md, f"merge of v{a} and v{b}", f"merge v{a}+v{b}", self.store.heuristic_code(a))
+        self.store.update(made, merged_from=[a, b], mistakes=[], coach_model="merge", coach_tokens_in=0,
+                          coach_tokens_out=0, coach_cost_usd=0.0)
+        cand = {"version": made, "parent": a, "change": f"merge v{a}+v{b}", "diagnosis": f"merge of v{a} and v{b}",
+                "mistakes": 0, "coach_tokens": 0, "coach_cost_usd": 0.0, "merged_from": [a, b],
+                "accepted_version": accepted, "parent_selected_by": selected_by}
+        return {"candidate": cand, "coach_round": rnd, "lines": []}
+
     def merge_pair(self, first: int, ws: dict[int, set[str]]) -> tuple[int, int] | None:
-        """Two front members that win different task sets and were never merged: `first` (when on the front, else
-        the lowest front version) and the lowest other such member; None when there is none."""
+        """Two front members that win different task sets, each with a "## Rules" bullet the other lacks, and that
+        were never merged: `first` (when on the front, else the lowest front version) and the lowest other such
+        member; None when there is none."""
         if len(ws) < 2:
             return None
         done = self.store.merged_pairs()
+        rules = {v: {r.strip() for r in rule_bullets(self.store.text(v))} for v in ws}
         firsts = [first] if first in ws else []
         firsts += [v for v in sorted(ws) if v != first]
         for a in firsts:
             for b in sorted(ws):
-                if b != a and ws[a] != ws[b] and frozenset((a, b)) not in done:
+                if (b != a and ws[a] != ws[b] and frozenset((a, b)) not in done
+                        and rules[a] - rules[b] and rules[b] - rules[a]):
                     return a, b
         return None
 

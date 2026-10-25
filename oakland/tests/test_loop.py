@@ -256,12 +256,29 @@ def test_pareto_front_keeps_versions_best_on_any_task_with_ties(tmp_path):
     _scored(store, v3, {"a": 0.2, "b": 0.2, "c": 0.2})
     v4 = store.add(0, "# Playbook v4\n", "d", "w")
     _scored(store, v4, {"a": 1.0, "b": 1.0, "c": 1.0}, pv="other player")
-    assert store.pareto_front() == [0, 1, 2]                 # c ties at 0.5 for v0, v1, v2; v4 is not comparable
-    assert store.win_sets() == {0: {"c"}, 1: {"a", "c"}, 2: {"b", "c"}}
+    assert store.pareto_front() == [0, 1, 2]                 # c ties at 0.5: only accepted v0 wins it; v4 not comparable
+    assert store.win_sets() == {0: {"c"}, 1: {"a"}, 2: {"b"}}
     store.refresh_front()
     by = {n["version"]: n for n in store.nodes()}
-    assert [(by[v]["front"], by[v]["wins"]) for v in range(5)] == [(True, 1), (True, 2), (True, 2), (False, 0),
+    assert [(by[v]["front"], by[v]["wins"]) for v in range(5)] == [(True, 1), (True, 1), (True, 1), (False, 0),
                                                                     (False, 0)]
+
+
+def test_rejected_versions_win_only_when_strictly_best(tmp_path):
+    store = PlaybookStore(tmp_path)
+    _scored(store, 0, {"a": 0.5, "b": 0.5})
+    v1 = store.add(0, "# Playbook v1\n", "d", "x")
+    _scored(store, v1, {"a": 0.8, "b": 0.8})
+    store.update(v1, verdict="accepted")
+    v2 = store.add(v1, "# Playbook v2\n", "d", "x again")    # a rejected duplicate of v1
+    _scored(store, v2, {"a": 0.8, "b": 0.8})
+    store.update(v2, verdict="rejected")
+    v3 = store.add(v1, "# Playbook v3\n", "d", "y")
+    _scored(store, v3, {"a": 0.1, "b": 0.9})
+    store.update(v3, verdict="rejected")
+    assert store.win_sets() == {v1: {"a"}, v3: {"b"}}
+    store.refresh_front()
+    assert store.node(v2)["front"] is False and store.node(v2)["wins"] == 0
 
 
 def test_weighted_parent_sampling_is_reproducible():
@@ -349,3 +366,48 @@ def test_parallel_scoring_keeps_task_order(packs, tmp_path):
     s2 = par.score(par.eval, idx, 0, tmp_path / "s2")
     assert [r["task_id"] for r in s2["per_task"]] == [t.task_id for t in par.eval]
     assert s1["per_task"] == s2["per_task"] and s1["mean"] == s2["mean"]
+
+
+def test_no_duplicate_proposal_when_the_rule_is_already_accepted():
+    logs = [_stop_log(1, 12)]
+    moved_rule = _finding("moved")["rule"]
+    bare = "# Playbook v1\n\n## Rules\n- (none yet)\n"
+    out = coach_mod.ScriptedCoach().propose(logs, bare, 3, [], exclude=[moved_rule])
+    assert out["change"] != moved_rule and "planned section" not in (out["change"] or "")
+    none_left = coach_mod.ScriptedCoach().propose(logs, bare, 3, [], exclude=[moved_rule, NO_MOVES_RULE])
+    assert none_left["change"] is None
+
+
+def test_maybe_coach_excludes_accepted_rules_and_reports_nothing_new(packs, tmp_path):
+    loop = _loop(packs, tmp_path)
+    seen = {}
+
+    class Recorder:
+        def propose(self, logs, playbook, version, rejected, lessons=None, exclude=None):
+            seen["exclude"] = exclude
+            return {"diagnosis": "d", "mistakes": [], "playbook_md": playbook, "heuristic_code": None,
+                    "change": None, "tokens_in": 0, "tokens_out": 0, "cost_usd": 0.0, "wall_s": 0.0, "model": "r"}
+
+    v = loop.store.add(0, "# Playbook v1\n\n## Rules\n- Do a.\n", "d", "Do a.")
+    loop.store.update(v, verdict="accepted", eval_mean=0.9, player_version=loop.player_version)
+    loop.coach = Recorder()
+    ep = loop.play({"episode": 0, "task_index": 0, "playbook_version": v})["last"]
+    state = {"playbook_version": v, "coach_round": 2, "episode": 2, "last_verdict": "accepted",
+             "window": [{"episode": 1, "task_index": 0, "reward": ep["reward"], "events": "events/ep001.jsonl"}]}
+    out = loop.maybe_coach(state)
+    assert "Do a." in seen["exclude"]
+    assert out["candidate"] is None and out["lines"] == ["coach round 3 | nothing new to propose"]
+    assert out["window"] == [] and len(loop.store.nodes()) == 2
+
+
+def test_merge_pair_skips_a_superset_pair(packs, tmp_path):
+    loop = _loop(packs, tmp_path)
+    ids = [t.task_id for t in loop.eval]
+    pv = loop.player_version
+    a = loop.store.add(0, "# Playbook v1\n\n## Rules\n- Do a.\n- Do c.\n", "d", "a")
+    b = loop.store.add(0, "# Playbook v2\n\n## Rules\n- Do a.\n", "d", "b")
+    loop.store.update(a, verdict="rejected", player_version=pv, eval_per_task={ids[0]: 2.0, ids[1]: 0.0, ids[2]: 2.0})
+    loop.store.update(b, verdict="rejected", player_version=pv, eval_per_task={ids[0]: 0.0, ids[1]: 2.0, ids[2]: 2.0})
+    ws = loop.store.win_sets()
+    assert set(ws) == {a, b} and ws[a] != ws[b]
+    assert loop.merge_pair(a, ws) is None
