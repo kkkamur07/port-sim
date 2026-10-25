@@ -1,0 +1,4 @@
+[
+  {"episode": 1, "replay": "../viewer/fixtures/oict-demo.json", "reward": 0.833, "label": "OICT demo (generated calls)"},
+  {"episode": 2, "replay": "../viewer/fixtures/matson-demo.json", "reward": 0.945, "label": "Matson demo (generated calls)"}
+]
