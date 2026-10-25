@@ -254,14 +254,20 @@ viewer can draw the changed berth. Tests use the scripted `FakeModel` (`tests/te
 `runs/real-berth-gepa` copied in; skipped otherwise).
 
 Optimize on demand (`chat/optimize.py`, `Optimizer(run_dir)`): "Optimize my playbook" makes the agent call
-`optimize_playbook(episodes=3)` (one `GeminiCoach.propose` call on the last episode logs against the accepted
-playbook in force, with the loop's rejected list, lessons and exclusions; evidence spans validated; about 30 s,
-under $0.05), then `verify_proposal(id)`, which returns at once and scores the proposed playbook in a background
-thread with the loop's `Loop.score` (4 workers) on the run's own verification tasks (the task ids of its last
+`optimize_playbook(episodes=3)` once (one `GeminiCoach.propose` call on the last episode logs against the accepted
+playbook in force, with the loop's rejected list, lessons and exclusions; evidence spans validated; about 20 to 30 s,
+under $0.05) and answer in two sentences ("Okay, I optimized this: <rule>." and "I am checking it on the held-out
+tasks now; the result will appear here."). The tool starts the verification itself and returns at once; it scores
+the proposed playbook in a background thread with the loop's `Loop.score` (4 workers) on the run's own verification tasks (the task ids of its last
 `eval.jsonl` row, from `tasks/*.jsonl`) or on `--verify-pack FILE...`. The baseline is the accepted version's
 per-task rewards on the same tasks when the player is the same, else the accepted playbook is scored there too; the
-verdict uses `ACCEPT_MARGIN`. "Did it work?" calls `proposal_status(id=None)`. With Gemini a full 12-task
-verification is about 8 to 12 minutes and $2 to $3 (twice that when the baseline is rescored).
+verdict uses `ACCEPT_MARGIN`. `verify_proposal(id)` re-runs it. "Did it work?" calls `proposal_status(id=None)`
+and answers in one sentence. `expected_minutes` comes from the baseline eval's wall time per episode (8 when the
+run has none). Measured with Gemini: 4 tasks on `runs/live` took 8 minutes and $1.93.
+
+    POST /chat ... -> also "proposal": {id, status, change, baseline_eval_mean, eval_mean, verdict_reason} after a
+                      turn that used optimize_playbook, verify_proposal or proposal_status (key absent otherwise)
+    GET  /proposal?run=live[&id=1] -> the same object, the latest proposal without id; 404 {error} when unknown
 
 Everything is written under `<run_dir>/proposals/`, which the loop never touches: `proposals.jsonl` (one row per
 proposal, rewritten in place: `{id, created, from_version, status: proposed|verifying|accepted|rejected, diagnosis,
