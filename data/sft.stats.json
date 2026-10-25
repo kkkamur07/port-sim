@@ -1,0 +1,11 @@
+{
+ "examples": 1050,
+ "tasks": 1050,
+ "approx_tokens": 2423238,
+ "by_difficulty": {
+  "standard": 266,
+  "extreme": 262,
+  "storm": 262,
+  "busy": 260
+ }
+}

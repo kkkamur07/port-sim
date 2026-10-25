@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "notes": "Edited by Argon between loops. Every key here is a knob the training and eval scripts read.",
+  "base_model": "Qwen/Qwen3.5-4B",
+  "data": {
+    "include_difficulties": ["standard", "busy", "storm", "extreme"],
+    "max_ships": 90,
+    "repeat_by_difficulty": {"standard": 1, "busy": 1, "storm": 1, "extreme": 1},
+    "target": "optimal_plan",
+    "extra_examples": [],
+    "user_suffix": "\n\nReply with the final plan only: a JSON list with one entry per ship, no commentary."
+  },
+  "train": {
+    "epochs": 2,
+    "learning_rate": 0.0002,
+    "lora_rank": 32,
+    "lora_alpha": 64,
+    "max_seq_len": 6144,
+    "per_device_batch": 2,
+    "grad_accum": 8,
+    "warmup_ratio": 0.05
+  },
+  "eval": {
+    "temperature": 0.0,
+    "max_tokens": 3000,
+    "concurrency": 16
+  }
+}

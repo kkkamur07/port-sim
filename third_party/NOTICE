@@ -1,0 +1,4 @@
+third_party/berth_core is vendored unchanged from
+https://github.com/adithya-s-k/FineEnvs/tree/main/07-simulation-environments/portsim-v1/envs/berth_planning/core
+(Apache-2.0, FineEnvs / adithya-s-k). It is the deterministic checker and reward
+used by PortSimEnv v1. Nothing in this directory was written during the hackathon.

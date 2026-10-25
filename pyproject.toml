@@ -1,0 +1,28 @@
+[project]
+name = "port-sim"
+version = "0.1.0"
+description = "Argon trains a small open model on PortSimEnv: an SFT loop where Gemini 4 Argon reads every rollout and rewrites the recipe"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "pyarrow>=17",
+    "pandas>=2.2",
+    "huggingface-hub>=0.30",
+    "openai>=1.60",
+    "google-genai>=2.0",
+    "trackio>=0.40",
+]
+
+[project.optional-dependencies]
+train = [
+    "torch>=2.6",
+    "transformers>=5.0",
+    "trl>=1.10",
+    "peft>=0.18",
+    "accelerate>=1.5",
+    "datasets>=3.0",
+]
+serve = ["vllm>=0.30"]
+
+[tool.setuptools]
+packages = ["portsim"]
