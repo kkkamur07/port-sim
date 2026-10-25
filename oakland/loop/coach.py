@@ -4,7 +4,8 @@ graph.py accepts or rejects the proposal on the held-out eval pack. The ship cal
 Input: the JSONL event logs of the last N episodes and nothing else from the episodes (every model call, tool call
 and result, the violation texts and steering hints, the live feed events, and the stop event with the reward, the
 gap to the hidden optimum and the port metrics), plus the current playbook (the latest accepted node) and the list of
-changes already tried and rejected.
+changes already tried and rejected, plus the lessons of the parent playbook's ancestors (GEPA-style: verdict, reason
+and change of each, newest first).
 
 Output (structured): {diagnosis, mistakes: [{what, evidence: [{episode, event_idx}], rule}], playbook_md,
 heuristic_code | None, change}. Every mistake needs evidence spans that point at real events, or code drops it. The
@@ -230,7 +231,9 @@ def _impact_text(m: dict) -> str:
 class ScriptedCoach:
     model_id = "scripted"
 
-    def propose(self, logs: list[dict], playbook: str, version: int, rejected: list[str]) -> dict:
+    def propose(self, logs: list[dict], playbook: str, version: int, rejected: list[str],
+                lessons: list[str] | None = None) -> dict:
+        """`lessons` (the ancestors' verdicts) is ignored: the catalogue and `rejected` decide."""
         findings = []
         for key, what, rule, detect in FINDINGS:
             ev = [{"episode": l["episode"], "event_idx": e["idx"]} for l in logs for e in l["events"] if detect(e)]
@@ -283,6 +286,10 @@ public task dict, plan a list of plan rows), standard library only; leave it nul
 ## Rejected changes (do not propose these again)
 {rejected}
 
+## Lessons from this playbook's ancestors
+Newest first, "v<k> (<verdict>, <reason>): <change>"; build on what was accepted, avoid what was rejected.
+{lessons}
+
 ## Event logs
 {events}
 """
@@ -291,7 +298,8 @@ public task dict, plan a list of plan rows), standard library only; leave it nul
 class GeminiCoach:
     model_id = MODEL_ID
 
-    def propose(self, logs: list[dict], playbook: str, version: int, rejected: list[str]) -> dict:
+    def propose(self, logs: list[dict], playbook: str, version: int, rejected: list[str],
+                lessons: list[str] | None = None) -> dict:
         from pydantic import BaseModel, Field
 
         class Evidence(BaseModel):
@@ -312,6 +320,7 @@ class GeminiCoach:
         model = make_model(0.2).with_structured_output(CoachOutput, include_raw=True)
         prompt = COACH_PROMPT.format(version=version, playbook=playbook,
                                      rejected="\n".join(f"- {r}" for r in rejected) or "(none)",
+                                     lessons="\n".join(f"- {l}" for l in lessons or []) or "(none)",
                                      events=_brief_events(logs))
         t0 = time.time()
         got = model.invoke(prompt)

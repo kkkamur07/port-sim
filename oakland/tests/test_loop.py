@@ -235,3 +235,117 @@ def test_rank_findings_counts_an_unrepaired_violation_as_a_lost_episode():
     assert ranked[0]["impact"] == 1001
     recovered = coach_mod.rank_findings([_finding("no_moves")], [_stop_log(1, 40, reward=0.1)])
     assert recovered[0]["impact"] == 1
+
+
+# GEPA-style candidate pool: per-task scores, Pareto front, pre-screen, merge, ancestor lessons, parallel scoring
+
+
+def _scored(store: PlaybookStore, version: int, per_task: dict, pv: str = "pv") -> None:
+    store.update(version, eval_per_task=per_task, player_version=pv, eval_mean=sum(per_task.values()) / len(per_task))
+
+
+def test_pareto_front_keeps_versions_best_on_any_task_with_ties(tmp_path):
+    store = PlaybookStore(tmp_path)
+    _scored(store, 0, {"a": 0.5, "b": 0.5, "c": 0.5})
+    v1 = store.add(0, "# Playbook v1\n", "d", "x")
+    _scored(store, v1, {"a": 0.9, "b": 0.4, "c": 0.5})
+    store.update(v1, verdict="rejected")
+    v2 = store.add(0, "# Playbook v2\n", "d", "y")
+    _scored(store, v2, {"a": 0.1, "b": 0.8, "c": 0.5})
+    v3 = store.add(0, "# Playbook v3\n", "d", "z")
+    _scored(store, v3, {"a": 0.2, "b": 0.2, "c": 0.2})
+    v4 = store.add(0, "# Playbook v4\n", "d", "w")
+    _scored(store, v4, {"a": 1.0, "b": 1.0, "c": 1.0}, pv="other player")
+    assert store.pareto_front() == [0, 1, 2]                 # c ties at 0.5 for v0, v1, v2; v4 is not comparable
+    assert store.win_sets() == {0: {"c"}, 1: {"a", "c"}, 2: {"b", "c"}}
+    store.refresh_front()
+    by = {n["version"]: n for n in store.nodes()}
+    assert [(by[v]["front"], by[v]["wins"]) for v in range(5)] == [(True, 1), (True, 2), (True, 2), (False, 0),
+                                                                    (False, 0)]
+
+
+def test_weighted_parent_sampling_is_reproducible():
+    from loop.graph import select_parent
+
+    wins = {0: 1, 3: 5, 4: 2}
+    picks = [select_parent(wins, f"run:{r}") for r in range(40)]
+    assert picks == [select_parent(wins, f"run:{r}") for r in range(40)]
+    assert set(picks) <= set(wins) and picks.count(3) > picks.count(0)
+    assert select_parent({7: 1}, "x") == 7
+
+
+def test_lessons_come_from_the_ancestors_newest_first(tmp_path):
+    store = PlaybookStore(tmp_path)
+    v1 = store.add(0, "# Playbook v1\n", "d", "Do x.")
+    store.update(v1, verdict="accepted", reason="eval +0.010")
+    v2 = store.add(v1, "# Playbook v2\n", "d", "Do y.")
+    store.update(v2, verdict="rejected", reason="no eval gain")
+    store.add(0, "# Playbook v3\n", "d", "Do z.")            # a sibling branch: not an ancestor of v2
+    assert store.lessons(v2) == ["v2 (rejected, no eval gain): Do y.", "v1 (accepted, eval +0.010): Do x.",
+                                 "v0 (accepted, root): starting playbook"]
+    assert len(store.lessons(v2, limit=2)) == 2
+
+
+def _loop(packs, tmp_path, **kw):
+    from loop.graph import Loop
+
+    cfg = LoopConfig(run="g", episodes=4, coach_every=2, kind="berth", train_pack=[packs[0]], eval_pack=[packs[1]],
+                     player="scripted", coach="scripted", scripted_mistakes=True, runs_dir=str(tmp_path), **kw)
+    loop = Loop(cfg)
+    loop.baseline()
+    return loop
+
+
+def test_prescreen_rejects_without_playing_the_eval_pack(packs, tmp_path):
+    loop = _loop(packs, tmp_path)
+    v = loop.store.add(0, loop.store.text(0), "d", "Do x.")
+    state = {"playbook_version": 0, "coach_round": 1, "episode": 2,
+             "window": [{"episode": 1, "task_index": 0, "reward": 2.0, "events": "events/ep001.jsonl"}],
+             "candidate": {"version": v, "parent": 0, "change": "Do x.", "diagnosis": "d", "mistakes": 0,
+                           "coach_tokens": 0, "coach_cost_usd": 0.0, "accepted_version": 0,
+                           "parent_selected_by": "pareto", "merged_from": None}}
+    state.update(loop.eval_candidate(state))
+    out = loop.accept_or_reject(state)
+    row = [json.loads(l) for l in loop.eval_path.read_text().splitlines()][-1]
+    assert row["verdict"] == "rejected" and row["reason"].startswith("minibatch: episodes -")
+    assert row["eval_mean"] is None and row["per_task"] == [] and row["parent_selected_by"] == "pareto"
+    assert not (loop.dir / "eval" / f"v{v}").exists() and (loop.dir / "eval" / f"v{v}-train").exists()
+    node = loop.store.node(v)
+    assert node["verdict"] == "rejected" and node["eval_per_task"] == {} and node["train_per_task"]
+    assert out["playbook_version"] == 0 and out["last_verdict"] == "rejected"
+
+
+def test_merge_candidate_from_two_front_members_never_repeats(packs, tmp_path):
+    loop = _loop(packs, tmp_path)
+    ids = [t.task_id for t in loop.eval]
+    pv = loop.player_version
+    a = loop.store.add(0, "# Playbook v1\n\n## Rules\n- Do a.\n- Do c.\n\n## Checklist\n1. First list.\n", "d", "a")
+    b = loop.store.add(0, "# Playbook v2\n\n## Rules\n- Do b.\n- Do c.\n\n## Checklist\n1. Other list.\n", "d", "b")
+    loop.store.update(a, verdict="rejected", player_version=pv, eval_per_task={ids[0]: 2.0, ids[1]: 0.0, ids[2]: 2.0})
+    loop.store.update(b, verdict="rejected", player_version=pv, eval_per_task={ids[0]: 0.0, ids[1]: 2.0, ids[2]: 2.0})
+    loop.store.refresh_front()
+    assert loop.store.pareto_front() == [a, b]
+    state = {"playbook_version": 0, "coach_round": 1, "episode": 2, "last_verdict": "rejected",
+             "window": [{"episode": 1, "task_index": 0, "reward": 0.5, "events": "events/ep001.jsonl"}]}
+    out = loop.maybe_coach(state)
+    cand = out["candidate"]
+    assert cand["change"] in (f"merge v{a}+v{b}", f"merge v{b}+v{a}") and set(cand["merged_from"]) == {a, b}
+    first, second = cand["merged_from"]
+    md = loop.store.text(cand["version"])
+    rules = [l for l in md.splitlines() if l.startswith("- ")]
+    own = {a: ["- Do a.", "- Do c."], b: ["- Do b.", "- Do c."]}
+    assert rules == own[first] + [r for r in own[second] if r not in own[first]]
+    assert md.startswith(f"# Playbook v{cand['version']}") and ("First list." if first == a else "Other list.") in md
+    node = loop.store.node(cand["version"])
+    assert node["merged_from"] == [first, second] and node["diagnosis"] == f"merge of v{first} and v{second}"
+    assert loop.merge_pair(first, loop.store.win_sets()) is None      # the only pair is already merged
+
+
+def test_parallel_scoring_keeps_task_order(packs, tmp_path):
+    seq = _loop(packs, tmp_path / "seq", workers=1)
+    par = _loop(packs, tmp_path / "par", workers=2)
+    idx = list(range(len(par.eval)))
+    s1 = seq.score(seq.eval, idx, 0, tmp_path / "s1")
+    s2 = par.score(par.eval, idx, 0, tmp_path / "s2")
+    assert [r["task_id"] for r in s2["per_task"]] == [t.task_id for t in par.eval]
+    assert s1["per_task"] == s2["per_task"] and s1["mean"] == s2["mean"]
