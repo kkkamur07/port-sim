@@ -145,7 +145,7 @@ class ChatAgent:
                         what_if = {"raw": result}
         final = next((m for m in reversed(new) if isinstance(m, AIMessage) and _text(m.content).strip()), None)
         answer = _text(final.content).strip() if final is not None else "I could not produce an answer."
-        answer = re.sub(r"\s*[—–]\s*", ", ", answer)   # no dashes as punctuation in the demo
+        answer = re.sub(r"\s*[\u2014\u2013]\s*", ", ", answer)   # no dashes as punctuation in the demo
         links = _links(steps, episode)
         return {"answer": answer,
                 "steps": [{k: s[k] for k in ("tool", "args", "result_preview")} for s in steps],
