@@ -19,8 +19,8 @@
   --warn: #B8780F;
   --warn-soft: rgba(184, 120, 15, 0.22);
   --bad: #B3261E;
-  --sans: "Schibsted Grotesk", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --sans: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   --top: 56px;
   --bottom: 48px;
   --panel: 360px;
@@ -72,7 +72,7 @@
 }
 
 * { box-sizing: border-box; }
-html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); color: var(--text); font: 13px/1.4 var(--sans); }
+html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); color: var(--text); font: 13px/1.45 var(--sans); }
 #scene { position: fixed; inset: 0; }
 #scene canvas { display: block; }
 .hidden { display: none !important; }
@@ -111,7 +111,7 @@ kbd { font: 500 10px/1 var(--mono); color: var(--muted); border: 1px solid var(-
   border-bottom: 1px solid var(--line);
 }
 .wordmark { display: flex; align-items: baseline; gap: 12px; white-space: nowrap; }
-.wm-name { font-weight: 700; font-size: 16px; letter-spacing: -0.01em; }
+.wm-name { font-weight: 600; font-size: 16px; letter-spacing: -0.01em; }
 .wm-sub { color: var(--muted); font-size: 13px; }
 .now { font-size: 13px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 640px; }
 .now b { font-weight: 600; }
@@ -137,7 +137,7 @@ kbd { font: 500 10px/1 var(--mono); color: var(--muted); border: 1px solid var(-
   border: 1px solid var(--line-strong); border-radius: 4px;
 }
 .menu.menu-up { top: auto; bottom: calc(100% + 8px); }
-.menu-label { font: 600 10px/1 var(--mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-top: 4px; }
+.menu-label { font: 600 10.5px/1 var(--mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-top: 4px; }
 .menu select { height: 32px; padding: 0 8px; background: transparent; border: 1px solid var(--line-strong); border-radius: 4px; }
 .menu select option { background: var(--paper); color: var(--text); }
 .seg { display: grid; grid-template-columns: repeat(3, 1fr); border: 1px solid var(--line-strong); border-radius: 4px; overflow: hidden; }
@@ -178,7 +178,7 @@ kbd { font: 500 10px/1 var(--mono); color: var(--muted); border: 1px solid var(-
 }
 .l-sec { padding: 16px; border-bottom: 1px solid var(--line); }
 .l-sec:last-child { border-bottom: 0; }
-.kicker, .sec-title { font: 600 10px/1 var(--mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+.kicker, .sec-title { font: 600 10.5px/1 var(--mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
 .sec-title { margin-bottom: 12px; }
 .sec-title span { margin-left: 8px; color: var(--accent); }
 .headline { display: flex; align-items: baseline; gap: 12px; margin-top: 8px; }
@@ -231,15 +231,16 @@ kbd { font: 500 10px/1 var(--mono); color: var(--muted); border: 1px solid var(-
   border-top: 1px solid var(--line);
 }
 .transport-inner { height: 100%; display: flex; align-items: center; gap: 12px; padding: 0 16px; }
-.play-btn { width: 64px; height: 32px; background: var(--text); color: var(--bg); border: 0; border-radius: 4px; font-weight: 600; }
+.play-btn { width: 64px; height: 32px; padding: 0; background: var(--text); color: var(--bg); border: 0; border-radius: 4px; font: 500 13px/32px var(--sans); }
 .speeds { display: flex; }
-.speeds button { height: 32px; padding: 0 8px; background: transparent; border: 0; color: var(--faint); font: 500 12px/1 var(--mono); }
-.speeds button.on { color: var(--text); }
+.speeds button { height: 32px; padding: 0 8px; background: transparent; border: 0; color: var(--muted); font: 500 12px/32px var(--mono); letter-spacing: 0.02em; font-variant-numeric: tabular-nums; }
+.speeds button:hover { color: var(--text); }
+.speeds button.on { color: var(--text); font-weight: 600; }
 .scrub-container { position: relative; flex: 1; min-width: 80px; height: 32px; display: flex; align-items: center; }
 #scrub { width: 100%; margin: 0; accent-color: var(--text); background: transparent; }
 .scrub-markers { position: absolute; left: 0; right: 0; top: 4px; height: 4px; pointer-events: none; }
 .scrub-markers > * { position: absolute; top: 0; height: 4px; }
-.t-label { font-size: 12px; color: var(--muted); white-space: nowrap; min-width: 112px; text-align: right; }
+.t-label { height: 32px; font: 500 12px/32px var(--mono); font-variant-numeric: tabular-nums; letter-spacing: 0.04em; color: var(--muted); white-space: nowrap; min-width: 128px; text-align: right; }
 
 /* berth schedule, G only */
 .gantt-drawer {
