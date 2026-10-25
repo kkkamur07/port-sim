@@ -17,7 +17,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from chat.agent import ChatAgent, FakeModel  # noqa: E402
+from chat.agent import ChatAgent, FakeModel, cap_sentences  # noqa: E402
 from chat.server import make_server  # noqa: E402
 from chat.tools import MAX_CHARS, RunTools  # noqa: E402
 
@@ -106,6 +106,19 @@ def test_agent_with_fake_model(run_dir):
     assert out["links"] == [{"episode": 7}]
     assert out["what_if"] is None
     assert out["tokens_in"] == 200 and out["cost_usd"] == 0.0
+
+
+def test_ship_link_carries_berth_hour(run_dir):
+    model = FakeModel(answer="ONE LYRA berthed late.", tool="ship", args={"n": 7, "ship_id_or_name": "ONE LYRA"})
+    out = ChatAgent(run_dir, model=model).ask([{"role": "user", "content": "Why is ONE LYRA late?"}])
+    assert [s["tool"] for s in out["steps"]] == ["ship"]
+    assert out["links"] == [{"episode": 7, "ship_id": 0, "hour": 166}]
+
+
+def test_cap_sentences():
+    text = "One. Two! Three? Four. Five. Six."
+    assert cap_sentences(text) == "One. Two! Three? Four."
+    assert cap_sentences("Cost was 1.5 units. Done.") == "Cost was 1.5 units. Done."
 
 
 def test_server_round_trip(run_dir):
