@@ -299,7 +299,7 @@ body.hud-hidden #transport { right: 0; }
 .ship-card dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin: 0; }
 .ship-card dt { color: var(--muted); }
 .ship-card dd { margin: 0; text-align: right; font-family: var(--mono); }
-.ship-card .late { color: var(--bad); }
+.ship-card .late { color: var(--accent-text); }
 .ship-card .ok { color: var(--ok); }
 
 .hint { position: fixed; left: 16px; bottom: calc(var(--bottom) + 12px); z-index: 20; font-size: 11px; color: var(--muted); pointer-events: none; padding: 4px 8px; background: var(--glass); border-radius: 2px; }
@@ -401,9 +401,8 @@ body.learning-hidden .toast { left: 50vw; }
 .chat-host deep-chat { display: block; height: 100%; }
 /* at most three quick questions, one row that never wraps: full labels, the row slides sideways when they
    do not all fit, with a fade at the right edge */
-.chips { display: flex; flex-wrap: nowrap; gap: 6px; padding-top: 8px; overflow-x: auto; scrollbar-width: none; -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent); }
-.chips::-webkit-scrollbar { display: none; }
-.chips .chip { flex: none; height: 24px; padding: 0 8px; background: transparent; border: 1px solid var(--line); border-radius: 6px; color: var(--muted); font: 400 12px/22px var(--sans); white-space: nowrap; cursor: pointer; }
+.chips { display: flex; flex-wrap: wrap; gap: 4px; padding-top: 8px; }
+.chips .chip { flex: none; height: 24px; padding: 0 6px; background: transparent; border: 1px solid var(--line); border-radius: 6px; color: var(--muted); font: 400 11px/22px var(--sans); white-space: nowrap; cursor: pointer; }
 .chips .chip:hover { color: var(--text); border-color: var(--line-strong); }
 /* offline fallback chat */
 .fb-list { position: absolute; inset: 0 0 48px 0; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; font-size: 13px; }
@@ -515,3 +514,5 @@ body.learning-hidden .toast { left: 50vw; }
 .l-port .prows dt { font: 400 11px/14px var(--sans); color: var(--muted); }
 .l-port .prows dd { margin: 0; font: 400 11px/14px var(--mono); color: var(--text); text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .l-port .k-say { margin-top: 6px; }
+body.has-run .fixture-only { display: none; }
+body:not(.has-replay) #prows { display: none; }
