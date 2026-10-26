@@ -22,8 +22,9 @@ best 784" while a plan from the chat is shown; a pill says LIVE or REPLAY, and t
   else "1 ship working, all on time"). All of it comes from the replay. The crane pool is the replay's
   `crane_pool_by_hour` (the task's `crane_pool`, the `hoot_pool` in hoot hours, less outages). Below the chat input
   one row of three quick questions: "How is the port doing?", "Which ship is the most late?", "What changed last?";
-  with a ship selected they are replaced by "Why is NAME late?" (or "Tell me about NAME" when on time), "Route NAME
-  earlier" and "How is the port doing?" (names cut at 18 characters; the row never wraps and slides sideways).
+  with a ship selected they are replaced by "Why is it late?" (or "Tell me about it" when on time), "Route it
+  earlier" and "How is the port doing?", which fit one row; the question sent keeps the full ship name. The Port now
+  rows stay hidden until the first replay is in.
 - Results: "Optimize my playbook", the result cards (before, after, Accepted or Rejected, the rule; while verifying
   one muted line "Checking on 4 held-out tasks, about N min" and a hairline) and the playbook versions curve
   (accepted lineage in the accent, rejected proposals hollow under their parent). The playbook sheet opens on the
@@ -63,7 +64,9 @@ maps to real-berth-gepa). Esc in the chat returns focus to the scene.
 
 - Double-click `index.html` (works from disk, no build step, no npm). It opens the bundled run; from disk, where fetch is blocked, it falls back to the OICT demo fixture.
 - Or serve the folder: `cd oakland/viewer && python -m http.server 8000`, then open `http://localhost:8000/`.
-- Load another replay with "Load replay JSON" in the "..." menu, or by URL when served: `http://localhost:8000/?replay=fixtures/matson-demo.json`
+- With a run loaded (`?run=`) the "..." menu shows only the Playbook button, Camera and Layers; Terminal, Policy,
+  Replay file and "Back to the learning run" belong to the fixture mode without `?run=`.
+- Load another replay with "Load replay JSON" in the "..." menu (fixture mode), or by URL when served: `http://localhost:8000/?replay=fixtures/matson-demo.json`
   (any URL the browser may fetch). Pages opened from disk cannot fetch files, so use "Load replay JSON" there.
 
 ## Controls and camera presets

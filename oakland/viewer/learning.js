@@ -378,6 +378,7 @@
         S.planRep = null;
         S.followNewest = !userPicked || epNum === S.episodes[S.episodes.length - 1].episode;
         S.api.load(rep);
+        document.body.classList.add("has-replay");
         if (S.live) S.api.play(true);
         S.lastHourKey = "";
         return true;
@@ -699,6 +700,8 @@
         api.fallback();
         toast("No run found at " + esc(S.base) + ", showing a scenario instead");
       }
+      // a loaded run hides the fixture-only menu entries (terminal, policy, replay file, back to the run)
+      if (run.ok) document.body.classList.add("has-run");
       apply(run, !ownReplay);
       if (S.live) setTimeout(poll, POLL_MS);
       // deep link for reviews and screenshots: &ep=9&hour=40&ship=3 (ship id) and &sheet=1 (the playbook sheet)
@@ -721,14 +724,13 @@
     if (!row) return;
     const rep = S.api && S.api.getReplay();
     const s = S.selectedShip != null && rep && rep.ships ? rep.ships[S.selectedShip] : null;
-    const short = (nm) => (nm.length > 18 ? nm.slice(0, 17).trimEnd() + "…" : nm);
     let chips;
     if (S.planRep && rep === S.planRep) chips = [["Back to the run", null, "back"], [STANDING[0], STANDING[0]], [STANDING[2], STANDING[2]]];
     else if (s) {
       const nm = String(s.name || "ship " + s.id);
       chips = [
-        s.late_h > 0 ? ["Why is " + short(nm) + " late?", "Why is " + nm + " late?"] : ["Tell me about " + short(nm), "Tell me about " + nm + "."],
-        ["Route " + short(nm) + " earlier", "Route " + nm + " earlier."],
+        s.late_h > 0 ? ["Why is it late?", "Why is " + nm + " late?"] : ["Tell me about it", "Tell me about " + nm + "."],
+        ["Route it earlier", "Route " + nm + " earlier."],
         [STANDING[0], STANDING[0]],
       ];
     } else chips = STANDING.map((q) => [q, q]);

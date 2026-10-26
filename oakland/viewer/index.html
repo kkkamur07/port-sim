@@ -41,7 +41,7 @@
       <section class="l-port" aria-label="Port now">
         <span id="port-hour" class="label">Port now</span>
         <div id="quay" class="quay" tabindex="0" role="group" aria-label="Quay at the current hour. Left and right arrows move one hour."></div>
-        <dl class="prows">
+        <dl id="prows" class="prows">
           <div><dt>Alongside</dt><dd id="k-along">0</dd></div>
           <div><dt>Waiting at anchor</dt><dd id="k-anchor">0</dd></div>
           <div><dt>Next arrival</dt><dd id="k-next">none</dd></div>
@@ -95,7 +95,7 @@
   <!-- one small card for the ship clicked in the scene or the schedule -->
   <div id="ship-card" class="ship-card hidden" role="dialog" aria-label="Ship"></div>
 
-  <div id="hint" class="hint" aria-hidden="true">Space play · G schedule · L learning · C camera · click a ship</div>
+  <div id="hint" class="hint" aria-hidden="true">Space play · G schedule · click a ship</div>
 
   <!-- berth-time Gantt: hidden by default, G toggles it -->
   <section id="gantt-drawer" class="gantt-drawer collapsed" aria-label="Berth schedule">
@@ -128,23 +128,23 @@
           <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><circle cx="3" cy="8" r="1.5"/><circle cx="8" cy="8" r="1.5"/><circle cx="13" cy="8" r="1.5"/></svg>
         </button>
         <div id="cam-rail" class="menu menu-up hidden" role="dialog" aria-label="Scenario, camera and layers">
-          <label class="menu-label" for="scenario-select">Terminal</label>
-          <select id="scenario-select">
+          <label class="menu-label fixture-only" for="scenario-select">Terminal</label>
+          <select id="scenario-select" class="fixture-only">
             <option value="oict-demo">OICT, berths 55 to 59</option>
             <option value="trapac-demo">TraPac, berths 25 to 33</option>
             <option value="everport-demo">Everport, berths 35 to 37</option>
             <option value="matson-demo">Matson, berths 60 to 63</option>
           </select>
-          <span class="menu-label">Policy</span>
-          <div id="plan-switcher" class="seg" role="group" aria-label="Plan policy">
+          <span class="menu-label fixture-only">Policy</span>
+          <div id="plan-switcher" class="seg fixture-only" role="group" aria-label="Plan policy">
             <button type="button" class="plan-btn on" data-plan="optimal">Optimal</button>
             <button type="button" class="plan-btn" data-plan="greedy">Greedy</button>
             <button type="button" class="plan-btn" data-plan="naive">Naive</button>
           </div>
-          <span class="menu-label">Replay file</span>
-          <label class="btn file-btn">Load replay JSON<input id="file-in" type="file" accept=".json,application/json"></label>
+          <span class="menu-label fixture-only">Replay file</span>
+          <label class="btn file-btn fixture-only">Load replay JSON<input id="file-in" type="file" accept=".json,application/json"></label>
           <button type="button" id="playbook-btn" class="btn ghost">Playbook <kbd>P</kbd></button>
-          <button type="button" id="back-to-run" class="btn ghost">Back to the learning run</button>
+          <button type="button" id="back-to-run" class="btn ghost fixture-only">Back to the learning run</button>
           <span class="menu-label">Camera</span>
           <div class="menu-grid">
             <button type="button" data-cam="satellite">Satellite</button>
