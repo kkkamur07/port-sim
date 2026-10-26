@@ -149,6 +149,43 @@
     0x94a3b8  // Reefer silver/white
   ];
 
+  // Passive ships sail a repeating cycle that is a pure function of sim hour:
+  // moored, cast off (+z), transit along x past the quay end, away, then the reverse.
+  const SAIL_PERIOD_H = 36;
+  const SAIL_CAST_H = 1.5;
+  const SAIL_TRANSIT_H = 2.5;
+  const SAIL_AWAY_H = 6;
+  const SAIL_OFF_Z = 90;
+  const SAIL_YAW = 0.18;
+
+  function sailSmooth(v) {
+    const c = Math.min(1, Math.max(0, v));
+    return c * c * (3 - 2 * c);
+  }
+
+  function placeSailingShip(s, hour) {
+    const away = SAIL_CAST_H + SAIL_TRANSIT_H;
+    const moorEnd = SAIL_PERIOD_H - 2 * away - SAIL_AWAY_H;
+    const u = (((hour + s.cycleOffset) % SAIL_PERIOD_H) + SAIL_PERIOD_H) % SAIL_PERIOD_H;
+    // k: 0 moored .. 1 off the quay .. 2 at sea; mirrored on the way back
+    let k;
+    if (u < moorEnd) k = 0;
+    else if (u < moorEnd + away) k = (u - moorEnd) <= SAIL_CAST_H ? (u - moorEnd) / SAIL_CAST_H : 1 + (u - moorEnd - SAIL_CAST_H) / SAIL_TRANSIT_H;
+    else if (u < moorEnd + away + SAIL_AWAY_H) k = 2;
+    else {
+      const r = SAIL_PERIOD_H - u;
+      k = r <= SAIL_CAST_H ? r / SAIL_CAST_H : 1 + (r - SAIL_CAST_H) / SAIL_TRANSIT_H;
+    }
+    const zOff = SAIL_OFF_Z * sailSmooth(Math.min(1, k));
+    const xs = sailSmooth(k - 1);
+    const yawAmt = k <= 1 ? sailSmooth(k) : 1 - sailSmooth((k - 1) * 2);
+    s.ship.group.position.set(s.baseX + (s.seaX - s.baseX) * xs, 0, s.baseZ + zOff);
+    s.ship.group.rotation.y = s.baseYaw - s.dir * SAIL_YAW * yawAmt;
+    s.ship.group.visible = k < 2;
+    s.ship.setMoored(k === 0);
+    s.ship.setSpeed(k === 0 ? 0 : k < 1 ? 1 + 2 * k : 3 + 3 * Math.sin(Math.PI * Math.min(1, k - 1)));
+  }
+
   function buildSinglePassiveTerminal(key, tf, preset) {
     const rng = mulberry32(preset.seed || 77);
     const termGroup = new THREE.Group();
@@ -362,7 +399,14 @@
         ship.group.rotation.y = Math.PI;
       }
       termGroup.add(ship.group);
-      ships.push({ ship: ship, baseX: sx, baseZ: sz, phase: idx * 1.9 });
+      const dir = idx % 2 === 1 ? -1 : 1;
+      const halfLen = (scfg.length_m || 330) * 0.5;
+      ships.push({
+        ship: ship, name: scfg.name, baseX: sx, baseZ: sz, phase: idx * 1.9,
+        baseYaw: ship.group.rotation.y, dir: dir,
+        seaX: dir > 0 ? L + 520 + halfLen : -520 - halfLen,
+        cycleOffset: (((scfg.seed || idx) * 7.37) % SAIL_PERIOD_H)
+      });
     });
 
     return {
@@ -388,6 +432,7 @@
         for (let i = 0; i < ships.length; i++) {
           const s = ships[i];
           s.ship.setLights(lightsOn);
+          placeSailingShip(s, Number(hour) || 0);
           s.ship.update(dt, hour || 0);
         }
 
@@ -442,11 +487,13 @@
       }
     }
 
-    return {
+    const result = {
       group: group,
       terminals: built,
       update: update
     };
+    window.OakPortLife.lastPassive = result;
+    return result;
   }
 
   // ─────────────────────────────────────────────────────────────────────────
