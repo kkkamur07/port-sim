@@ -515,5 +515,4 @@ body.learning-hidden .toast { left: 50vw; }
 .l-port .prows dt { font: 400 11px/14px var(--sans); color: var(--muted); }
 .l-port .prows dd { margin: 0; font: 400 11px/14px var(--mono); color: var(--text); text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .l-port .k-say { margin-top: 6px; }
-body.has-run .fixture-only { display: none; }
 body:not(.has-replay) #prows { display: none; }
