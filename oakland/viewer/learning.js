@@ -71,7 +71,7 @@
         }
         if (!e.replay) e.replay = "replays/ep" + String(e.episode).padStart(3, "0") + ".json";
       }
-      return { tree: tree, episodes: eps, evalRows: evalText ? R().parseJSONL(evalText) : [], finished: manifest !== null, ok: manifest !== null || lines !== null || evalText !== null };
+      return { tree: tree, episodes: eps, evalRows: evalText ? R().parseJSONL(evalText) : [], ok: manifest !== null || lines !== null || evalText !== null };
     });
   }
 
@@ -379,11 +379,6 @@
         S.followNewest = !userPicked || epNum === S.episodes[S.episodes.length - 1].episode;
         S.api.load(rep);
         document.body.classList.add("has-replay");
-        // a finished run (the loop wrote its manifest) opens on the first ship sailing in, not mid shift
-        if (S.live && S.finished && !userPicked) {
-          const first = Math.min(...(rep.ships || []).map((s) => s.arrival));
-          if (isFinite(first)) S.api.seek(Math.max(0, first - 6));
-        }
         if (S.live) S.api.play(true);
         S.lastHourKey = "";
         return true;
@@ -595,7 +590,6 @@
     S.episodes = run.episodes;
     S.tree = run.tree;
     S.evalRows = run.evalRows;
-    S.finished = !!run.finished;
     renderAll(!first && S.evalRows.filter((r) => r && r.role !== "baseline").length > prevRounds);
     S.animateFrom = null;
     S.lastHourKey = "";

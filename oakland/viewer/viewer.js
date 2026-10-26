@@ -882,8 +882,6 @@
     return m.add(new THREE.Vector3(-d.z, 0, d.x).multiplyScalar(0.18 * side));
   }
 
-  const SEA_LEG_H = 6;   // sim hours to sail in from sea to the anchorage, and out again after departure
-
   function shipKeys(s, beam) {
     const berth = new THREE.Vector3(spanCenter(s.first_section, s.sections), 0, beam / 2 + 5);
     let seaIn, seaOut;
@@ -896,7 +894,7 @@
     }
     const anch = anchorPos(s.id);
     const approach = new THREE.Vector3(lerp(anch.x, berth.x, 0.7), 0, berth.z + 260);
-    const k = [[s.arrival - SEA_LEG_H, seaIn]];
+    const k = [[s.arrival - 2, seaIn]];
     if (s.berth_hour > s.arrival) {
       k.push([s.arrival, anch, bend(seaIn, anch, 1)]);
       if (s.berth_hour - 1 > s.arrival) k.push([s.berth_hour - 1, anch]);
@@ -905,8 +903,7 @@
       k.push([s.berth_hour, berth, anch]);       // straight through the anchorage to the berth
     }
     k.push([s.departure, berth]);
-    k.push([s.departure + SEA_LEG_H, seaOut, new THREE.Vector3(berth.x - 300, 0, berth.z + 600)]);
-    k.anch = anch;
+    k.push([s.departure + 2, seaOut, new THREE.Vector3(berth.x - 300, 0, berth.z + 600)]);
     return k;
   }
 
@@ -940,14 +937,6 @@
       const w = Math.min(1, 3 * Math.sin(Math.PI * u));
       yaw = lerpAngle(0, travel, w);
       speed = Math.sin(Math.PI * u);
-    }
-    // swinging at anchor: a few metres of drift and a few degrees of yaw, about 50 s a cycle at 4x, damped at higher speeds
-    if (p0 === k.anch && p1 === k.anch) {
-      const amp = Math.min(1, 1 / SPEEDS[state.speed]) * Math.min(1, (t - t0) / 0.5, (t1 - t) / 0.5);
-      const ph = (2 * Math.PI * t) / 50 + o.s.id;
-      o.group.position.x += 6 * amp * Math.sin(ph);
-      o.group.position.z += 4 * amp * Math.sin(2 * ph);
-      yaw += 0.07 * amp * Math.sin(ph + 1);
     }
     o.group.rotation.y = yaw;
     return speed;
@@ -1090,7 +1079,7 @@
     const shipStatesForHarbor = [];
     for (const o of world.ships) {
       const speed = placeShip(o, t);
-      const late = o.s.late_h > 0 && t >= o.s.due && t < o.s.departure + SEA_LEG_H;
+      const late = o.s.late_h > 0 && t >= o.s.due && t < o.s.departure + 2;
       const moored = t >= o.s.berth_hour && t < o.s.departure && speed < 0.05;
       const stKey = !o.group.visible ? "departed"
         : moored ? "alongside"
