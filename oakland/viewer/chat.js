@@ -46,15 +46,20 @@
     }));
   }
 
-  // "used improvement, coach_round(2)": tool names and their key argument values, no JSON
+  // "checked: the run, the coach": the tools used, in operator words, no ids or JSON
+  const TOOL_WORDS = {
+    ship: "the ship", port_status: "the quay", late_ships: "late ships", playbook: "the playbook", coach_round: "the coach",
+    what_if: "the checker", make_plan: "the solver", route_ship: "the solver", improvement: "the run", run_status: "the run",
+    reward_rules: "the rules", overview: "the overview", optimize_playbook: "the proposal", verify_proposal: "the proposal",
+    proposal_status: "the proposal",
+  };
   function stepsLine(steps) {
     const seen = [];
     for (const st of steps || []) {
-      const args = st.args && typeof st.args === "object" ? Object.values(st.args).filter((v) => v !== null && v !== "" && typeof v !== "object") : [];
-      const t = st.tool + (args.length === 1 ? "(" + args[0] + ")" : "");
-      if (!seen.includes(t)) seen.push(t);
+      const t = TOOL_WORDS[st.tool] || String(st.tool || "").replace(/_/g, " ");
+      if (t && !seen.includes(t)) seen.push(t);
     }
-    return seen.length ? "used " + seen.join(", ") : "";
+    return seen.length ? "checked: " + seen.join(", ") : "";
   }
 
   let linkStore = [];
@@ -234,13 +239,13 @@
       stop: { container: { default: { backgroundColor: "transparent" } } },
     };
     el.htmlClassUtilities = {
-      "oak-steps": { styles: { default: { color: "var(--muted)", fontSize: "11px", fontFamily: "var(--mono)", marginTop: "6px" } } },
+      "oak-steps": { styles: { default: { color: "var(--muted)", fontSize: "11px", fontFamily: "var(--sans)", marginTop: "6px" } } },
       "oak-links": { styles: { default: { display: "flex", flexWrap: "wrap", gap: "4px", marginTop: "8px" } } },
       "oak-link": {
         events: { click: onLinkClick },
         styles: {
-          default: { font: "500 11px var(--mono)", color: "var(--text)", background: "transparent", border: "1px solid var(--line-strong)", borderRadius: "2px", padding: "3px 6px", cursor: "pointer" },
-          hover: { borderColor: "var(--accent)" },
+          default: { font: "400 11px/22px var(--sans)", height: "24px", color: "var(--muted)", background: "transparent", border: "1px solid var(--line)", borderRadius: "6px", padding: "0 6px", whiteSpace: "nowrap", cursor: "pointer" },
+          hover: { color: "var(--text)", borderColor: "var(--line-strong)" },
         },
       },
       "oak-skel": { styles: { default: { height: "8px", width: "220px", borderRadius: "4px", backgroundColor: "var(--line)", marginTop: "6px" } } },
