@@ -17,7 +17,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 import chat.agent as agent_mod  # noqa: E402
-from chat.agent import ChatAgent, FakeModel, _undash, route  # noqa: E402
+from chat.agent import ChatAgent, FakeModel, _plain, _undash, route  # noqa: E402
 from chat.tools import RunTools  # noqa: E402
 
 SOURCE = ROOT / "dashboard" / "fixtures" / "run-demo"
@@ -58,6 +58,28 @@ def test_unrouted_question_has_no_hint():
 
 def test_undash_keeps_ranges_and_spaced_dashes_become_commas():
     assert _undash("hour 292 \u2014 49 hours late, sections 4\u20136") == "hour 292, 49 hours late, sections 4-6"
+
+
+def _answer(run_dir, text: str) -> str:
+    model = FakeModel(answer=text, tool="ship", args={})
+    return ChatAgent(run_dir, model=model).ask([{"role": "user", "content": "Tell me about this ship"}], episode=9)["answer"]
+
+
+def test_plain_drops_a_leading_episode(run_dir):
+    assert _plain("In episode 9, two ships wait.") == "Two ships wait."
+    assert _answer(run_dir, "In episode 9, two ships wait at hour 103.") == "Two ships wait at hour 103."
+
+
+def test_plain_names_ships_by_name(run_dir):
+    assert _plain("KAUAI SKY (ship 3) berthed at hour 103.") == "KAUAI SKY berthed at hour 103."
+    assert _plain("I moved ship 3 (KAUAI SKY) to section 1.") == "I moved KAUAI SKY to section 1."
+    assert _answer(run_dir, "KAUAI SKY (ship 3) left at hour 119.") == "KAUAI SKY left at hour 119."
+
+
+def test_plain_says_on_time_for_zero_late_hours(run_dir):
+    assert _plain("It departs at hour 119 with 0 late hours.") == "It departs at hour 119 on time."
+    assert _plain("It departs on time at hour 119 with 0 late hours.") == "It departs on time at hour 119."
+    assert _answer(run_dir, "It departs at hour 119 with 0 late hours.") == "It departs at hour 119 on time."
 
 
 def test_reused_name_picks_the_selected_ship_else_the_most_late(run_dir):

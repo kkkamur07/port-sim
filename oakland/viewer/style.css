@@ -412,9 +412,10 @@ body.learning-hidden .toast { left: 50vw; }
 .fb-err { color: var(--bad); }
 .fb-form { position: absolute; left: 0; right: 0; bottom: 0; display: flex; gap: 4px; }
 .fb-form input { flex: 1; height: 36px; padding: 0 10px; background: transparent; border: 1px solid var(--line-strong); border-radius: 4px; color: var(--text); font: 13px var(--sans); }
-.oak-steps { color: var(--muted); font: 11px var(--mono); margin-top: 6px; }
+.oak-steps { color: var(--muted); font: 11px var(--sans); margin-top: 6px; }
 .oak-links { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
-.oak-link { font: 500 11px var(--mono); color: var(--text); background: transparent; border: 1px solid var(--line-strong); border-radius: 2px; padding: 3px 6px; }
+.oak-link { height: 24px; padding: 0 6px; background: transparent; border: 1px solid var(--line); border-radius: 6px; color: var(--muted); font: 400 11px/22px var(--sans); white-space: nowrap; cursor: pointer; }
+.oak-link:hover { color: var(--text); border-color: var(--line-strong); }
 .oak-whatif { margin-top: 8px; padding: 8px 10px; border: 1px solid var(--line-strong); border-radius: 4px; }
 .oak-wi1 { font: 500 12px var(--mono); }
 .oak-wi2 { font: 11px var(--mono); color: var(--muted); margin-top: 4px; }

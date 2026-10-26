@@ -26,7 +26,9 @@ TEMPERATURE = 0.3
 SHORT_PROMPT = ("You are the operator of the Port of Oakland berth plans in this demo (generated ship calls). Answer the "
                 "question in two to four plain sentences in first person, using only the numbers in the data. Never "
                 "write 'I cannot' or 'I do not have': say what the data shows and the nearest thing it answers. The "
-                "first sentence answers the question itself. Nothing is trained: only the playbook text changes. For a "
+                "first sentence answers the question itself. Say 'this week' or 'the current plan', never 'episode N', and "
+                "name ships by name, never '(ship N)', unless the question asks about episodes or ids. Nothing is "
+                "trained: only the playbook text changes. For a "
                 "what-if, compare the hour asked with the ship's arrival and berth and say whether it could work.")
 RECURSION_LIMIT = 25
 DEADLINE_S = 25   # past this the agent stops calling tools and answers from what it has
@@ -57,8 +59,10 @@ ROUTES = [   # (pattern on the question, the tools that answer it), first match 
 ]
 SYSTEM_PROMPT = (
     "You are the Gemini Argon operator of the Port of Oakland berth plans in this demo. Speak in first person, "
-    "plainly, two to four sentences, numbers from tools only, cite episode numbers and playbook versions. Nothing is "
-    "trained; only your playbook changes between episodes. If a tool returns no data, say so.\n\n"
+    "plainly, two to four sentences, numbers from tools only. Say 'this week' or 'the current plan', never 'episode N', "
+    "and name ships by name, never '(ship N)', unless the question asks about episodes or ids; for run questions "
+    "cite playbook versions. Write hours as 'hour 103'. Nothing is trained; only your playbook changes between "
+    "episodes. If a tool returns no data, say so.\n\n"
     "Always call at least one tool before answering. Ship calls are generated, not real records. For 'how is the "
     "port doing', 'what is happening' or 'right now' call port_status (it defaults to the episode and hour on "
     "screen), then late_ships if a ship is late; for 'which ships are late' or 'why is X late' call late_ships. "
@@ -186,6 +190,16 @@ def _undash(text: str) -> str:
     return re.sub(r"\s*[\u2014\u2013]\s*", ", ", text)
 
 
+def _plain(text: str) -> str:
+    """Operator words, not run jargon: no leading "In episode N, ", ships by name only, "on time" for 0 late hours."""
+    text = re.sub(r"^\s*In episode \d+,\s*", "", text)
+    text = text[:1].upper() + text[1:]
+    text = re.sub(r"\bship \d+ \(([^()]+)\)", r"\1", text)
+    text = re.sub(r"\s*\(ship \d+\)", "", text)
+    text = re.sub(r"(\bon time\b[^.]*?),?\s+with 0 late hours\b", r"\1", text)   # already said
+    return re.sub(r"\bwith 0 late hours\b", "on time", text)
+
+
 def _unthought(text: str) -> str:
     """Drop a thinking marker Gemini sometimes leaks at the start of its text ("hthoughtIn episode 9 ...")."""
     return re.sub(r"^\s*[a-z]{0,3}thought(?=[A-Z])", "", text)
@@ -300,7 +314,7 @@ class ChatAgent:
             if text:
                 usage = getattr(msg, "usage_metadata", None) or {}
                 tin, tout = int(usage.get("input_tokens", 0)), int(usage.get("output_tokens", 0))
-                return {**base, "answer": cap_sentences(_undash(text)), "tokens_in": tin, "tokens_out": tout,
+                return {**base, "answer": cap_sentences(_plain(_undash(text))), "tokens_in": tin, "tokens_out": tout,
                         "cost_usd": round(estimate_cost(tin, tout), 6) if self.model_id == MODEL_ID else 0.0,
                         "retried": "slow" if error is None else type(error).__name__}
         except Exception:   # noqa: BLE001, fall through to the answer built in code
@@ -395,7 +409,7 @@ class ChatAgent:
                         what_if = {"raw": result}
         final = next((m for m in reversed(new) if isinstance(m, AIMessage) and _text(m.content).strip()), None)
         answer = _text(final.content).strip() if final is not None else "I could not produce an answer."
-        answer = cap_sentences(_undash(_unthought(answer)))
+        answer = cap_sentences(_plain(_undash(_unthought(answer))))
         links = _links(steps, episode)
         extra: dict[str, Any] = {}
         touched = [st for st in steps if st["tool"] in PROPOSAL_TOOLS]
